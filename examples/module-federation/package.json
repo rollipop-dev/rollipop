@@ -1,0 +1,54 @@
+{
+  "name": "example-module-federation",
+  "private": true,
+  "scripts": {
+    "pod:install": "cd ios && bundle exec pod install",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start:host": "rollipop start --config rollipop.host.config.ts --port 8081",
+    "start:remote": "rollipop start --config rollipop.remote.config.ts --port 8082",
+    "bundle:host": "rollipop bundle --config rollipop.host.config.ts",
+    "bundle:remote": "rollipop bundle --config rollipop.remote.config.ts"
+  },
+  "dependencies": {
+    "@module-federation/runtime": "^2.4.0",
+    "@react-navigation/elements": "^2.9.10",
+    "@react-navigation/native": "^7.1.33",
+    "@react-navigation/native-stack": "^7.14.4",
+    "react": "19.2.3",
+    "react-native": "0.84.1",
+    "react-native-reanimated": "^4.2.2",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-screens": "^4.24.0",
+    "react-native-svg": "^15.15.3",
+    "react-native-worklets": "^0.7.4"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/preset-env": "^7.25.3",
+    "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "20.1.0",
+    "@react-native-community/cli-platform-android": "20.1.0",
+    "@react-native-community/cli-platform-ios": "20.1.0",
+    "@react-native/babel-preset": "0.84.1",
+    "@react-native/typescript-config": "0.84.1",
+    "@rollipop/plugin-module-federation": "workspace:*",
+    "@rollipop/plugin-svg": "workspace:*",
+    "@swc/core": "^1.15.33",
+    "@types/node": "^24",
+    "@types/react": "^19.2.14",
+    "rollipop": "workspace:*",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22.11.0"
+  },
+  "codegenConfig": {
+    "name": "MFExampleSpec",
+    "type": "modules",
+    "jsSrcsDir": "./native",
+    "android": {
+      "javaPackageName": "com.mfexample.scriptmanager"
+    }
+  }
+}

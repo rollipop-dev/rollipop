@@ -266,6 +266,6 @@ function isCustomHMRMessage(message: unknown): message is HMRCustomMessage {
   return true;
 }
 
-globalThis.__rolldown_runtime__ = new ReactNativeDevRuntime();
+globalThis.__rolldown_runtime__ ??= new ReactNativeDevRuntime();
 
 export type { DevRuntime };

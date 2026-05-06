@@ -4064,6 +4064,46 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@module-federation/error-codes@npm:2.4.0":
+  version: 2.4.0
+  resolution: "@module-federation/error-codes@npm:2.4.0"
+  checksum: 10c0/e5df2c65a152284c35448a316f74409baa49f4e4d9d342f99450efc474718177d0e2ad6a05a1b4555928f45d7eb800d6f0266d81a163b740d3d45955733bc74f
+  languageName: node
+  linkType: hard
+
+"@module-federation/runtime-core@npm:2.4.0":
+  version: 2.4.0
+  resolution: "@module-federation/runtime-core@npm:2.4.0"
+  dependencies:
+    "@module-federation/error-codes": "npm:2.4.0"
+    "@module-federation/sdk": "npm:2.4.0"
+  checksum: 10c0/e2bd547db06083f82a221733b37452404e4f01e389ccc0765292ba6eb4b4b5630f3e2f7325774c95f3a1162f97320bfb16865373b1708f2e7cd900c8358ad313
+  languageName: node
+  linkType: hard
+
+"@module-federation/runtime@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@module-federation/runtime@npm:2.4.0"
+  dependencies:
+    "@module-federation/error-codes": "npm:2.4.0"
+    "@module-federation/runtime-core": "npm:2.4.0"
+    "@module-federation/sdk": "npm:2.4.0"
+  checksum: 10c0/f46fb1011a77a000b7481de5f1fc07ae7271f422bac905f6354a59c0ae7bb9d85a94ed9fb46dc0f5b6b4bdb643162125b8a35bc67d4eb745d246199fc802ea6f
+  languageName: node
+  linkType: hard
+
+"@module-federation/sdk@npm:2.4.0, @module-federation/sdk@npm:^2.4.0":
+  version: 2.4.0
+  resolution: "@module-federation/sdk@npm:2.4.0"
+  peerDependencies:
+    node-fetch: ^2.7.0 || ^3.3.2
+  peerDependenciesMeta:
+    node-fetch:
+      optional: true
+  checksum: 10c0/955e74af6ea3933a81f1b775ea7d339cfbd1dffc0389b9df701e6a5d9bf5bf9982bd4768fb1308892e617f1f1c871b79dd052c363d63bbfdb04585793bcf2c2c
+  languageName: node
+  linkType: hard
+
 "@napi-rs/wasm-runtime@npm:^0.2.5":
   version: 0.2.12
   resolution: "@napi-rs/wasm-runtime@npm:0.2.12"
@@ -6681,6 +6721,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@rollipop/plugin-module-federation@workspace:*, @rollipop/plugin-module-federation@workspace:packages/plugin-module-federation":
+  version: 0.0.0-use.local
+  resolution: "@rollipop/plugin-module-federation@workspace:packages/plugin-module-federation"
+  dependencies:
+    "@module-federation/runtime": "npm:^2.4.0"
+    "@module-federation/sdk": "npm:^2.4.0"
+    dedent: "npm:^1.7.2"
+    magic-string: "npm:^0.30.21"
+    rollipop: "workspace:*"
+    typescript: "catalog:"
+    vite-plus: "catalog:"
+  peerDependencies:
+    rollipop: "workspace:*"
+  languageName: unknown
+  linkType: soft
+
 "@rollipop/plugin-rozenite@workspace:*, @rollipop/plugin-rozenite@workspace:packages/plugin-rozenite":
   version: 0.0.0-use.local
   resolution: "@rollipop/plugin-rozenite@workspace:packages/plugin-rozenite"
@@ -7168,9 +7224,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@swc/core-darwin-arm64@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-darwin-arm64@npm:1.15.33"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
 "@swc/core-darwin-x64@npm:1.15.18":
   version: 1.15.18
   resolution: "@swc/core-darwin-x64@npm:1.15.18"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@swc/core-darwin-x64@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-darwin-x64@npm:1.15.33"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
@@ -7182,9 +7252,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@swc/core-linux-arm-gnueabihf@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-arm-gnueabihf@npm:1.15.33"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
 "@swc/core-linux-arm64-gnu@npm:1.15.18":
   version: 1.15.18
   resolution: "@swc/core-linux-arm64-gnu@npm:1.15.18"
+  conditions: os=linux & cpu=arm64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@swc/core-linux-arm64-gnu@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-arm64-gnu@npm:1.15.33"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
@@ -7196,9 +7280,37 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@swc/core-linux-arm64-musl@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-arm64-musl@npm:1.15.33"
+  conditions: os=linux & cpu=arm64 & libc=musl
+  languageName: node
+  linkType: hard
+
+"@swc/core-linux-ppc64-gnu@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-ppc64-gnu@npm:1.15.33"
+  conditions: os=linux & cpu=ppc64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@swc/core-linux-s390x-gnu@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-s390x-gnu@npm:1.15.33"
+  conditions: os=linux & cpu=s390x & libc=glibc
+  languageName: node
+  linkType: hard
+
 "@swc/core-linux-x64-gnu@npm:1.15.18":
   version: 1.15.18
   resolution: "@swc/core-linux-x64-gnu@npm:1.15.18"
+  conditions: os=linux & cpu=x64 & libc=glibc
+  languageName: node
+  linkType: hard
+
+"@swc/core-linux-x64-gnu@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-x64-gnu@npm:1.15.33"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
@@ -7210,9 +7322,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@swc/core-linux-x64-musl@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-linux-x64-musl@npm:1.15.33"
+  conditions: os=linux & cpu=x64 & libc=musl
+  languageName: node
+  linkType: hard
+
 "@swc/core-win32-arm64-msvc@npm:1.15.18":
   version: 1.15.18
   resolution: "@swc/core-win32-arm64-msvc@npm:1.15.18"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@swc/core-win32-arm64-msvc@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-win32-arm64-msvc@npm:1.15.33"
   conditions: os=win32 & cpu=arm64
   languageName: node
   linkType: hard
@@ -7224,9 +7350,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@swc/core-win32-ia32-msvc@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-win32-ia32-msvc@npm:1.15.33"
+  conditions: os=win32 & cpu=ia32
+  languageName: node
+  linkType: hard
+
 "@swc/core-win32-x64-msvc@npm:1.15.18":
   version: 1.15.18
   resolution: "@swc/core-win32-x64-msvc@npm:1.15.18"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@swc/core-win32-x64-msvc@npm:1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core-win32-x64-msvc@npm:1.15.33"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
@@ -7277,6 +7417,58 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@swc/core@npm:^1.15.33":
+  version: 1.15.33
+  resolution: "@swc/core@npm:1.15.33"
+  dependencies:
+    "@swc/core-darwin-arm64": "npm:1.15.33"
+    "@swc/core-darwin-x64": "npm:1.15.33"
+    "@swc/core-linux-arm-gnueabihf": "npm:1.15.33"
+    "@swc/core-linux-arm64-gnu": "npm:1.15.33"
+    "@swc/core-linux-arm64-musl": "npm:1.15.33"
+    "@swc/core-linux-ppc64-gnu": "npm:1.15.33"
+    "@swc/core-linux-s390x-gnu": "npm:1.15.33"
+    "@swc/core-linux-x64-gnu": "npm:1.15.33"
+    "@swc/core-linux-x64-musl": "npm:1.15.33"
+    "@swc/core-win32-arm64-msvc": "npm:1.15.33"
+    "@swc/core-win32-ia32-msvc": "npm:1.15.33"
+    "@swc/core-win32-x64-msvc": "npm:1.15.33"
+    "@swc/counter": "npm:^0.1.3"
+    "@swc/types": "npm:^0.1.26"
+  peerDependencies:
+    "@swc/helpers": ">=0.5.17"
+  dependenciesMeta:
+    "@swc/core-darwin-arm64":
+      optional: true
+    "@swc/core-darwin-x64":
+      optional: true
+    "@swc/core-linux-arm-gnueabihf":
+      optional: true
+    "@swc/core-linux-arm64-gnu":
+      optional: true
+    "@swc/core-linux-arm64-musl":
+      optional: true
+    "@swc/core-linux-ppc64-gnu":
+      optional: true
+    "@swc/core-linux-s390x-gnu":
+      optional: true
+    "@swc/core-linux-x64-gnu":
+      optional: true
+    "@swc/core-linux-x64-musl":
+      optional: true
+    "@swc/core-win32-arm64-msvc":
+      optional: true
+    "@swc/core-win32-ia32-msvc":
+      optional: true
+    "@swc/core-win32-x64-msvc":
+      optional: true
+  peerDependenciesMeta:
+    "@swc/helpers":
+      optional: true
+  checksum: 10c0/7d6771fdf8f1e1d41665fb84b3e718feec05e72ed448b1fbc95d3f9f4c0e80ea495e66e778436201e8ab902478042f517da4bd3f6890127248788d8b985f9a52
+  languageName: node
+  linkType: hard
+
 "@swc/counter@npm:^0.1.3":
   version: 0.1.3
   resolution: "@swc/counter@npm:0.1.3"
@@ -7308,6 +7500,15 @@ __metadata:
   dependencies:
     "@swc/counter": "npm:^0.1.3"
   checksum: 10c0/847a5b20b131281f89d640a7ed4887fb65724807d53d334b230e84b98c21097aa10cd28a074f9ed287a6ce109e443dd4bafbe7dcfb62333d7806c4ea3e7f8aca
+  languageName: node
+  linkType: hard
+
+"@swc/types@npm:^0.1.26":
+  version: 0.1.26
+  resolution: "@swc/types@npm:0.1.26"
+  dependencies:
+    "@swc/counter": "npm:^0.1.3"
+  checksum: 10c0/8449341e8bbff81c14e9918c25421143cf605dff20f70f048847e1f7cede396f8dd73903cbef331a809b4a8e15d0db374a5f6809003e7b440f93df1dd4934d28
   languageName: node
   linkType: hard
 
@@ -11357,6 +11558,39 @@ __metadata:
     react-native-svg-transformer: "npm:^1.5.3"
     react-native-worklets: "npm:^0.7.4"
     react-test-renderer: "npm:19.2.3"
+    rollipop: "workspace:*"
+    typescript: "npm:^6.0.3"
+  languageName: unknown
+  linkType: soft
+
+"example-module-federation@workspace:examples/module-federation":
+  version: 0.0.0-use.local
+  resolution: "example-module-federation@workspace:examples/module-federation"
+  dependencies:
+    "@babel/core": "npm:^7.28.5"
+    "@babel/preset-env": "npm:^7.25.3"
+    "@babel/runtime": "npm:^7.25.0"
+    "@module-federation/runtime": "npm:^2.4.0"
+    "@react-native-community/cli": "npm:20.1.0"
+    "@react-native-community/cli-platform-android": "npm:20.1.0"
+    "@react-native-community/cli-platform-ios": "npm:20.1.0"
+    "@react-native/babel-preset": "npm:0.84.1"
+    "@react-native/typescript-config": "npm:0.84.1"
+    "@react-navigation/elements": "npm:^2.9.10"
+    "@react-navigation/native": "npm:^7.1.33"
+    "@react-navigation/native-stack": "npm:^7.14.4"
+    "@rollipop/plugin-module-federation": "workspace:*"
+    "@rollipop/plugin-svg": "workspace:*"
+    "@swc/core": "npm:^1.15.33"
+    "@types/node": "npm:^24"
+    "@types/react": "npm:^19.2.14"
+    react: "npm:19.2.3"
+    react-native: "npm:0.84.1"
+    react-native-reanimated: "npm:^4.2.2"
+    react-native-safe-area-context: "npm:^5.7.0"
+    react-native-screens: "npm:^4.24.0"
+    react-native-svg: "npm:^15.15.3"
+    react-native-worklets: "npm:^0.7.4"
     rollipop: "workspace:*"
     typescript: "npm:^6.0.3"
   languageName: unknown
