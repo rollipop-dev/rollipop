@@ -140,6 +140,54 @@ describe('resolvePluginConfig', () => {
   });
 });
 
+describe('resolvePluginConfig — dangerously_overrideRolldownOptions composition', () => {
+  it('chains user config and plugin overrides in declaration order', async () => {
+    const calls: string[] = [];
+    const userOverride: NonNullable<Config['dangerously_overrideRolldownOptions']> = (opts) => {
+      calls.push('user');
+      (opts.output as Record<string, unknown>).userMark = true;
+      return opts;
+    };
+    const pluginOverride: NonNullable<Config['dangerously_overrideRolldownOptions']> = (opts) => {
+      calls.push('plugin');
+      (opts.output as Record<string, unknown>).pluginMark = true;
+      return opts;
+    };
+
+    const baseConfig: Config = {
+      dangerously_overrideRolldownOptions: userOverride,
+    };
+
+    const plugin: Plugin = {
+      name: 'plugin-a',
+      config: () => ({ dangerously_overrideRolldownOptions: pluginOverride }),
+    };
+
+    const merged = await resolvePluginConfig(baseConfig, [plugin]);
+
+    expect(typeof merged.dangerously_overrideRolldownOptions).toBe('function');
+    const composed = merged.dangerously_overrideRolldownOptions as (input: {
+      input: object;
+      output: object;
+    }) => Promise<{ input: object; output: Record<string, unknown> }>;
+    const finalOpts = await composed({ input: {}, output: {} });
+    expect(calls).toEqual(['user', 'plugin']);
+    expect(finalOpts.output).toMatchObject({ userMark: true, pluginMark: true });
+  });
+
+  it('uses single override unchanged when only one source defines it', async () => {
+    const single: NonNullable<Config['dangerously_overrideRolldownOptions']> = (opts) => opts;
+    const baseConfig: Config = {};
+    const plugin: Plugin = {
+      name: 'plugin-only',
+      config: () => ({ dangerously_overrideRolldownOptions: single }),
+    };
+
+    const merged = await resolvePluginConfig(baseConfig, [plugin]);
+    expect(merged.dangerously_overrideRolldownOptions).toBe(single);
+  });
+});
+
 describe('invokeConfigResolved', () => {
   it('should invoke plugin config resolved', async () => {
     const resolvedConfig = {

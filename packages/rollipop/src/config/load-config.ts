@@ -48,7 +48,6 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
   const resolvedConfig: ResolvedConfig = {
     ...pluginConfig,
     plugins,
-    dangerously_overrideRolldownOptions: userConfig.dangerously_overrideRolldownOptions,
   };
 
   await invokeConfigResolved(resolvedConfig, plugins);
@@ -80,13 +79,11 @@ export async function resolvePluginConfig(
   baseConfig: Config,
   plugins: Plugin[],
 ): Promise<PluginConfig> {
-  let mergedConfig: PluginConfig = omit(baseConfig, [
-    'plugins',
-    'dangerously_overrideRolldownOptions',
-  ]);
+  let mergedConfig: PluginConfig = omit(baseConfig, ['plugins']);
 
   for (const plugin of plugins) {
     const context = createPluginContext(plugin.name);
+    const overrideBefore = mergedConfig.dangerously_overrideRolldownOptions;
 
     if (typeof plugin.config === 'function') {
       const config = await plugin.config.call(context, mergedConfig);
@@ -95,6 +92,11 @@ export async function resolvePluginConfig(
       }
     } else if (typeof plugin.config === 'object') {
       mergedConfig = mergeConfig(mergedConfig, plugin.config);
+    }
+
+    const overrideAfter = mergedConfig.dangerously_overrideRolldownOptions;
+    if (overrideAfter != null && overrideAfter !== overrideBefore) {
+      context.debug({ message: `set 'dangerously_overrideRolldownOptions'` });
     }
   }
 

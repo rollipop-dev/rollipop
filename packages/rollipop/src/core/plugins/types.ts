@@ -5,11 +5,8 @@ import type { DevServer } from '../../server';
 import type { AsyncResult } from '../types';
 import type { PluginContext } from './context';
 
-export type PluginConfig = Omit<Config, 'plugins' | 'dangerously_overrideRolldownOptions'>;
-export type ResolvedPluginConfig = Omit<
-  ResolvedConfig,
-  'plugins' | 'dangerously_overrideRolldownOptions'
->;
+export type PluginConfig = Omit<Config, 'plugins'>;
+export type ResolvedPluginConfig = Omit<ResolvedConfig, 'plugins'>;
 
 export type Plugin = rolldown.Plugin & {
   config?:

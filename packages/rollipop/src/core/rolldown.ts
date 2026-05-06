@@ -7,6 +7,7 @@ import { invariant, isNotNil, merge } from 'es-toolkit';
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
 import { Polyfill, type ResolvedConfig, type RollipopReactNativeWorkletsConfig } from '../config';
+import { applyOverrideRolldownOptions } from '../config/compose-override';
 import { getGlobalVariables } from '../internal/react-native';
 import { ResolvedBuildOptions } from '../utils/build-options';
 import { resolveHmrConfig } from '../utils/config';
@@ -432,18 +433,14 @@ async function applyDangerouslyOverrideOptionsFinalizer(
   inputOptions: rolldown.InputOptions,
   outputOptions: rolldown.OutputOptions,
 ) {
-  if (typeof config.dangerously_overrideRolldownOptions === 'function') {
-    const resolvedOptions = await config.dangerously_overrideRolldownOptions({
-      input: inputOptions,
-      output: outputOptions,
-    });
-    return resolvedOptions;
+  const override = config.dangerously_overrideRolldownOptions;
+  if (override == null) {
+    return { input: inputOptions, output: outputOptions };
   }
-
-  return {
-    input: merge(inputOptions, config.dangerously_overrideRolldownOptions?.input ?? {}),
-    output: merge(outputOptions, config.dangerously_overrideRolldownOptions?.output ?? {}),
-  };
+  return await applyOverrideRolldownOptions(override, {
+    input: inputOptions,
+    output: outputOptions,
+  });
 }
 
 export function getOverrideOptionsForDevServer(buildOptions: ResolvedBuildOptions) {

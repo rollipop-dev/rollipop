@@ -1,6 +1,7 @@
 import { mergeWith } from 'es-toolkit';
 
 import { Plugin } from '../core/plugins/types';
+import { composeOverrideRolldownOptions } from './compose-override';
 import type { DefaultConfig, ResolvedConfig } from './defaults';
 import type { Config } from './types';
 
@@ -30,6 +31,10 @@ export function mergeConfig(
 
       if (key === 'reporter') {
         return source ?? target;
+      }
+
+      if (key === 'dangerously_overrideRolldownOptions') {
+        return composeOverrideRolldownOptions(target, source);
       }
     });
   }
