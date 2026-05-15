@@ -1,5 +1,12 @@
 # rollipop
 
+## 0.1.0-alpha.19
+
+### Patch Changes
+
+- a54c414: emit sourcemap sources relative to project root
+- 419aa29: bump @rollipop/rolldown to 1.0.1
+
 ## 0.1.0-alpha.18
 
 ### Patch Changes
