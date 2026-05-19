@@ -8,6 +8,7 @@
     "svg",
     "analyze",
     "reanimated-worklets",
+    "module-federation",
     "reporter",
     "sse",
     "mcp",

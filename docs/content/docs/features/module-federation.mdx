@@ -1,0 +1,137 @@
+---
+title: Module Federation
+---
+
+<Callout type="warn">
+  **Initial implementation.** Module Federation support is an early-stage feature. The public API
+  and the bundle layout may change between releases, and the role model is intentionally narrower
+  than standard Module Federation — see [Roles](#roles) and [Limitations](#limitations). Pin to an
+  exact Rollipop version for reproducible results.
+</Callout>
+
+Module Federation is provided by the [`@rollipop/plugin-module-federation`](https://github.com/leegeunhyeok/rollipop/tree/main/packages/plugin-module-federation) plugin. It wires [`@module-federation/runtime`](https://module-federation.io/) into the host bundle and emits a self-contained IIFE for each remote, with shared dependencies resolved through a host-owned global registry.
+
+## Installation
+
+```sh
+yarn add -D @rollipop/plugin-module-federation
+yarn add @module-federation/runtime
+```
+
+## Roles
+
+A single Rollipop config takes **exactly one role**. Defining both `remotes` and `exposes` throws.
+
+| Role   | Has       | Bundle output                                               |
+| ------ | --------- | ----------------------------------------------------------- |
+| Host   | `remotes` | Normal Rollipop bundle that consumes remotes at runtime.    |
+| Remote | `exposes` | IIFE that registers a federation container on `globalThis`. |
+
+Split a host and a remote into two configs and run them as separate Rollipop processes.
+
+## Host
+
+The host declares the remotes it consumes and the dependencies it shares.
+
+```ts title="rollipop.host.config.ts"
+import { federation } from '@rollipop/plugin-module-federation';
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  entry: 'src/host/index.ts',
+  plugins: [
+    federation({
+      name: 'host_app',
+      remotes: {
+        remote_app: 'remote_app@http://localhost:8082/index.bundle?platform=ios',
+      },
+      shared: {
+        react: { singleton: true, eager: true, requiredVersion: '19.2.3' },
+        'react-native': { singleton: true, eager: true, requiredVersion: '0.84.1' },
+      },
+      runtime: {
+        // Register a `ModuleFederationScriptLoader` on `globalThis.__rollipop_script_loader__`.
+        // Typically delegates to a native TurboModule that does fetch + JSI evaluate.
+        implement: `
+          globalThis.__rollipop_script_loader__ = {
+            async loadScript({ scriptId, url }) {
+              await NativeScriptManager.loadScript(scriptId, { url });
+            },
+          };
+        `,
+      },
+    }),
+  ],
+});
+```
+
+Consume a remote with a dynamic import:
+
+```ts
+const RemoteNavigator = React.lazy(() =>
+  import('remote_app/RemoteNavigator').then((m) => ({ default: m.default ?? m })),
+);
+```
+
+The plugin resolves `import('<remote>/<expose>')` against the federation runtime — no native `import()` evaluation happens at runtime.
+
+## Remote
+
+The remote declares the modules it exposes.
+
+```ts title="rollipop.remote.config.ts"
+import { federation } from '@rollipop/plugin-module-federation';
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  entry: 'src/remote/index.ts',
+  plugins: [
+    federation({
+      name: 'remote_app',
+      exposes: {
+        './RemoteNavigator': './src/remote/exposed/RemoteNavigator.tsx',
+      },
+      shared: {
+        react: { singleton: true, requiredVersion: '19.2.3' },
+        'react-native': { singleton: true, requiredVersion: '0.84.1' },
+      },
+    }),
+  ],
+});
+```
+
+The bundle is emitted as an IIFE. Each shared dependency import is replaced with a stub that reads from the host's `globalThis.__rollipop_shared__` registry. Rollipop's prelude / polyfills are skipped because the host has already initialized the React Native runtime.
+
+## Script loader contract
+
+React Native cannot fetch and evaluate a remote bundle on its own. The host registers a loader implementation on `globalThis.__rollipop_script_loader__`, typically delegating to a native TurboModule:
+
+```ts
+export interface ModuleFederationScriptLoader {
+  loadScript(args: { scriptId: string; url: string; parentUrl?: string }): Promise<void>;
+}
+```
+
+The plugin's federation runtime adapter delegates `loadEntry` to it. After the script is evaluated the container is read back from `globalThis[<entryGlobalName>]`.
+
+## Globals exposed at runtime
+
+| Global                       | Owner  | Purpose                                                             |
+| ---------------------------- | ------ | ------------------------------------------------------------------- |
+| `__rollipop_script_loader__` | user   | `ModuleFederationScriptLoader` implementation.                      |
+| `__rollipop_shared__`        | host   | Shared dependency registry. Lazily populated; missing keys throw.   |
+| `__rollipop_load_remote__`   | plugin | `(id: string) => Promise<unknown>` — wraps federation `loadRemote`. |
+
+## Limitations
+
+- A single config cannot define both `remotes` and `exposes`. This is a **current-implementation
+  limitation**, not an inherent Module Federation rule. Standard (web) Module Federation lets one
+  build both `expose` modules and `consume` remotes; that bidirectional / chained-federation model
+  is **not supported yet** — lifting it requires emitting the federation container as a separate
+  artifact from the app bundle, which is not implemented at this stage.
+- React Native does not support native `import()`; remote modules are consumed through dynamic
+  `import('<remote>/<expose>')`, which the plugin rewires to the federation runtime.
+- Subpath imports of shared deps (`react/jsx-dev-runtime`, etc.) are bundled into the remote and
+  consume the parent shared instance through `__rollipop_shared__`.
+
+See [`examples/module-federation`](https://github.com/leegeunhyeok/rollipop/tree/main/examples/module-federation) for a working RN 0.84 host + remote setup with a Pure C++/Obj-C++ TurboModule script loader.

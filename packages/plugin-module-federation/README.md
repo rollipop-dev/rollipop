@@ -2,6 +2,19 @@
 
 Module Federation for Rollipop. Wires `@module-federation/runtime` into the host bundle and emits a self-contained IIFE for each remote, with shared dependencies resolved through a host-owned global registry.
 
+## Status
+
+> **Initial implementation.** This plugin is an early-stage feature. The public
+> API and the bundle layout may change, and the role model is intentionally
+> narrower than standard Module Federation — see [Roles](#roles) and
+> [Constraints](#constraints).
+>
+> Notably, a single config takes exactly one role (host **or** remote). Standard
+> (web) Module Federation lets one build both `expose` modules and `consume`
+> remotes; that bidirectional / chained-federation model is **not supported
+> yet**. Lifting it requires emitting the federation container as a separate
+> artifact from the app bundle, which is not implemented at this stage.
+
 ## Roles
 
 A single Rollipop config takes one role. Defining both `remotes` and `exposes` throws.
@@ -104,7 +117,10 @@ The host registers an implementation on `globalThis.__rollipop_script_loader__`.
 
 ## Constraints
 
-- A single config cannot define both `remotes` and `exposes`.
+- A single config cannot define both `remotes` and `exposes` — this is a
+  current-implementation limitation, not an inherent Module Federation rule.
+  Split a host and a remote into two configs and run them as separate Rollipop
+  processes. See [Status](#status).
 - React Native does not support native `import()`. Static imports of remote modules are intentionally not supported — use dynamic `import('<remote>/<expose>')`.
 - Subpath imports of shared deps (`react/jsx-dev-runtime`, etc.) are bundled into the remote and consume the parent shared instance through `__rollipop_shared__`.
 
