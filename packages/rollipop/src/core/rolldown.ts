@@ -313,7 +313,6 @@ function resolveReactNativeBuiltinPluginConfig(
     envName: config.mode,
     runtimeTarget: resolveRuntimeTarget(config.runtimeTarget),
     worklets: resolveWorkletsConfig(config),
-    plugins: [], // TODO
   };
 }
 
