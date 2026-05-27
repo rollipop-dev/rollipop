@@ -7,7 +7,7 @@ import type { CommandDefinition } from './types';
 import { withErrorHandler } from './utils';
 
 export function createCommand<T>(commandDefinition: CommandDefinition<T>): Command {
-  const { name, description, options, action } = commandDefinition;
+  const { name, description, helpText, options, action } = commandDefinition;
   const command = new Command(name).description(description);
 
   if (options != null) {
@@ -19,6 +19,10 @@ export function createCommand<T>(commandDefinition: CommandDefinition<T>): Comma
         option.default,
       );
     }
+  }
+
+  if (helpText != null) {
+    command.addHelpText('after', `\n${helpText}`);
   }
 
   return command.action(
