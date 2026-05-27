@@ -1,6 +1,7 @@
 export interface CommandDefinition<Options> {
   name: string;
   description: string;
+  helpText?: string;
   options?: CommandOptionDefinition[];
   action: CommandAction<Options>;
 }
