@@ -2,6 +2,7 @@ import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
 import { createTestConfig } from '../../testing/config';
 import { BundlerPool } from '../bundler-pool';
+import { ServerEventBus } from '../events/event-bus';
 
 vitest.mock('../../core/bundler', () => ({
   Bundler: {
@@ -48,10 +49,11 @@ function resetPool() {
 describe('BundlerPool', () => {
   const config = createTestConfig('/root/project');
   const serverOptions = { host: 'localhost', port: 8081 };
+  const createPool = () => new BundlerPool(config, serverOptions, new ServerEventBus());
 
   it('should return a new instance for a new bundle', () => {
     resetPool();
-    const pool = new BundlerPool(config, serverOptions);
+    const pool = createPool();
     const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
 
     expect(instance).toBeDefined();
@@ -60,7 +62,7 @@ describe('BundlerPool', () => {
 
   it('should return the same instance for identical bundle + build options', () => {
     resetPool();
-    const pool = new BundlerPool(config, serverOptions);
+    const pool = createPool();
     const instance1 = pool.get('index.bundle', { platform: 'ios', dev: true });
     const instance2 = pool.get('index.bundle', { platform: 'ios', dev: true });
 
@@ -69,7 +71,7 @@ describe('BundlerPool', () => {
 
   it('should return different instances for different platforms', () => {
     resetPool();
-    const pool = new BundlerPool(config, serverOptions);
+    const pool = createPool();
     const ios = pool.get('index.bundle', { platform: 'ios', dev: true });
     const android = pool.get('index.bundle', { platform: 'android', dev: true });
 
@@ -78,7 +80,7 @@ describe('BundlerPool', () => {
 
   it('should return different instances for different dev modes', () => {
     resetPool();
-    const pool = new BundlerPool(config, serverOptions);
+    const pool = createPool();
     const dev = pool.get('index.bundle', { platform: 'ios', dev: true });
     const prod = pool.get('index.bundle', { platform: 'ios', dev: false });
 
@@ -87,7 +89,7 @@ describe('BundlerPool', () => {
 
   it('should strip leading slash and .bundle suffix from bundle names', () => {
     resetPool();
-    const pool = new BundlerPool(config, serverOptions);
+    const pool = createPool();
     const instance1 = pool.get('/index.bundle', { platform: 'ios', dev: true });
     const instance2 = pool.get('index', { platform: 'ios', dev: true });
 

@@ -5,6 +5,7 @@ import type { Mock } from 'vite-plus/test';
 import { beforeEach, describe, expect, it, vi, vitest } from 'vite-plus/test';
 
 import type { BundlerDevEngine, BundlerPool } from '../../bundler-pool';
+import { ServerEventBus } from '../../events/event-bus';
 import { HMRServer } from '../hmr-server';
 import type { WebSocketClient } from '../server';
 
@@ -65,8 +66,7 @@ function createMockClient(id: number): WebSocketClient {
 }
 
 function createMockDevEngine(): BundlerDevEngine {
-  const emitter = new EventEmitter();
-  return Object.assign(emitter, {
+  return {
     id: 'test-engine',
     ensureInitialized: Promise.resolve(),
     devEngine: {
@@ -74,7 +74,7 @@ function createMockDevEngine(): BundlerDevEngine {
       invalidate: vi.fn().mockResolvedValue([]),
       removeClient: vi.fn().mockResolvedValue(undefined),
     },
-  }) as unknown as BundlerDevEngine;
+  } as unknown as BundlerDevEngine;
 }
 
 function createMockBundlerPool(devEngine: BundlerDevEngine): BundlerPool {
@@ -92,13 +92,13 @@ describe('HMRServer', () => {
   let testable: TestableHMRServer;
   let bundlerPool: BundlerPool;
   let devEngine: BundlerDevEngine;
-  let reportEvent: Mock;
+  let eventBus: ServerEventBus;
 
   beforeEach(() => {
     devEngine = createMockDevEngine();
     bundlerPool = createMockBundlerPool(devEngine);
-    reportEvent = vi.fn();
-    server = new HMRServer({ bundlerPool, reportEvent });
+    eventBus = new ServerEventBus();
+    server = new HMRServer({ bundlerPool, eventBus });
     testable = asTestable(server);
   });
 
@@ -119,18 +119,49 @@ describe('HMRServer', () => {
       });
     });
 
-    it('should handle hmr:log message and report event', () => {
+    it('should receive matching bundler events through the server event bus', async () => {
       const client = createMockClient(1);
+      const message = JSON.stringify({
+        type: 'hmr:connected',
+        platform: 'ios',
+        bundleEntry: 'index.bundle',
+      });
+
+      testable.onMessage(client, Buffer.from(message));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      eventBus.emit({ type: 'watch_change', bundlerId: 'other-engine', id: '/other.ts' });
+      expect(testable.send).not.toHaveBeenCalled();
+
+      eventBus.emit({ type: 'watch_change', bundlerId: 'test-engine', id: '/index.ts' });
+
+      expect(testable.send).toHaveBeenCalledWith(
+        client,
+        JSON.stringify({ type: 'hmr:update-start' }),
+      );
+    });
+
+    it('should handle hmr:log message and emit client log event', async () => {
+      const client = createMockClient(1);
+      const emit = vi.spyOn(eventBus, 'emit');
+      const connectedMessage = JSON.stringify({
+        type: 'hmr:connected',
+        platform: 'ios',
+        bundleEntry: 'index.bundle',
+      });
       const message = JSON.stringify({
         type: 'hmr:log',
         level: 'info',
         data: ['test log'],
       });
 
+      testable.onMessage(client, Buffer.from(connectedMessage));
+      await new Promise((resolve) => setTimeout(resolve, 10));
       testable.onMessage(client, Buffer.from(message));
 
-      expect(reportEvent).toHaveBeenCalledWith({
+      expect(emit).toHaveBeenCalledWith({
         type: 'client_log',
+        bundlerId: 'test-engine',
         level: 'info',
         data: ['test log'],
       });

@@ -17,6 +17,8 @@ event: <event_type>
 data: <json_payload>
 ```
 
+Bundler-scoped events include `bundlerId`. Use this value with `GET /bundlers/<id>/status` when polling the latest state for a specific bundle. Device, server, and cache events do not include `bundlerId` because they are not tied to a single bundler instance.
+
 ### Event Types
 
 #### `bundle_build_started`
@@ -24,7 +26,7 @@ data: <json_payload>
 Emitted when a bundle build starts.
 
 ```json
-{ "type": "bundle_build_started", "id": "<id>" }
+{ "type": "bundle_build_started", "bundlerId": "<bundlerId>" }
 ```
 
 #### `bundle_build_done`
@@ -32,7 +34,12 @@ Emitted when a bundle build starts.
 Emitted when a bundle build completes successfully.
 
 ```json
-{ "type": "bundle_build_done", "id": "<id>", "totalModules": 1270, "duration": 1523.45 }
+{
+  "type": "bundle_build_done",
+  "bundlerId": "<bundlerId>",
+  "totalModules": 1270,
+  "duration": 1523.45
+}
 ```
 
 #### `bundle_build_failed`
@@ -40,7 +47,11 @@ Emitted when a bundle build completes successfully.
 Emitted when a bundle build fails.
 
 ```json
-{ "type": "bundle_build_failed", "id": "<id>", "error": "SyntaxError: Unexpected token" }
+{
+  "type": "bundle_build_failed",
+  "bundlerId": "<bundlerId>",
+  "error": "SyntaxError: Unexpected token"
+}
 ```
 
 #### `watch_change`
@@ -48,7 +59,7 @@ Emitted when a bundle build fails.
 Emitted when a file change is detected.
 
 ```json
-{ "type": "watch_change", "id": "<id>", "file": "src/App.tsx" }
+{ "type": "watch_change", "bundlerId": "<bundlerId>", "file": "src/App.tsx" }
 ```
 
 #### `client_log`
@@ -56,8 +67,10 @@ Emitted when a file change is detected.
 Emitted when the app logs to the console.
 
 ```json
-{ "type": "client_log", "data": ["Hello from the app"] }
+{ "type": "client_log", "bundlerId": "<bundlerId>", "data": ["Hello from the app"] }
 ```
+
+`bundlerId` is included when the HMR client has already been associated with a bundler instance. It may be omitted for logs received before that association is available.
 
 #### `device_connected` / `device_disconnected`
 

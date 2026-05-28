@@ -7,6 +7,8 @@ import type { BuildOptions } from '../../core/types';
 import { BundleResponse } from '../../utils/response';
 import type { BundlerDevEngine } from '../bundler-pool';
 import { bundleRequestSchema, type BundleRequestSchema } from '../common/schema';
+import type { ServerEventBus } from '../events/event-bus';
+import { isBundlerEventForId } from '../events/types';
 
 const routeParamSchema = asConst({
   type: 'object',
@@ -20,6 +22,7 @@ const routeParamSchema = asConst({
 type RouteParams = FromSchema<typeof routeParamSchema>;
 
 export interface ServeBundlePluginOptions {
+  eventBus: ServerEventBus;
   getBundler: (bundleName: string, buildOptions: BuildOptions) => BundlerDevEngine;
 }
 
@@ -31,7 +34,7 @@ function withGetBundleErrorHandler<T>(reply: FastifyReply, task: Promise<T>) {
 
 const plugin = fp<ServeBundlePluginOptions>(
   (fastify, options) => {
-    const { getBundler } = options;
+    const { eventBus, getBundler } = options;
 
     const getBundleOptions = (buildOptions: BundleRequestSchema) => {
       return {
@@ -66,16 +69,17 @@ const plugin = fp<ServeBundlePluginOptions>(
         if (isSupportMultipart) {
           const bundleResponse = new BundleResponse(reply);
 
-          const transformHandler = (_id: string, totalModules = 0, transformedModules: number) => {
-            bundleResponse.writeBundleState(transformedModules, totalModules);
-          };
+          const unsubscribe = eventBus.subscribe((event) => {
+            if (isBundlerEventForId(event, bundler.id) && event.type === 'transform') {
+              bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
+            }
+          });
 
-          bundler.on('transform', transformHandler);
           await bundler
             .getBundle()
             .then((bundle) => bundleResponse.endWithBundle(bundle.code))
             .catch((error) => bundleResponse.endWithError(error))
-            .finally(() => bundler.off('transform', transformHandler));
+            .finally(unsubscribe);
         } else {
           this.log.debug(`client is not support multipart/mixed content: ${accept ?? '<empty>'}`);
           const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());

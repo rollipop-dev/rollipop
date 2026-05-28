@@ -1,13 +1,13 @@
 import fp from 'fastify-plugin';
 
-import type { SSEEventBus } from '../sse/event-bus';
+import type { SSEEventPublisher } from '../sse/event-bus';
 
 export interface SSEPluginOptions {
-  eventBus: SSEEventBus;
+  publisher: SSEEventPublisher;
 }
 
 const plugin = fp<SSEPluginOptions>(
-  (fastify, { eventBus }) => {
+  (fastify, { publisher }) => {
     fastify.get('/sse/events', (request, reply) => {
       const res = reply.raw;
       res.writeHead(200, {
@@ -23,8 +23,8 @@ const plugin = fp<SSEPluginOptions>(
       // Send initial comment to flush headers and confirm connection
       res.write(':ok\n\n');
 
-      eventBus.addClient(res);
-      request.raw.on('close', () => eventBus.removeClient(res));
+      publisher.addClient(res);
+      request.raw.on('close', () => publisher.removeClient(res));
     });
   },
   { name: 'sse' },

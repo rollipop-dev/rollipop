@@ -11,11 +11,11 @@ import type { ResolvedConfig } from '../config';
 import { createPluginContext } from '../core/plugins/context';
 import type { Plugin } from '../core/plugins/types';
 import type { AsyncResult, BuildOptions } from '../core/types';
-import type { ReportableEvent } from '../types';
 import { assertDevServerStatus } from '../utils/dev-server';
 import { BundlerPool } from './bundler-pool';
 import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
 import { errorHandler } from './error';
+import { ServerEventBus } from './events/event-bus';
 import { DevServerLogger, logger } from './logger';
 import { mcp } from './mcp/server';
 import { bundlers } from './middlewares/bundlers';
@@ -25,8 +25,8 @@ import { serveAssets } from './middlewares/serve-assets';
 import { serveBundle } from './middlewares/serve-bundle';
 import { sse } from './middlewares/sse';
 import { symbolicate } from './middlewares/symbolicate';
-import { SSEEventBus } from './sse/event-bus';
-import { toSSEEvent } from './sse/reporter';
+import { toSSEEvent } from './sse/adapter';
+import { SSEEventPublisher } from './sse/event-bus';
 import type { DevServer, DevServerEvents, ServerOptions } from './types';
 import { HMRServer } from './wss/hmr-server';
 import { getWebSocketUpgradeHandler } from './wss/server';
@@ -51,17 +51,16 @@ export async function createDevServer(
     disableRequestLogging: true,
   });
 
-  const sseEventBus = new SSEEventBus();
+  const eventBus = new ServerEventBus();
+  const ssePublisher = new SSEEventPublisher();
+  const reporter = config.reporter;
 
-  const bundlerPool = new BundlerPool(config, { host, port }, (id, event) => {
-    const sseEvent = toSSEEvent(id, event);
-    if (sseEvent) {
-      sseEventBus.emit(sseEvent);
+  eventBus.subscribe((event) => {
+    const sseEvent = toSSEEvent(event);
+    if (sseEvent != null) {
+      ssePublisher.publish(sseEvent);
     }
   });
-  const getBundler = (bundleName: string, buildOptions: BuildOptions) => {
-    return bundlerPool.get(bundleName, merge(options?.buildOptions ?? {}, buildOptions));
-  };
 
   const {
     middleware: communityMiddleware,
@@ -73,6 +72,44 @@ export async function createDevServer(
     host,
     watchFolders: [],
   });
+
+  eventBus.subscribe((event) => {
+    switch (event.type) {
+      case 'bundle_build_started':
+      case 'bundle_build_done':
+      case 'bundle_build_failed':
+      case 'transform':
+      case 'watch_change':
+        reporter?.update(event);
+        break;
+
+      case 'client_log':
+        reportEvent?.(event);
+        reporter?.update(event);
+        break;
+
+      case 'device_connected':
+        emitter.emit('device.connected', { client: event.client });
+        break;
+
+      case 'device_message':
+        emitter.emit('device.message', { client: event.client, data: event.data });
+        break;
+
+      case 'device_error':
+        emitter.emit('device.error', { client: event.client, error: event.error });
+        break;
+
+      case 'device_disconnected':
+        emitter.emit('device.disconnected', { client: event.client });
+        break;
+    }
+  });
+
+  const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
+  const getBundler = (bundleName: string, buildOptions: BuildOptions) => {
+    return bundlerPool.get(bundleName, merge(options?.buildOptions ?? {}, buildOptions));
+  };
 
   const { middleware: devMiddleware, websocketEndpoints } = createDevMiddleware({
     serverBaseUrl,
@@ -94,21 +131,12 @@ export async function createDevServer(
 
   const hmrServer = new HMRServer({
     bundlerPool,
-    reportEvent: (event: ReportableEvent) => {
-      reportEvent?.(event);
-      config.reporter?.update(event);
-    },
+    eventBus,
   })
-    .on('connection', (client) => {
-      emitter.emit('device.connected', { client });
-      sseEventBus.emit({ type: 'device_connected', clientId: client.id });
-    })
-    .on('message', (client, data) => emitter.emit('device.message', { client, data }))
-    .on('error', (client, error) => emitter.emit('device.error', { client, error }))
-    .on('close', (client) => {
-      emitter.emit('device.disconnected', { client });
-      sseEventBus.emit({ type: 'device_disconnected', clientId: client.id });
-    });
+    .on('connection', (client) => eventBus.emit({ type: 'device_connected', client }))
+    .on('message', (client, data) => eventBus.emit({ type: 'device_message', client, data }))
+    .on('error', (client, error) => eventBus.emit({ type: 'device_error', client, error }))
+    .on('close', (client) => eventBus.emit({ type: 'device_disconnected', client }));
 
   await fastify.register(import('@fastify/middie'));
 
@@ -138,12 +166,12 @@ export async function createDevServer(
     .use(requestLogger)
     .use(communityMiddleware)
     .use(devMiddleware)
-    .register(sse, { eventBus: sseEventBus })
-    .register(control, { projectRoot, eventBus: sseEventBus })
+    .register(sse, { publisher: ssePublisher })
+    .register(control, { projectRoot, eventBus })
     .register(bundlers, { bundlerPool })
-    .register(mcp, { projectRoot, eventBus: sseEventBus })
+    .register(mcp, { projectRoot, eventBus })
     .register(symbolicate, { getBundler })
-    .register(serveBundle, { getBundler })
+    .register(serveBundle, { eventBus, getBundler })
     .register(serveAssets, {
       projectRoot,
       host,
@@ -164,7 +192,7 @@ export async function createDevServer(
 
   await invokePostConfigureServer();
 
-  sseEventBus.emit({ type: 'server_ready', host, port });
+  eventBus.emit({ type: 'server_ready', host, port });
 
   return devServer;
 }

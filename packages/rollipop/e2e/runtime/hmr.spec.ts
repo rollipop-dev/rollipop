@@ -151,6 +151,7 @@ describe('runtime e2e: HMR', () => {
     );
 
     const watch = await watchPromise;
+    expect(watch.bundlerId).toBeTruthy();
     expect(watch.file).toContain('App.tsx');
 
     await updateStartPromise;
@@ -202,6 +203,7 @@ export function App() {
     );
 
     const failed = await failedPromise;
+    expect(failed.bundlerId).toBeTruthy();
     expect(typeof failed.error).toBe('string');
     expect(failed.error.length).toBeGreaterThan(0);
 

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import type { Mock } from 'vite-plus/test';
 import { afterEach, beforeEach, describe, expect, it, vi, vitest } from 'vite-plus/test';
 
-import type { SSEEventBus } from '../sse/event-bus';
+import type { ServerEventBus } from '../events/event-bus';
 
 vitest.mock('../logger', () => ({
   logger: {
@@ -58,7 +58,7 @@ function registerControlRoutes(projectRoot: string, eventBus: MockEventBus) {
 
   (control as PluginFn)(
     fastify,
-    { projectRoot, eventBus: eventBus as unknown as SSEEventBus },
+    { projectRoot, eventBus: eventBus as unknown as ServerEventBus },
     () => {},
   );
 

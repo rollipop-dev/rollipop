@@ -1,11 +1,11 @@
 import fp from 'fastify-plugin';
 
 import { resetCache } from '../../utils/reset-cache';
-import type { SSEEventBus } from '../sse/event-bus';
+import type { ServerEventBus } from '../events/event-bus';
 
 export interface ControlPluginOptions {
   projectRoot: string;
-  eventBus: SSEEventBus;
+  eventBus: ServerEventBus;
 }
 
 const plugin = fp<ControlPluginOptions>(

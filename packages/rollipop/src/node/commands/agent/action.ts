@@ -33,6 +33,7 @@ export function getAgentGuide(baseUrl = defaultBaseUrl): string {
     '  Event format:',
     '    event: <event_type>',
     '    data: <json_payload>',
+    '    bundler-scoped events include bundlerId',
     '',
     '  Useful event types:',
     '    bundle_build_started, bundle_build_done, bundle_build_failed',

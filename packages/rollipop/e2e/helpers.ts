@@ -17,6 +17,7 @@ import { Bundler } from '../src/core/bundler';
 import type { Plugin } from '../src/core/plugins/types';
 import { resolveRolldownOptions } from '../src/core/rolldown';
 import type { BuildOptions } from '../src/core/types';
+import type { Reporter } from '../src/types';
 
 export const FIXTURES_DIR = path.resolve(import.meta.dirname, '__fixtures__');
 
@@ -42,6 +43,7 @@ export interface TestConfigOptions {
   envFile?: string;
   envPrefix?: string;
   experimental?: Partial<NonNullable<Config['experimental']>>;
+  reporter?: Reporter;
   dangerously_overrideRolldownOptions?: Config['dangerously_overrideRolldownOptions'];
 }
 
@@ -91,7 +93,7 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       nativeTransformPipeline: false,
       ...options.experimental,
     },
-    reporter: undefined,
+    reporter: options.reporter,
     terminal: { status: 'none' },
     envDir: options.envDir ?? root,
     envFile: options.envFile ?? DEFAULT_ENV_FILE,

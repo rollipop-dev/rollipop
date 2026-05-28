@@ -43,6 +43,8 @@ Returns a JSON array of events collected during the listening period. Event type
 - `device_connected` / `device_disconnected` — device lifecycle
 - `cache_reset` — cache cleared via control API
 
+Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `client_log` when the HMR client is associated with a bundler instance. Device, server, and cache events omit `bundlerId`.
+
 See [SSE](/docs/features/sse) for the full event type reference.
 
 ## Polling bundler state
@@ -53,7 +55,7 @@ In addition to the MCP tools above, the dev server exposes a plain HTTP endpoint
 GET /bundlers/<id>/status
 ```
 
-The `<id>` is the same bundler id carried by build-lifecycle SSE events. The response is a point-in-time snapshot:
+The `<id>` is the same value carried as `bundlerId` by bundler-scoped SSE/MCP events. The response is a point-in-time snapshot:
 
 ```json
 { "id": "<id>", "status": "build-done" }

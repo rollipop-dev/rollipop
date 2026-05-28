@@ -39,8 +39,8 @@ describe('runtime e2e: lifecycle', () => {
       ]);
 
       expect(res.status).toBe(200);
-      expect(startedEvent.id).toBeTruthy();
-      expect(doneEvent.id).toBe(startedEvent.id);
+      expect(startedEvent.bundlerId).toBeTruthy();
+      expect(doneEvent.bundlerId).toBe(startedEvent.bundlerId);
       expect(doneEvent.totalModules).toBeGreaterThan(0);
       expect(doneEvent.duration).toBeGreaterThanOrEqual(0);
     } finally {
@@ -94,6 +94,7 @@ describe('runtime e2e: lifecycle', () => {
       );
       client.sendLog('info', marker, { count: 42 });
       const event = await logPromise;
+      expect(event.bundlerId).toBeTruthy();
       expect(event.data).toEqual(expect.arrayContaining([expect.stringContaining(marker)]));
     } finally {
       await client.close();
@@ -115,10 +116,10 @@ describe('runtime e2e: lifecycle', () => {
           fetch(`${ts.baseUrl}/index.bundle?platform=android&dev=true`),
         ]);
 
-        const res = await fetch(`${ts.baseUrl}/bundlers/${doneEvent.id}/status`);
+        const res = await fetch(`${ts.baseUrl}/bundlers/${doneEvent.bundlerId}/status`);
         expect(res.status).toBe(200);
         expect(res.headers.get('Content-Type')).toContain('application/json');
-        expect(await res.json()).toEqual({ id: doneEvent.id, status: 'build-done' });
+        expect(await res.json()).toEqual({ id: doneEvent.bundlerId, status: 'build-done' });
       } finally {
         sse.close();
       }

@@ -3,7 +3,7 @@ import { type ServerResponse } from 'node:http';
 
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { SSEEventBus } from '../event-bus';
+import { SSEEventPublisher } from '../event-bus';
 import type { SSEEvent } from '../types';
 
 function createMockResponse(): ServerResponse & { chunks: string[] } {
@@ -18,34 +18,34 @@ function createMockResponse(): ServerResponse & { chunks: string[] } {
   } as unknown as ServerResponse & { chunks: string[] };
 }
 
-describe('SSEEventBus', () => {
-  let bus: SSEEventBus;
+describe('SSEEventPublisher', () => {
+  let publisher: SSEEventPublisher;
 
   beforeEach(() => {
-    bus = new SSEEventBus();
+    publisher = new SSEEventPublisher();
   });
 
   describe('addClient / removeClient', () => {
     it('should track client count', () => {
       const res = createMockResponse();
 
-      expect(bus.clientCount).toBe(0);
-      bus.addClient(res);
-      expect(bus.clientCount).toBe(1);
-      bus.removeClient(res);
-      expect(bus.clientCount).toBe(0);
+      expect(publisher.clientCount).toBe(0);
+      publisher.addClient(res);
+      expect(publisher.clientCount).toBe(1);
+      publisher.removeClient(res);
+      expect(publisher.clientCount).toBe(0);
     });
   });
 
-  describe('emit', () => {
+  describe('publish', () => {
     it('should send SSE-formatted message to all subscribed clients', () => {
       const res1 = createMockResponse();
       const res2 = createMockResponse();
-      bus.addClient(res1);
-      bus.addClient(res2);
+      publisher.addClient(res1);
+      publisher.addClient(res2);
 
       const event: SSEEvent = { type: 'server_ready', host: 'localhost', port: 8081 };
-      bus.emit(event);
+      publisher.publish(event);
 
       const expected = `event: server_ready\ndata: ${JSON.stringify(event)}\n\n`;
       expect(res1.write).toHaveBeenCalledWith(expected);
@@ -54,59 +54,41 @@ describe('SSEEventBus', () => {
 
     it('should not send to removed clients', () => {
       const res = createMockResponse();
-      bus.addClient(res);
-      bus.removeClient(res);
+      publisher.addClient(res);
+      publisher.removeClient(res);
 
-      bus.emit({ type: 'bundle_build_started', id: 'ios-true' });
+      publisher.publish({ type: 'bundle_build_started', bundlerId: 'ios-true' });
 
       expect(res.write).not.toHaveBeenCalled();
     });
 
     it('should skip closed connections', () => {
       const res = createMockResponse();
-      bus.addClient(res);
+      publisher.addClient(res);
       (res as unknown as { closed: boolean }).closed = true;
 
-      bus.emit({ type: 'bundle_build_started', id: 'ios-true' });
+      publisher.publish({ type: 'bundle_build_started', bundlerId: 'ios-true' });
 
       expect(res.write).not.toHaveBeenCalled();
     });
 
     it('should format different event types correctly', () => {
       const res = createMockResponse();
-      bus.addClient(res);
+      publisher.addClient(res);
 
-      bus.emit({ type: 'bundle_build_done', id: 'ios-true', totalModules: 42, duration: 1500 });
-      bus.emit({ type: 'watch_change', id: 'ios-true', file: 'src/App.tsx' });
+      publisher.publish({
+        type: 'bundle_build_done',
+        bundlerId: 'ios-true',
+        totalModules: 42,
+        duration: 1500,
+      });
+      publisher.publish({ type: 'watch_change', bundlerId: 'ios-true', file: 'src/App.tsx' });
 
       expect(res.chunks).toHaveLength(2);
       expect(res.chunks[0]).toContain('event: bundle_build_done');
       expect(res.chunks[0]).toContain('"totalModules":42');
       expect(res.chunks[1]).toContain('event: watch_change');
       expect(res.chunks[1]).toContain('"file":"src/App.tsx"');
-    });
-
-    it('should notify listeners registered via collect', () => {
-      const events: SSEEvent[] = [];
-      bus.collect(events);
-
-      bus.emit({ type: 'bundle_build_started', id: 'ios-true' });
-      bus.emit({ type: 'bundle_build_done', id: 'ios-true', totalModules: 10, duration: 100 });
-
-      expect(events).toHaveLength(2);
-      expect(events[0].type).toBe('bundle_build_started');
-      expect(events[1].type).toBe('bundle_build_done');
-    });
-
-    it('should stop collecting after unsubscribe', () => {
-      const events: SSEEvent[] = [];
-      const unsubscribe = bus.collect(events);
-
-      bus.emit({ type: 'bundle_build_started', id: 'ios-true' });
-      unsubscribe();
-      bus.emit({ type: 'bundle_build_done', id: 'ios-true', totalModules: 10, duration: 100 });
-
-      expect(events).toHaveLength(1);
     });
   });
 });

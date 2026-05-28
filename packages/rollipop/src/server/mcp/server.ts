@@ -7,12 +7,13 @@ import fp from 'fastify-plugin';
 import { z } from 'zod';
 
 import { resetCache } from '../../utils/reset-cache';
-import type { SSEEventBus } from '../sse/event-bus';
+import type { ServerEventBus } from '../events/event-bus';
+import { toSSEEvent } from '../sse/adapter';
 import type { SSEEvent } from '../sse/types';
 
 export interface McpPluginOptions {
   projectRoot: string;
-  eventBus: SSEEventBus;
+  eventBus: ServerEventBus;
 }
 
 interface SessionEntry {
@@ -46,7 +47,7 @@ function createMcpServer(options: McpPluginOptions): McpServer {
     {
       title: 'Get Build Events',
       description:
-        'Subscribe to bundler events for a duration. Returns all events (build start/done/fail, watch changes, client logs, device connections) collected during the wait period.',
+        'Subscribe to bundler events for a duration. Returns all events (build start/done/fail, watch changes, client logs, device connections) collected during the wait period. Bundler-scoped events include bundlerId.',
       inputSchema: {
         duration: z
           .number()
@@ -58,7 +59,12 @@ function createMcpServer(options: McpPluginOptions): McpServer {
     },
     async ({ duration }) => {
       const events: SSEEvent[] = [];
-      const unsubscribe = eventBus.collect(events);
+      const unsubscribe = eventBus.subscribe((event) => {
+        const sseEvent = toSSEEvent(event);
+        if (sseEvent != null) {
+          events.push(sseEvent);
+        }
+      });
 
       await new Promise((resolve) => setTimeout(resolve, duration));
       unsubscribe();

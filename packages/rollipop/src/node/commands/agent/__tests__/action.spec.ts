@@ -28,5 +28,6 @@ describe('agent command', () => {
     expect(guide).toContain('get_build_events({ "duration": 10000 })');
     expect(guide).toContain('reset_cache()');
     expect(guide).toContain('/bundlers/<id>/status');
+    expect(guide).toContain('bundler-scoped events include bundlerId');
   });
 });

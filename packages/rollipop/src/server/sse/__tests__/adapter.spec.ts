@@ -1,0 +1,87 @@
+import { describe, expect, it } from 'vite-plus/test';
+
+import type { ReportableEvent } from '../../../types';
+import type { IdentifiedReportableEvent } from '../../events/types';
+import { toSSEEvent } from '../adapter';
+
+describe('toSSEEvent', () => {
+  const bundlerId = 'ios-true';
+
+  it('should convert bundle_build_started with bundlerId', () => {
+    const event: IdentifiedReportableEvent = { type: 'bundle_build_started', bundlerId };
+
+    expect(toSSEEvent(event)).toEqual({
+      type: 'bundle_build_started',
+      bundlerId: 'ios-true',
+    });
+  });
+
+  it('should convert bundle_build_done with bundlerId', () => {
+    const event: IdentifiedReportableEvent = {
+      type: 'bundle_build_done',
+      bundlerId,
+      totalModules: 100,
+      duration: 500,
+    };
+
+    expect(toSSEEvent(event)).toEqual({
+      type: 'bundle_build_done',
+      bundlerId: 'ios-true',
+      totalModules: 100,
+      duration: 500,
+    });
+  });
+
+  it('should serialize Error to string for bundle_build_failed', () => {
+    const event: IdentifiedReportableEvent = {
+      type: 'bundle_build_failed',
+      bundlerId,
+      error: new Error('SyntaxError: Unexpected token'),
+    };
+
+    expect(toSSEEvent(event)).toEqual({
+      type: 'bundle_build_failed',
+      bundlerId: 'ios-true',
+      error: 'SyntaxError: Unexpected token',
+    });
+  });
+
+  it('should return null for transform events', () => {
+    const event: IdentifiedReportableEvent = {
+      type: 'transform',
+      bundlerId,
+      id: 'src/App.tsx',
+      totalModules: 100,
+      transformedModules: 50,
+    };
+
+    expect(toSSEEvent(event)).toBeNull();
+  });
+
+  it('should convert watch_change with bundlerId and rename fields', () => {
+    const event: IdentifiedReportableEvent = { type: 'watch_change', bundlerId, id: 'src/App.tsx' };
+
+    expect(toSSEEvent(event)).toEqual({
+      type: 'watch_change',
+      bundlerId: 'ios-true',
+      file: 'src/App.tsx',
+    });
+  });
+
+  it('should convert client_log without id', () => {
+    const event: ReportableEvent = {
+      type: 'client_log',
+      level: 'error',
+      data: ['Something went wrong'],
+    };
+
+    expect(toSSEEvent(event)).toEqual({
+      type: 'client_log',
+      data: ['Something went wrong'],
+    });
+  });
+
+  it('should pass through non-reporter server events', () => {
+    expect(toSSEEvent({ type: 'cache_reset' })).toEqual({ type: 'cache_reset' });
+  });
+});

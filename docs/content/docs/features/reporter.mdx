@@ -15,6 +15,7 @@ interface Reporter {
 ```
 
 The `update` method is called whenever a reportable event occurs during the build process.
+When an event comes from a dev-server bundler instance, it may include `bundlerId`, which identifies the bundler that produced the event.
 
 ## Event Types
 
@@ -27,6 +28,7 @@ Emitted when a bundle build starts.
 ```ts
 {
   type: 'bundle_build_started';
+  bundlerId?: string;
 }
 ```
 
@@ -37,6 +39,7 @@ Emitted when a bundle build completes successfully.
 ```ts
 {
   type: 'bundle_build_done';
+  bundlerId?: string;
 }
 ```
 
@@ -47,6 +50,7 @@ Emitted when a bundle build fails with an error.
 ```ts
 {
   type: 'bundle_build_failed';
+  bundlerId?: string;
   error: Error;
 }
 ```
@@ -60,6 +64,7 @@ Emitted during module transformation, providing progress information.
 ```ts
 {
   type: 'transform';
+  bundlerId?: string;
   id: string; // Module ID being transformed
   totalModules: number | undefined; // Total number of modules
   transformedModules: number; // Number of modules transformed
@@ -75,6 +80,7 @@ Emitted when a file change is detected in watch mode.
 ```ts
 {
   type: 'watch_change';
+  bundlerId?: string;
   id: string; // Path of the changed file
 }
 ```
@@ -88,6 +94,7 @@ Emitted when the client application logs to the console. This is compatible with
 ```ts
 {
   type: 'client_log';
+  bundlerId?: string;
   level: 'trace' | 'info' | 'warn' | 'log' | 'group' | 'groupCollapsed' | 'groupEnd' | 'debug' | 'error';
   data: any[];  // Arguments passed to console method
 }

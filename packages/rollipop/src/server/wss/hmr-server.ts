@@ -2,7 +2,6 @@ import type * as rolldownExperimental from '@rollipop/rolldown/experimental';
 import { invariant } from 'es-toolkit';
 import type * as ws from 'ws';
 
-import type { ReportableEvent } from '../../types';
 import type {
   HMRClientMessage,
   HMRCustomMessage,
@@ -10,29 +9,29 @@ import type {
   HMRServerMessage,
 } from '../../types/hmr';
 import type { BundlerDevEngine, BundlerPool } from '../bundler-pool';
+import type { ServerEventBus } from '../events/event-bus';
+import { isBundlerEventForId } from '../events/types';
 import { type WebSocketClient, WebSocketServer } from './server';
 
 export interface HMRServerOptions {
   bundlerPool: BundlerPool;
-  reportEvent: (event: ReportableEvent) => void;
+  eventBus: ServerEventBus;
 }
 
 interface Bindings {
-  hmrUpdates: (updates: rolldownExperimental.BindingClientHmrUpdate[]) => void;
-  watchChange: () => void;
-  buildFailed: (error: Error) => void;
+  unsubscribe: () => void;
 }
 
 export class HMRServer extends WebSocketServer {
   private bundlerPool: BundlerPool;
-  private reportEvent: HMRServerOptions['reportEvent'];
+  private eventBus: ServerEventBus;
   private instances: Map<number, BundlerDevEngine> = new Map();
   private bindings: Map<number, Bindings> = new Map();
 
-  constructor({ bundlerPool, reportEvent }: HMRServerOptions) {
+  constructor({ bundlerPool, eventBus }: HMRServerOptions) {
     super('hmr', { noServer: true });
     this.bundlerPool = bundlerPool;
-    this.reportEvent = reportEvent;
+    this.eventBus = eventBus;
   }
 
   private parseClientMessage(data: ws.RawData) {
@@ -63,39 +62,46 @@ export class HMRServer extends WebSocketServer {
     const existingBindings = this.bindings.get(client.id);
 
     if (existingBindings == null) {
-      const handleHmrUpdates = (updates: rolldownExperimental.BindingClientHmrUpdate[]) => {
-        void this.handleUpdates(client, updates);
-      };
+      const unsubscribe = this.eventBus.subscribe((event) => {
+        if (!isBundlerEventForId(event, instance.id)) {
+          return;
+        }
 
-      const handleWatchChange = () => {
-        this.send(client, JSON.stringify({ type: 'hmr:update-start' } satisfies HMRServerMessage));
-      };
+        switch (event.type) {
+          case 'hmr_updates':
+            void this.handleUpdates(client, event.updates);
+            break;
 
-      const handleBuildFailed = (error: Error) => {
-        this.send(
-          client,
-          JSON.stringify({
-            type: 'hmr:error',
-            payload: {
-              type: 'BuildError',
-              errors: [{ description: error.message }],
-              message: error.message,
-            },
-          } satisfies HMRServerMessage),
-        );
-      };
+          case 'watch_change':
+            this.send(
+              client,
+              JSON.stringify({ type: 'hmr:update-start' } satisfies HMRServerMessage),
+            );
+            break;
 
-      instance.addListener('hmrUpdates', handleHmrUpdates);
-      instance.addListener('watchChange', handleWatchChange);
-      instance.addListener('buildFailed', handleBuildFailed);
-
-      this.bindings.set(client.id, {
-        hmrUpdates: handleHmrUpdates,
-        watchChange: handleWatchChange,
-        buildFailed: handleBuildFailed,
+          case 'bundle_build_failed':
+            this.sendBuildFailed(client, event.error);
+            break;
+        }
       });
+
+      this.bindings.set(client.id, { unsubscribe });
       this.logger.trace(`HMR event binding established (clientId: ${client.id})`);
     }
+  }
+
+  private sendBuildFailed(client: WebSocketClient, error: Error) {
+    this.send(
+      client,
+      JSON.stringify({
+        type: 'hmr:error',
+        payload: {
+          type: 'BuildError',
+          errors: [{ description: error.message }],
+          message: error.message,
+        },
+      } satisfies HMRServerMessage),
+    );
   }
 
   private async handleModuleRegistered(client: WebSocketClient, modules: string[]) {
@@ -197,10 +203,8 @@ export class HMRServer extends WebSocketServer {
     const binding = this.bindings.get(client.id);
     const instance = this.instances.get(client.id);
 
-    if (binding != null && instance != null) {
-      instance.removeListener('hmrUpdates', binding.hmrUpdates);
-      instance.removeListener('watchChange', binding.watchChange);
-      instance.removeListener('buildFailed', binding.buildFailed);
+    if (binding != null) {
+      binding.unsubscribe();
     }
 
     if (instance != null) {
@@ -263,13 +267,16 @@ export class HMRServer extends WebSocketServer {
         void this.handleInvalidate(client, message.moduleId);
         break;
 
-      case 'hmr:log':
-        this.reportEvent({
+      case 'hmr:log': {
+        const instance = this.instances.get(client.id);
+        this.eventBus.emit({
           type: 'client_log',
+          ...(instance != null ? { bundlerId: instance.id } : {}),
           level: message.level,
           data: message.data,
         });
         break;
+      }
     }
   }
 

@@ -9,32 +9,36 @@ export interface Reporter {
   update(event: ReportableEvent): void;
 }
 
+interface OptionalBundlerEvent {
+  bundlerId?: string;
+}
+
 export type ReportableEvent =
-  | {
+  | ({
       type: 'bundle_build_started';
-    }
-  | {
+    } & OptionalBundlerEvent)
+  | ({
       type: 'bundle_build_done';
       totalModules: number;
       duration: number;
-    }
-  | {
+    } & OptionalBundlerEvent)
+  | ({
       type: 'bundle_build_failed';
       error: Error;
-    }
-  | {
+    } & OptionalBundlerEvent)
+  | ({
       type: 'transform';
       id: string;
       totalModules: number | undefined;
       transformedModules: number;
-    }
-  | {
+    } & OptionalBundlerEvent)
+  | ({
       type: 'watch_change';
       id: string;
-    }
+    } & OptionalBundlerEvent)
   | MetroCompatibleClientLogEvent;
 
-type MetroCompatibleClientLogEvent = {
+export type MetroCompatibleClientLogEvent = {
   type: 'client_log';
   level:
     | 'trace'
@@ -53,6 +57,7 @@ type MetroCompatibleClientLogEvent = {
      */
     | 'error';
   data: any[];
+  bundlerId?: string;
 };
 
 export interface PackageJson {

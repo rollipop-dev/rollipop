@@ -50,11 +50,11 @@
 
   ```ts
   // Before
-  import { BuiltinPlugins } from "rollipop";
+  import { BuiltinPlugins } from 'rollipop';
   plugins: [BuiltinPlugins.worklets()];
 
   // After
-  import { worklets } from "rollipop/plugins";
+  import { worklets } from 'rollipop/plugins';
   plugins: [worklets()];
   ```
 
