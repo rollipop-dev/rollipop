@@ -41,6 +41,7 @@ export interface TestConfigOptions {
   envDir?: string;
   envFile?: string;
   envPrefix?: string;
+  experimental?: Partial<NonNullable<Config['experimental']>>;
   dangerously_overrideRolldownOptions?: Config['dangerously_overrideRolldownOptions'];
 }
 
@@ -86,6 +87,10 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       ...options.reactNative,
     },
     devMode: { hmr: false },
+    experimental: {
+      nativeTransformPipeline: false,
+      ...options.experimental,
+    },
     reporter: undefined,
     terminal: { status: 'none' },
     envDir: options.envDir ?? root,

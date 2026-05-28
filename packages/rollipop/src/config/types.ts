@@ -3,12 +3,13 @@ import type * as rolldown from '@rollipop/rolldown';
 import type { TopLevelFilterExpression } from '@rollipop/rolldown-pluginutils';
 import type {
   DevWatchOptions,
+  RollipopReactNativeFlowConfig,
   RollipopReactNativeWorkletsConfig,
 } from '@rollipop/rolldown/experimental';
 import type { TransformOptions } from '@rollipop/rolldown/utils';
 import type * as swc from '@swc/core';
 
-export type { RollipopReactNativeWorkletsConfig };
+export type { RollipopReactNativeFlowConfig, RollipopReactNativeWorkletsConfig };
 
 import type { Plugin } from '../core/plugins/types';
 import type { InteractiveCommand } from '../node/cli-utils';
@@ -289,6 +290,12 @@ export interface ExperimentalConfig {
    * Defaults to `false`.
    */
   nativeTransformPipeline?: boolean;
+  /**
+   * Flow handling configuration for the native transform pipeline.
+   *
+   * Only applied when `experimental.nativeTransformPipeline` is enabled.
+   */
+  flow?: RollipopReactNativeFlowConfig;
   /**
    * `react-native-worklets` transformation configuration.
    *

@@ -312,6 +312,7 @@ function resolveReactNativeBuiltinPluginConfig(
   return {
     envName: config.mode,
     runtimeTarget: resolveRuntimeTarget(config.runtimeTarget),
+    flow: config.experimental.flow,
     worklets: resolveWorkletsConfig(config),
   };
 }
