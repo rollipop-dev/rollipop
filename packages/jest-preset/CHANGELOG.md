@@ -1,6 +1,10 @@
-# @rollipop/plugin-module-federation
+# @rollipop/jest-preset
 
 ## 1.0.0-alpha.21
+
+### Minor Changes
+
+- e45aedd: Add `@rollipop/jest-preset` — a jest preset and transformer that runs your tests through rollipop's rust-side transform pipeline.
 
 ### Patch Changes
 
@@ -11,12 +15,3 @@
 - Updated dependencies [14c92f6]
 - Updated dependencies [3e58d68]
   - rollipop@1.0.0-alpha.21
-
-## 0.1.0-alpha.20
-
-### Patch Changes
-
-- 140902b: impl @rollipop/plugin-module-federation
-- Updated dependencies [d6e10db]
-- Updated dependencies [140902b]
-  - rollipop@0.1.0-alpha.20

@@ -1,5 +1,19 @@
 # rollipop
 
+## 1.0.0-alpha.21
+
+### Minor Changes
+
+- 14c92f6: Add `envFile` configuration option for customizing the basename used to resolve environment files. Defaults to `.env`; the loader still looks for `${envFile}`, `${envFile}.local`, `${envFile}.[mode]`, and `${envFile}.[mode].local`. Set it to a custom basename such as `.rollipop-env` to opt out of the default `.env` naming.
+
+### Patch Changes
+
+- e45aedd: Add `@rollipop/jest-preset` — a jest preset and transformer that runs your tests through rollipop's rust-side transform pipeline.
+- 9d18670: Expose Flow config for the native transform pipeline.
+- 7934e0d: support non-image assets without dimensions
+- 757756b: resolve React Native package alias fields by default
+- 3e58d68: bump `@rollipop/rolldown` to 1.0.5
+
 ## 0.1.0-alpha.20
 
 ### Patch Changes
@@ -36,11 +50,11 @@
 
   ```ts
   // Before
-  import { BuiltinPlugins } from 'rollipop';
+  import { BuiltinPlugins } from "rollipop";
   plugins: [BuiltinPlugins.worklets()];
 
   // After
-  import { worklets } from 'rollipop/plugins';
+  import { worklets } from "rollipop/plugins";
   plugins: [worklets()];
   ```
 
