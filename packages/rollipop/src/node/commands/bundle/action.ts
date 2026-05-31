@@ -30,6 +30,7 @@ export const action: CommandAction<BundleCommandArgs> = async function (options)
     dev: options.dev,
     minify: options.minify,
     cache: options.cache,
+    ...(options.sourcemapOutput ? { sourcemap: true } : {}),
     outfile: options.bundleOutput,
     sourcemapOutfile: options.sourcemapOutput,
     assetsDir: options.assetsDest,
