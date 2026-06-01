@@ -11,6 +11,7 @@ import { mergeConfig } from './merge-config';
 import type { Config, PluginOption } from './types';
 
 const CONFIG_FILE_NAME = 'rollipop';
+const INTERNAL_PLUGIN_HOOKS = ['transformCacheHit'] as const;
 
 export interface LoadConfigOptions {
   cwd?: string;
@@ -67,7 +68,18 @@ export async function flattenPluginOption(pluginOption: PluginOption): Promise<P
     return [];
   }
 
-  return [awaitedPluginOption];
+  return [stripInternalPluginHooks(awaitedPluginOption as Plugin)];
+}
+
+function stripInternalPluginHooks(plugin: Plugin): Plugin {
+  const maybeInternalPlugin = plugin as Plugin &
+    Partial<Record<(typeof INTERNAL_PLUGIN_HOOKS)[number], unknown>>;
+
+  if (!INTERNAL_PLUGIN_HOOKS.some((hook) => hook in maybeInternalPlugin)) {
+    return plugin;
+  }
+
+  return omit(maybeInternalPlugin, INTERNAL_PLUGIN_HOOKS) as Plugin;
 }
 
 export function resolvePluginConfig(

@@ -7,8 +7,9 @@ import type { PluginContext } from './context';
 
 export type PluginConfig = Omit<Config, 'plugins'>;
 export type ResolvedPluginConfig = Omit<ResolvedConfig, 'plugins'>;
+type InternalRolldownHook = 'transformCacheHit';
 
-export type Plugin = rolldown.Plugin & {
+export type Plugin = Omit<rolldown.Plugin, InternalRolldownHook> & {
   config?:
     | PluginConfig
     | ((this: PluginContext, config: PluginConfig) => AsyncResult<PluginConfig | null | void>);

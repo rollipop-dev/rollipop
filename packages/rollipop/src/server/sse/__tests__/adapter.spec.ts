@@ -21,6 +21,8 @@ describe('toSSEEvent', () => {
       type: 'bundle_build_done',
       bundlerId,
       totalModules: 100,
+      transformedModules: 70,
+      cacheHitModules: 30,
       duration: 500,
     };
 
@@ -28,6 +30,8 @@ describe('toSSEEvent', () => {
       type: 'bundle_build_done',
       bundlerId: 'ios-true',
       totalModules: 100,
+      transformedModules: 70,
+      cacheHitModules: 30,
       duration: 500,
     });
   });

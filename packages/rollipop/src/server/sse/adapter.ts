@@ -46,6 +46,8 @@ function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEEvent | n
         type: 'bundle_build_done',
         bundlerId: event.bundlerId,
         totalModules: event.totalModules,
+        transformedModules: event.transformedModules,
+        cacheHitModules: event.cacheHitModules,
         duration: event.duration,
       };
 

@@ -20,6 +20,8 @@ export type ReportableEvent =
   | ({
       type: 'bundle_build_done';
       totalModules: number;
+      transformedModules: number;
+      cacheHitModules: number;
       duration: number;
     } & OptionalBundlerEvent)
   | ({

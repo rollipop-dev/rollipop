@@ -7,7 +7,9 @@ import {
   resolvePluginConfig,
 } from '../src/config/load-config';
 import type { Plugin } from '../src/core/plugins/types';
-import { build, createConfig } from './helpers';
+import type { ReportableEvent } from '../src/types';
+import { resetCache } from '../src/utils/reset-cache';
+import { build, createConfig, fixturePath } from './helpers';
 
 describe('plugin system', () => {
   describe('rolldown hooks', () => {
@@ -128,6 +130,51 @@ describe('plugin system', () => {
       }
 
       expect(buildEndCalled).toBe(true);
+    });
+
+    it('reports persistent transform cache hits as progress', async () => {
+      const root = fixturePath('serializer/prelude');
+      const collectEvents = (events: ReportableEvent[]) => ({
+        update(event: ReportableEvent) {
+          events.push(event);
+        },
+      });
+      const getDoneEvent = (events: ReportableEvent[]) => {
+        const event = events.findLast((event) => event.type === 'bundle_build_done');
+        if (event?.type !== 'bundle_build_done') {
+          throw new Error('bundle_build_done event was not emitted');
+        }
+        return event;
+      };
+
+      resetCache(root);
+      try {
+        const firstEvents: ReportableEvent[] = [];
+        await build(
+          'serializer/prelude',
+          { reporter: collectEvents(firstEvents) },
+          { cache: true },
+        );
+
+        const secondEvents: ReportableEvent[] = [];
+        await build(
+          'serializer/prelude',
+          { reporter: collectEvents(secondEvents) },
+          { cache: true },
+        );
+
+        const doneEvent = getDoneEvent(secondEvents);
+        const progressEvent = secondEvents.findLast((event) => event.type === 'transform');
+
+        expect(doneEvent.cacheHitModules).toBeGreaterThan(0);
+        expect(doneEvent.totalModules).toBe(
+          doneEvent.transformedModules + doneEvent.cacheHitModules,
+        );
+        expect(progressEvent?.type).toBe('transform');
+        expect(progressEvent?.transformedModules).toBe(doneEvent.totalModules);
+      } finally {
+        resetCache(root);
+      }
     });
   });
 
@@ -335,6 +382,29 @@ describe('plugin system', () => {
 
       expect(plugins).toHaveLength(1);
       expect(plugins[0].name).toBe('async-plugin');
+    });
+
+    it('does not expose internal-only hooks on the public plugin type', () => {
+      const plugin: Plugin = {
+        name: 'test:public-plugin-type',
+        // @ts-expect-error transformCacheHit is reserved for Rollipop internals.
+        transformCacheHit() {},
+      };
+
+      expect(plugin.name).toBe('test:public-plugin-type');
+    });
+
+    it('removes internal-only hooks from user plugins', async () => {
+      let transformCacheHitCalled = false;
+      const plugins = await flattenPluginOption({
+        name: 'test:internal-hook',
+        transformCacheHit() {
+          transformCacheHitCalled = true;
+        },
+      } as unknown as Plugin);
+
+      expect('transformCacheHit' in plugins[0]).toBe(false);
+      expect(transformCacheHitCalled).toBe(false);
     });
   });
 });

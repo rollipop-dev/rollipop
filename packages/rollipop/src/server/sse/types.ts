@@ -1,7 +1,14 @@
 export type SSEEvent =
   // Build lifecycle events (from reporter pipeline, always have bundler id)
   | { type: 'bundle_build_started'; bundlerId: string }
-  | { type: 'bundle_build_done'; bundlerId: string; totalModules: number; duration: number }
+  | {
+      type: 'bundle_build_done';
+      bundlerId: string;
+      totalModules: number;
+      transformedModules: number;
+      cacheHitModules: number;
+      duration: number;
+    }
   | { type: 'bundle_build_failed'; bundlerId: string; error: string }
   | { type: 'watch_change'; bundlerId: string; file: string }
   // Client log events (from HMR client)

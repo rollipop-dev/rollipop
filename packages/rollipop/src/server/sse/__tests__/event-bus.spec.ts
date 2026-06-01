@@ -80,6 +80,8 @@ describe('SSEEventPublisher', () => {
         type: 'bundle_build_done',
         bundlerId: 'ios-true',
         totalModules: 42,
+        transformedModules: 30,
+        cacheHitModules: 12,
         duration: 1500,
       });
       publisher.publish({ type: 'watch_change', bundlerId: 'ios-true', file: 'src/App.tsx' });
@@ -87,6 +89,7 @@ describe('SSEEventPublisher', () => {
       expect(res.chunks).toHaveLength(2);
       expect(res.chunks[0]).toContain('event: bundle_build_done');
       expect(res.chunks[0]).toContain('"totalModules":42');
+      expect(res.chunks[0]).toContain('"cacheHitModules":12');
       expect(res.chunks[1]).toContain('event: watch_change');
       expect(res.chunks[1]).toContain('"file":"src/App.tsx"');
     });

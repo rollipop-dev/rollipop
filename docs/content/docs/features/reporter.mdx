@@ -40,6 +40,10 @@ Emitted when a bundle build completes successfully.
 {
   type: 'bundle_build_done';
   bundlerId?: string;
+  totalModules: number;
+  transformedModules: number;
+  cacheHitModules: number;
+  duration: number;
 }
 ```
 
@@ -67,7 +71,7 @@ Emitted during module transformation, providing progress information.
   bundlerId?: string;
   id: string; // Module ID being transformed
   totalModules: number | undefined; // Total number of modules
-  transformedModules: number; // Number of modules transformed
+  transformedModules: number; // Number of modules processed for progress
 }
 ```
 
@@ -115,7 +119,10 @@ export class MonitoringReporter implements Reporter {
         break;
 
       case 'bundle_build_done':
-        this.sendMetric('build.completed');
+        this.sendMetric('build.completed', {
+          transformedModules: event.transformedModules,
+          cacheHitModules: event.cacheHitModules,
+        });
         break;
 
       case 'bundle_build_failed':
