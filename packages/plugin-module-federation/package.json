@@ -1,6 +1,6 @@
 {
   "name": "@rollipop/plugin-module-federation",
-  "version": "1.0.0-alpha.21",
+  "version": "1.0.0-alpha.22",
   "homepage": "https://github.com/leegeunhyeok/rollipop#readme",
   "bugs": {
     "url": "https://github.com/leegeunhyeok/rollipop/issues"

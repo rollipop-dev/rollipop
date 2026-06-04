@@ -1,5 +1,17 @@
 # @rollipop/plugin-svg
 
+## 1.0.0-alpha.22
+
+### Patch Changes
+
+- Updated dependencies [3c67f3a]
+- Updated dependencies [53630e0]
+- Updated dependencies [6c2ae0d]
+- Updated dependencies [1c059a4]
+- Updated dependencies [758fe67]
+- Updated dependencies [6c97ee3]
+  - rollipop@1.0.0-alpha.22
+
 ## 1.0.0-alpha.21
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # rollipop
 
+## 1.0.0-alpha.22
+
+### Patch Changes
+
+- 3c67f3a: Track transform cache hits in build progress.
+- 53630e0: Centralize dev server event dispatch.
+- 6c2ae0d: Fix progress totals for HMR rebuilds.
+- 1c059a4: Bump `@rollipop/rolldown` to 1.0.11.
+- 758fe67: Bump `@rollipop/rolldown` to 1.0.9.
+- 6c97ee3: enable sourcemap generation when bundle CLI receives `--sourcemap-output`
+
 ## 1.0.0-alpha.21
 
 ### Minor Changes
@@ -50,11 +61,11 @@
 
   ```ts
   // Before
-  import { BuiltinPlugins } from 'rollipop';
+  import { BuiltinPlugins } from "rollipop";
   plugins: [BuiltinPlugins.worklets()];
 
   // After
-  import { worklets } from 'rollipop/plugins';
+  import { worklets } from "rollipop/plugins";
   plugins: [worklets()];
   ```
 
