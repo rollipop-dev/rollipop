@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { invariant } from 'es-toolkit';
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 
 const MONOREPO_ROOT = path.resolve(import.meta.dirname, '../../..');
@@ -35,10 +36,15 @@ function exec(cmd: string, cwd: string): string {
   }
 }
 
-function getYarnVersion(): string {
-  const rootPkg = JSON.parse(fs.readFileSync(path.join(MONOREPO_ROOT, 'package.json'), 'utf-8'));
+function getYarnVersion() {
+  const rootPkg = JSON.parse(
+    fs.readFileSync(path.join(MONOREPO_ROOT, 'package.json'), 'utf-8'),
+  ) as {
+    packageManager?: string;
+  };
   const match = rootPkg.packageManager?.match(/yarn@(.+)/);
-  return match?.[1] ?? '4.13.0';
+  invariant(match, 'could not find yarn version in package.json');
+  return match[1];
 }
 
 function log(message: string) {
@@ -77,11 +83,14 @@ beforeAll(() => {
   // .yarnrc.yml — PnP strict mode
   // catalogs needed because portal:'d rollipop uses catalog:rolldown references
   const monorepoYarnRc = fs.readFileSync(path.join(MONOREPO_ROOT, '.yarnrc.yml'), 'utf-8');
-  const catalogSection = monorepoYarnRc.match(/catalogs:[\s\S]*?(?=\n\w|\n$)/)?.[0] ?? '';
+  const catalogSections = [
+    monorepoYarnRc.match(/catalog:[\s\S]*?(?=\n\w|\n$)/)?.[0] ?? '',
+    monorepoYarnRc.match(/catalogs:[\s\S]*?(?=\n\w|\n$)/)?.[0] ?? '',
+  ];
 
   fs.writeFileSync(
     path.join(tmpDir, '.yarnrc.yml'),
-    ['nodeLinker: pnp', 'enableGlobalCache: false', '', catalogSection].join('\n') + '\n',
+    ['nodeLinker: pnp', 'enableGlobalCache: false', '', ...catalogSections].join('\n') + '\n',
   );
 
   // package.json — minimal deps with portal: link to rollipop

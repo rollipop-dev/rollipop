@@ -93,7 +93,7 @@
     "dedent": "^1.7.2",
     "dotenv": "^17.3.1",
     "dotenv-expand": "^12.0.3",
-    "es-toolkit": "^1.45.1",
+    "es-toolkit": "catalog:",
     "fast-flow-transform": "^0.0.3",
     "fastify": "^5.8.1",
     "fastify-plugin": "^5.1.0",

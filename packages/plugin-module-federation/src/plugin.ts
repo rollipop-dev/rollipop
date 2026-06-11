@@ -1,19 +1,19 @@
 import path from 'node:path';
 
-import MagicString from 'magic-string';
+import { invariant } from 'es-toolkit';
 import type { Plugin, ResolvedConfig } from 'rollipop';
 import { id, include, prefixRegex } from 'rollipop/filter';
 
 import {
   HMR_EVENT,
   PLUGIN_NAME,
+  VIRTUAL_HOST_INIT_ID,
   VIRTUAL_PREFIX,
   VIRTUAL_REMOTE_PROXY_PREFIX,
   VIRTUAL_SHARED_SHIM_PREFIX,
 } from './constants';
 import { loadVirtualModule } from './host/load';
 import { resolveVirtualId } from './host/resolve';
-import { transformHostEntry } from './host/transform';
 import { normalizeConfig } from './normalize';
 import type { ModuleFederationConfig, NormalizedConfig } from './types';
 import { generateRemoteEntryCode } from './virtual/remote-entry';
@@ -125,7 +125,10 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
       },
     },
     transform: {
-      handler(code, id) {
+      handler(code, id, meta) {
+        const { magicString } = meta;
+        invariant(magicString, 'magicString not found');
+
         if (normalized == null || resolvedConfig == null) {
           return null;
         }
@@ -145,14 +148,16 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
             name: normalized.name,
             exposes: exposesAbsolute,
           });
-          const ms = new MagicString(code);
-          ms.append('\n' + containerCode);
 
-          return { code: ms.toString(), map: ms.generateMap({ hires: true, source: id }) };
+          magicString.append('\n' + containerCode);
+
+          return { code: magicString };
         }
 
         if (hasRemotes && isEntry) {
-          return transformHostEntry(code, id);
+          magicString.prepend(`import ${JSON.stringify(VIRTUAL_HOST_INIT_ID)};\n`);
+
+          return { code: magicString };
         }
 
         return null;
