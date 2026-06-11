@@ -31,8 +31,8 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@svgr/core": "^8.1.0",
-    "@svgr/plugin-jsx": "^8.1.0"
+    "@svgr/core": "8.1.0",
+    "@svgr/plugin-jsx": "8.1.0"
   },
   "devDependencies": {
     "rollipop": "workspace:*",

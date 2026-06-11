@@ -1,4 +1,4 @@
-// oxlint-disable typescript-eslint(unbound-method)
+/* oxlint-disable typescript/unbound-method */
 import { type ServerResponse } from 'node:http';
 
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';

@@ -13,9 +13,10 @@ export default defineConfig({
       'examples/*/android/**',
       'examples/*/ios/**',
       '**/CHANGELOG.md',
-      'rolldown/**',
       '**/__fixtures__/**',
       '**/.**',
+      // package: rollipop
+      'packages/rollipop/src/runtime/runtime-utils.ts',
     ],
     experimentalSortImports: {
       groups: [

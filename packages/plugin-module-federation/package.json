@@ -36,9 +36,9 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@module-federation/runtime": "^2.4.0",
-    "@module-federation/sdk": "^2.4.0",
-    "dedent": "^1.7.2",
+    "@module-federation/runtime": "2.5.1",
+    "@module-federation/sdk": "2.5.1",
+    "dedent": "1.7.2",
     "es-toolkit": "catalog:"
   },
   "devDependencies": {

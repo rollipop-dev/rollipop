@@ -22,7 +22,7 @@
     "scripts:publish": ".scripts/publish.sh"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.30.0",
+    "@changesets/cli": "^2.31.0",
     "@types/node": "^24",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

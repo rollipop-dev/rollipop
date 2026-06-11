@@ -1,4 +1,4 @@
-// oxlint-disable typescript-eslint(unbound-method)
+/* oxlint-disable typescript/unbound-method */
 import EventEmitter from 'node:events';
 
 import type { Mock } from 'vite-plus/test';

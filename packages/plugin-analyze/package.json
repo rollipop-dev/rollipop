@@ -32,7 +32,7 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "open": "^11.0.0",
+    "open": "11.0.0",
     "rolldown-analyzer": "0.1.0"
   },
   "devDependencies": {

@@ -122,7 +122,7 @@ export async function invokeConfigResolved(config: ResolvedConfig, plugins: Plug
   await Promise.all(
     plugins.map((plugin) => {
       const context = createPluginContext(plugin.name);
-      return plugin.configResolved?.call(context, config);
+      return Promise.resolve(plugin.configResolved?.call(context, config));
     }),
   );
 }

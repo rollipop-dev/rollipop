@@ -9,4 +9,9 @@ const commands = [
   createReactNativeCliCommand(agentCommand),
 ] as const;
 
-export default commands;
+export {
+  // ESM entry
+  commands as default,
+  // CJS entry
+  commands as 'module.exports',
+};

@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { RolldownPluginOption } from '@rollipop/rolldown';
 import * as swc from '@swc/core';
 import { invariant } from 'es-toolkit';
 import { defineConfig } from 'vite-plus';
-import type { PackUserConfig } from 'vite-plus/pack';
+import type { PackUserConfig, TsdownPlugin } from 'vite-plus/pack';
 
 import { GLOBAL_IDENTIFIER } from './src/constants';
 
@@ -13,7 +12,7 @@ const rawPackageJson = fs.readFileSync(path.join(import.meta.dirname, 'package.j
 const { version } = JSON.parse(rawPackageJson);
 invariant(version, 'could not find version in package.json');
 
-const transformToEs5: RolldownPluginOption = {
+const transformToEs5: TsdownPlugin = {
   name: 'transform-to-es5',
   transform(code, id) {
     const result = swc.transformSync(code, {
@@ -51,6 +50,7 @@ const commonPackConfig: PackUserConfig = {
     'globalThis.__ROLLIPOP_VERSION__': JSON.stringify(version),
   },
   fixedExtension: false,
+  unbundle: true,
   checks: {
     pluginTimings: false,
   },
@@ -79,7 +79,7 @@ export default defineConfig({
     {
       ...commonPackConfig,
       entry: 'src/commands.ts',
-      format: ['esm', 'cjs'],
+      format: ['esm'],
       platform: 'node',
       dts: true,
     },
@@ -93,7 +93,7 @@ export default defineConfig({
     {
       ...runtimePackConfig,
       entry: 'src/runtime.ts',
-      format: ['esm', 'cjs'],
+      format: ['esm'],
       platform: 'neutral',
       dts: true,
     },
@@ -111,7 +111,8 @@ export default defineConfig({
     'globalThis.__ROLLIPOP_VERSION__': JSON.stringify('0.0.0'),
   },
   test: {
-    globalSetup: ['./e2e/global-setup.ts'],
+    setupFiles: ['./testing/setup-tests.ts'],
+    globalSetup: ['./testing/global-setup.ts'],
     hookTimeout: 60_000,
     coverage: {
       include: ['src/**'],

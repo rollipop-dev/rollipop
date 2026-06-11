@@ -87,10 +87,19 @@ beforeAll(() => {
     monorepoYarnRc.match(/catalog:[\s\S]*?(?=\n\w|\n$)/)?.[0] ?? '',
     monorepoYarnRc.match(/catalogs:[\s\S]*?(?=\n\w|\n$)/)?.[0] ?? '',
   ];
+  const npmPreapprovedPackage =
+    monorepoYarnRc.match(/npmPreapprovedPackages:[\s\S]*?(?=\n\w|\n$)/)?.[0] ?? '';
 
   fs.writeFileSync(
     path.join(tmpDir, '.yarnrc.yml'),
-    ['nodeLinker: pnp', 'enableGlobalCache: false', '', ...catalogSections].join('\n') + '\n',
+    [
+      'nodeLinker: pnp',
+      'enableGlobalCache: false',
+      'npmMinimalAgeGate: 7d',
+      '',
+      ...catalogSections,
+      npmPreapprovedPackage,
+    ].join('\n') + '\n',
   );
 
   // package.json — minimal deps with portal: link to rollipop
