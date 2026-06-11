@@ -1,0 +1,66 @@
+name: "\U0001F41B Bug report"
+description: Report an issue with Rollipop
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is. If you intend to submit a PR for this issue, tell us in the description. Thanks!
+      placeholder: I am doing ... What I expect is ... What actually happening is ...
+    validations:
+      required: true
+  - type: input
+    id: reproduction
+    attributes:
+      label: Reproduction (Optional)
+      description: Please provide a link to a repo that can reproduce the problem you ran into. A [minimal reproduction](https://stackoverflow.com/help/minimal-reproducible-example) is helpful ([Why?](https://antfu.me/posts/why-reproductions-are-required)).
+      placeholder: Reproduction URL
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: Please provide any reproduction steps that may need to be described.
+      placeholder: Run `rollipop bundle` and see the error message.
+  - type: input
+    id: system-info
+    attributes:
+      label: System Info
+      description: Output of `npx envinfo --system --binaries --npmPackages '{@rollipop/*,rollipop,react-native}'`
+      placeholder: System, Binaries, Packages
+    validations:
+      required: true
+  - type: dropdown
+    id: package-manager
+    attributes:
+      label: Used Package Manager
+      description: Select the used package manager
+      options:
+        - npm
+        - yarn
+        - pnpm
+        - bun
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Optional if provided reproduction. Please try not to insert an image but copy paste the log text.
+
+        ````
+        <details>
+        <summary>Click to expand!</summary>
+
+        ```shell
+        // paste the log text here
+        ```
+        </details>
+        ````
