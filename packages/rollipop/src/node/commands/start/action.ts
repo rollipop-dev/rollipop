@@ -30,6 +30,7 @@ export const action: CommandAction<StartCommandOptions> = async function (option
     https: options.https,
     key: options.key,
     cert: options.cert,
+    mcp: options.mcp,
   });
 
   if (options.interactive) {

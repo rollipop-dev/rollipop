@@ -7,6 +7,7 @@ import mime from 'mime';
 
 import * as AssetUtils from '../../core/assets';
 import { DEV_SERVER_ASSET_PATH } from '../constants';
+import type { DevServerContext } from '../types';
 
 const queryParamSchema = asConst({
   type: 'object',
@@ -24,20 +25,17 @@ const queryParamSchema = asConst({
 type QueryParams = FromSchema<typeof queryParamSchema>;
 
 export interface ServeAssetPluginOptions {
-  projectRoot: string;
-  https: boolean;
-  host: string;
-  port: number;
-  preferNativePlatform: boolean;
+  context: DevServerContext;
 }
 
 const plugin = fp<ServeAssetPluginOptions>(
   (fastify, options) => {
-    const { projectRoot, host, port, https, preferNativePlatform } = options;
+    const { context } = options;
+    const { host, port, https } = context.options;
     const baseUrl = https ? `https://${host}:${port}` : `http://${host}:${port}`;
 
     function resolveAsset(asset: string) {
-      return path.resolve(projectRoot, asset);
+      return path.resolve(context.config.root, asset);
     }
 
     // TODO
@@ -57,7 +55,10 @@ const plugin = fp<ServeAssetPluginOptions>(
           handle = await fs.promises.open(
             AssetUtils.resolveAssetPath(
               assetPath,
-              { platform: query.platform, preferNativePlatform },
+              {
+                platform: query.platform,
+                preferNativePlatform: context.config.resolver.preferNativePlatform,
+              },
               1,
             ),
             'r',

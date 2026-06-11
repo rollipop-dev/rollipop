@@ -1,16 +1,12 @@
 import stripAnsi from 'strip-ansi';
 
 import type { IdentifiedReportableEvent, ServerEvent } from '../events/types';
-import type { SSEEvent } from './types';
+import type { SSEBuildEvent, SSEClientLogEvent } from './types';
 
-export function toSSEEvent(event: ServerEvent): SSEEvent | null {
+export function toSSEEvent(event: ServerEvent): SSEBuildEvent | null {
   switch (event.type) {
     case 'client_log':
-      return {
-        type: 'client_log',
-        ...(event.bundlerId != null ? { bundlerId: event.bundlerId } : {}),
-        data: event.data,
-      };
+      return null;
 
     case 'device_connected':
       return { type: 'device_connected', clientId: event.client.id };
@@ -32,11 +28,25 @@ export function toSSEEvent(event: ServerEvent): SSEEvent | null {
     case 'device_message':
     case 'device_error':
     case 'transform':
+    case 'build_log':
+    case 'build_error':
       return null;
   }
 }
 
-function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEEvent | null {
+export function toSSEClientLogEvent(event: ServerEvent): SSEClientLogEvent | null {
+  if (event.type !== 'client_log') {
+    return null;
+  }
+
+  return {
+    type: 'client_log',
+    ...(event.bundlerId != null ? { bundlerId: event.bundlerId } : {}),
+    data: event.data,
+  };
+}
+
+function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEBuildEvent | null {
   switch (event.type) {
     case 'bundle_build_started':
       return { type: 'bundle_build_started', bundlerId: event.bundlerId };
@@ -49,6 +59,7 @@ function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEEvent | n
         transformedModules: event.transformedModules,
         cacheHitModules: event.cacheHitModules,
         duration: event.duration,
+        ...(event.bundleFilePath != null ? { bundleFilePath: event.bundleFilePath } : {}),
       };
 
     case 'bundle_build_failed':
@@ -62,10 +73,10 @@ function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEEvent | n
       return { type: 'watch_change', bundlerId: event.bundlerId, file: event.id };
 
     case 'client_log':
-      return { type: 'client_log', bundlerId: event.bundlerId, data: event.data };
-
     case 'transform':
-      // Intentionally excluded from SSE — transform fires per module and would consume excessive LLM tokens.
+    case 'build_log':
+    case 'build_error':
+      // Intentionally excluded from /sse/events. Client logs have their own SSE stream.
       return null;
   }
 }

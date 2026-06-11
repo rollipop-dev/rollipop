@@ -4,16 +4,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
 import fp from 'fastify-plugin';
-import { z } from 'zod';
 
-import { resetCache } from '../../utils/reset-cache';
-import type { ServerEventBus } from '../events/event-bus';
-import { toSSEEvent } from '../sse/adapter';
-import type { SSEEvent } from '../sse/types';
+import type { DevServerContext } from '../types';
+import { createMcpToolContext } from './context';
+import { registerTools, type McpToolContext } from './tools';
 
 export interface McpPluginOptions {
-  projectRoot: string;
-  eventBus: ServerEventBus;
+  context: DevServerContext;
 }
 
 interface SessionEntry {
@@ -21,75 +18,36 @@ interface SessionEntry {
   server: McpServer;
 }
 
-function createMcpServer(options: McpPluginOptions): McpServer {
-  const { projectRoot, eventBus } = options;
+function createMcpServer(options: McpToolContext): McpServer {
   const server = new McpServer(
-    { name: 'rollipop', version: '0.1.0' },
+    { name: 'rollipop', version: globalThis.__ROLLIPOP_VERSION__ },
     { capabilities: { logging: {} } },
   );
 
-  server.registerTool(
-    'reset_cache',
-    {
-      title: 'Reset Cache',
-      description:
-        'Clear the entire build cache. The bundler will rebuild from scratch on next change.',
-    },
-    async () => {
-      resetCache(projectRoot);
-      eventBus.emit({ type: 'cache_reset' });
-      return { content: [{ type: 'text' as const, text: 'Cache cleared successfully.' }] };
-    },
-  );
-
-  server.registerTool(
-    'get_build_events',
-    {
-      title: 'Get Build Events',
-      description:
-        'Subscribe to bundler events for a duration. Returns all events (build start/done/fail, watch changes, client logs, device connections) collected during the wait period. Bundler-scoped events include bundlerId.',
-      inputSchema: {
-        duration: z
-          .number()
-          .min(1000)
-          .max(60000)
-          .default(10000)
-          .describe('How long to listen for events in milliseconds (1000-60000, default 10000)'),
-      },
-    },
-    async ({ duration }) => {
-      const events: SSEEvent[] = [];
-      const unsubscribe = eventBus.subscribe((event) => {
-        const sseEvent = toSSEEvent(event);
-        if (sseEvent != null) {
-          events.push(sseEvent);
-        }
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, duration));
-      unsubscribe();
-
-      if (events.length === 0) {
-        return {
-          content: [
-            { type: 'text' as const, text: 'No events received during the listening period.' },
-          ],
-        };
-      }
-
-      return {
-        content: [{ type: 'text' as const, text: JSON.stringify(events, null, 2) }],
-      };
-    },
-  );
+  registerTools(server, options);
 
   return server;
 }
 
-const sessions = new Map<string, SessionEntry>();
-
 const plugin = fp<McpPluginOptions>(
   (fastify, options) => {
+    const { context } = options;
+
+    if (context.options.mcp !== true) {
+      fastify.all('/mcp', async (_request, reply) => {
+        return reply.status(503).send({
+          error: {
+            code: 'MCP_DISABLED',
+            message: 'MCP server is disabled. Start Rollipop with --mcp to enable it.',
+          },
+        });
+      });
+      return;
+    }
+
+    const toolContext = createMcpToolContext(context);
+    const sessions = new Map<string, SessionEntry>();
+
     fastify.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
       try {
         done(null, JSON.parse(body as string));
@@ -120,7 +78,7 @@ const plugin = fp<McpPluginOptions>(
           if (sid) sessions.delete(sid);
         };
 
-        const server = createMcpServer(options);
+        const server = createMcpServer(toolContext);
         await server.connect(transport);
         await transport.handleRequest(request.raw, reply.raw, request.body);
         return reply;

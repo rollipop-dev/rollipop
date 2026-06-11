@@ -10,6 +10,7 @@ import { isDebugEnabled } from '../common/env';
 import { Polyfill, type ResolvedConfig, type RollipopReactNativeWorkletsConfig } from '../config';
 import { applyOverrideRolldownOptions } from '../config/compose-override';
 import { getGlobalVariables } from '../internal/react-native';
+import type { BuildDiagnosticLog } from '../types';
 import { ResolvedBuildOptions } from '../utils/build-options';
 import { resolveHmrConfig } from '../utils/config';
 import { defineEnvFromObject } from '../utils/env';
@@ -215,6 +216,13 @@ export async function resolveRolldownOptions(
     },
     logLevel: isDebugEnabled() ? 'debug' : 'info',
     onLog(level, log, defaultHandler) {
+      const diagnostic = toBuildDiagnosticLog(log);
+      if (level === 'warn') {
+        config.reporter?.update({ type: 'build_error', level, log: diagnostic });
+      } else if (isPluginLog(log)) {
+        config.reporter?.update({ type: 'build_log', level, log: diagnostic });
+      }
+
       if (log.code?.startsWith('PLUGIN_')) {
         printPluginLog(level, log, log.plugin);
       } else {
@@ -460,6 +468,24 @@ async function applyDangerouslyOverrideOptionsFinalizer(
     input: inputOptions,
     output: outputOptions,
   });
+}
+
+function isPluginLog(log: rolldown.RolldownLog): boolean {
+  return log.plugin != null || log.code?.startsWith('PLUGIN_') === true;
+}
+
+function toBuildDiagnosticLog(log: rolldown.RolldownLog): BuildDiagnosticLog {
+  return {
+    code: log.code,
+    plugin: log.plugin,
+    message: log.message,
+    stack: log.stack,
+    id: log.id,
+    hook: log.hook,
+    frame: log.frame,
+    loc: log.loc,
+    meta: log.meta,
+  };
 }
 
 export function getOverrideOptionsForDevServer(buildOptions: ResolvedBuildOptions) {

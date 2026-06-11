@@ -47,6 +47,9 @@ const transformToEs5: RolldownPluginOption = {
 
 const commonPackConfig: PackUserConfig = {
   outDir: 'dist',
+  define: {
+    'globalThis.__ROLLIPOP_VERSION__': JSON.stringify(version),
+  },
   fixedExtension: false,
   checks: {
     pluginTimings: false,
@@ -71,9 +74,6 @@ export default defineConfig({
       entry: 'src/index.ts',
       format: 'esm',
       platform: 'node',
-      define: {
-        'globalThis.__ROLLIPOP_VERSION__': JSON.stringify(version),
-      },
       dts: true,
     },
     {

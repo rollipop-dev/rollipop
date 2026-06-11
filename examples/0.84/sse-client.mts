@@ -9,10 +9,8 @@
  *   node --import @oxc-node/core/register examples/0.84/sse-client.mts 8082
  *   node --import @oxc-node/core/register examples/0.84/sse-client.mts 8081 192.168.0.1
  *
- * Control API:
- *   curl http://localhost:8081/rebuild
- *   curl http://localhost:8081/rebuild?platform=ios
- *   curl http://localhost:8081/reset-cache
+ * Use MCP tools such as reset_cache and get_bundler_status for actions and
+ * point-in-time state queries.
  */
 
 import http from 'node:http';

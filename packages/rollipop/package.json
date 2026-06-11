@@ -85,6 +85,7 @@
     "@swc/helpers": "^0.5.19",
     "@types/ws": "^8",
     "ajv": "^8.18.0",
+    "arktype": "^2.2.0",
     "babel-plugin-syntax-hermes-parser": "^0.33.3",
     "c12": "^3.3.3",
     "chalk": "^5.6.2",
@@ -107,8 +108,7 @@
     "strip-ansi": "^7.2.0",
     "url": "^0.11.4",
     "wrap-ansi": "^10.0.0",
-    "ws": "^8.19.0",
-    "zod": "^4.3.6"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@types/babel__code-frame": "^7",

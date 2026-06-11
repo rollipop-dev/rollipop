@@ -15,8 +15,7 @@ export function getCacheDirectory(projectRoot: string): string {
 
 /**
  * Remove the entire build cache directory for the given project root.
- * Backs the `/reset-cache` control endpoint, the `reset_cache` MCP tool,
- * and the `--reset-cache` CLI flag.
+ * Backs the `reset_cache` MCP tool and the `--reset-cache` CLI flag.
  */
 export function resetCache(projectRoot: string): void {
   fs.rmSync(getCacheDirectory(projectRoot), { recursive: true, force: true });

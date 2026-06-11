@@ -124,14 +124,17 @@ export interface SSESubscription {
 }
 
 /**
- * Subscribe to the dev server's `/sse/events` endpoint using `http.get`. We
+ * Subscribe to one of the dev server's SSE endpoints using `http.get`. We
  * use the raw http module (rather than global fetch) because its streaming
  * semantics for `text/event-stream` are predictable across Node versions —
  * `res` is a Readable that emits `data` events immediately as the server
  * flushes writes.
  */
-export async function subscribeSSE(baseUrl: string): Promise<SSESubscription> {
-  const url = new URL(`${baseUrl}/sse/events`);
+export async function subscribeSSE(
+  baseUrl: string,
+  endpoint = '/sse/events',
+): Promise<SSESubscription> {
+  const url = new URL(endpoint, baseUrl);
 
   const events: SSEEvent[] = [];
   const listeners = new Set<(event: SSEEvent) => void>();

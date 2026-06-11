@@ -26,6 +26,7 @@ rollipop start [options]
 | `--no-interactive` | Disables interactive mode                              | `boolean` | -           |
 | `--client-logs`    | Enable client log streaming (deprecated)               | `boolean` | `false`     |
 | `--cache`          | If false, the bundler will not load or store any cache | `boolean` | -           |
+| `--mcp`            | Enables the MCP server at `/mcp`                       | `boolean` | -           |
 
 ### Examples
 
@@ -35,6 +36,9 @@ rollipop start
 
 # Start on a custom port with cache reset
 rollipop start --port 3000 --reset-cache
+
+# Start with MCP diagnostics enabled
+rollipop start --mcp
 
 # Start with HTTPS
 rollipop start --https --key ./key.pem --cert ./cert.pem
@@ -93,7 +97,7 @@ Print guidance for connecting LLM agents to Rollipop diagnostics.
 rollipop agent
 ```
 
-The command prints the default SSE and MCP endpoints, MCP client setup, and the recommended build-event workflow for agents. It does not start the dev server or perform any actions by itself.
+The command prints the default SSE and MCP endpoints, MCP client setup, tool discovery guidance, and the recommended build-event workflow for agents. It does not start the dev server or perform any actions by itself. Start the dev server with `--mcp` before connecting an MCP client.
 
 ## Global Options
 

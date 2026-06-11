@@ -2,11 +2,17 @@
 title: MCP Server
 ---
 
-The dev server embeds an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server at `/mcp`, allowing LLM agents like Claude Code to interact with the bundler through standard MCP tooling.
+The dev server can expose an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server at `/mcp`, allowing LLM agents like Claude Code to interact with the bundler through standard MCP tooling.
 
 ## Setup
 
-Add the MCP server to your project's `.mcp.json`:
+Start the dev server with MCP enabled:
+
+```bash
+rollipop start --mcp
+```
+
+Then add the MCP server to your project's `.mcp.json`:
 
 ```json
 {
@@ -19,43 +25,61 @@ Add the MCP server to your project's `.mcp.json`:
 }
 ```
 
-Make sure the dev server is running before starting the LLM agent.
+Make sure the dev server is running with `--mcp` before starting the LLM agent.
+When `--mcp` is omitted, `/mcp` responds with an error explaining that the MCP server is disabled.
 
-## Available Tools
+## Tool Discovery
 
-### `reset_cache`
+Use the MCP `tools/list` request for the current tool names, descriptions, and parameter schemas. With Streamable HTTP clients, initialize the session first, then call `tools/list` using the returned `mcp-session-id` header.
 
-Clears the entire build cache. The bundler will rebuild from scratch on next file change.
+High-level tool groups:
+
+- Build events and cache: `get_build_events`, `get_bundler_status`, `build_logs`, `build_errors`, `clear_build_diagnostics`, `reset_cache`
+- App execution and logs: `list_devices`, `reload`, `get_console_logs`, `clear_console_logs`
+- Source mapping and build info: `symbolicate_stack`, `get_build_info`
+
+## Build Events
 
 ### `get_build_events`
 
 Subscribes to bundler events for a specified duration and returns all collected events.
 
-| Parameter  | Type   | Default | Description                                     |
-| ---------- | ------ | ------- | ----------------------------------------------- |
-| `duration` | number | 10000   | How long to listen in milliseconds (1000-60000) |
-
 Returns a JSON array of events collected during the listening period. Event types include:
 
 - `bundle_build_started` / `bundle_build_done` / `bundle_build_failed` — build lifecycle
 - `watch_change` — file change detected
-- `client_log` — app console output
 - `device_connected` / `device_disconnected` — device lifecycle
-- `cache_reset` — cache cleared via control API
+- `cache_reset` — cache cleared through the MCP `reset_cache` tool
 
-Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `client_log` when the HMR client is associated with a bundler instance. Device, server, and cache events omit `bundlerId`.
+Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events and `watch_change`. Device, server, and cache events omit `bundlerId`.
+
+App console logs are not build events. Use the SSE `/sse/client-logs` stream for live HMR-forwarded app logs, or `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
+
+`bundle_build_done` also includes `bundleFilePath`, the file-system copy of the generated bundle. Rollipop normally keeps the latest bundle in memory, but if this file is edited after the build, the dev server serves the edited file content. Agents can use this path for bundle-level debugging.
 
 See [SSE](/docs/features/sse) for the full event type reference.
 
-## Polling bundler state
+### `reset_cache`
 
-In addition to the MCP tools above, the dev server exposes a plain HTTP endpoint that returns the current lifecycle state of a specific bundler as JSON:
+Clears the entire build cache. The bundler will rebuild from scratch on next file change.
 
-```
-GET /bundlers/<id>/status
-```
+## App Logs and External Debugging
 
-The `<id>` is the same value carried as `bundlerId` by bundler-scoped SSE/MCP events. The response is a point-in-time snapshot:
+Rollipop MCP stays focused on bundler-facing diagnostics: build state, build logs, connected HMR clients, reload, sourcemap symbolication, and app logs forwarded through HMR `client_log`.
+
+Use `get_console_logs` for buffered app logs and `clear_console_logs` before a focused repro when older app logs may be noisy. For live streaming, use `/sse/client-logs`.
+
+Build diagnostics and app logs are intentionally separate. Use `build_errors` for Rolldown/plugin warnings, errors, and Rollipop build crashes. Use `get_console_logs` for app logs that the React Native HMR client forwards to Rollipop.
+
+For CDP debugging, runtime evaluation, runtime exceptions, network inspection, or CPU/heap profiling, use [`agent-cdp`](https://github.com/callstackincubator/agent-cdp) against the Rollipop dev server target. For React component tree inspection and React DevTools profiling, use [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools).
+
+Buffered diagnostics are cumulative by design. Before a focused repro, clear the relevant buffer with `clear_build_diagnostics` or `clear_console_logs` so older entries do not get mixed into the current observation.
+
+## Bundler Status
+
+Use `get_bundler_status` to read the current lifecycle state for a known `bundlerId` from build events.
+
+The response is a point-in-time snapshot:
 
 ```json
 { "id": "<id>", "status": "build-done" }
@@ -68,9 +92,9 @@ The `<id>` is the same value carried as `bundlerId` by bundler-scoped SSE/MCP ev
 | `build-done`   | The most recent build completed successfully                 |
 | `build-failed` | The most recent build (or HMR update) failed                 |
 
-Unknown ids return `404` with `{ "error": "not found" }`. The bare `/status` path is unaffected — it continues to return `packager-status:running` from the React Native community middleware.
+Unknown ids return `{ "error": "not found" }`.
 
-Agents can use this as a cheap pull-based alternative to `get_build_events` when they only need the latest state of a known bundler rather than the full event stream — for example, polling until a rebuild settles after an edit.
+Agents can use this as a cheap pull-based alternative to `get_build_events` when they only need the latest state of a known bundler rather than the full event stream.
 
 ## LLM Workflow
 
@@ -78,6 +102,8 @@ An LLM agent can use MCP tools to interact with the bundler:
 
 1. Call `get_build_events` to observe bundler state
 2. Make code changes
-3. Call `get_build_events` again to wait for `bundle_build_done` or `bundle_build_failed` — or poll `GET /bundlers/<id>/status` for a single known bundler
-4. If failed, read the error and fix the code
-5. If needed, call `reset_cache` to clear stale cache
+3. Call `get_build_events` again to wait for `bundle_build_done` or `bundle_build_failed` — or call `get_bundler_status` for a single known bundler
+4. Clear build/app log buffers before focused checks when older diagnostics may be noisy
+5. Use `bundleFilePath` from `bundle_build_done` when bundle-level debugging is needed
+6. If failed, read the error and fix the code
+7. If needed, call `reset_cache` to clear stale cache

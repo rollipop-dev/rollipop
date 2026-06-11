@@ -2,24 +2,27 @@
 title: Server-Sent Events
 ---
 
-The dev server exposes a Server-Sent Events (SSE) endpoint that streams bundler state in real-time. This is useful for integrating with external tools such as LLMs, CI dashboards, or custom monitoring.
+The dev server exposes Server-Sent Events (SSE) endpoints for real-time bundler state and app client logs. This is useful for integrating with external tools such as LLMs, CI dashboards, or custom monitoring.
 
-## SSE Endpoint
+## SSE Endpoints
 
 ```
 GET /sse/events
+GET /sse/client-logs
 ```
 
-The endpoint returns a `text/event-stream` response. Each event is formatted as:
+`/sse/events` streams build, device, server, and cache events. `/sse/client-logs` streams app console logs forwarded by the HMR client.
+
+Each endpoint returns a `text/event-stream` response. Each event is formatted as:
 
 ```
 event: <event_type>
 data: <json_payload>
 ```
 
-Bundler-scoped events include `bundlerId`. Use this value with `GET /bundlers/<id>/status` when polling the latest state for a specific bundle. Device, server, and cache events do not include `bundlerId` because they are not tied to a single bundler instance.
+Bundler-scoped events include `bundlerId`. Use this value with the MCP `get_bundler_status` tool when polling the latest state for a specific bundle. Device, server, and cache events are not tied to a single bundler instance. Client log events are streamed separately from build events.
 
-### Event Types
+### `/sse/events` Event Types
 
 #### `bundle_build_started`
 
@@ -40,9 +43,12 @@ Emitted when a bundle build completes successfully.
   "totalModules": 1270,
   "transformedModules": 1200,
   "cacheHitModules": 70,
-  "duration": 1523.45
+  "duration": 1523.45,
+  "bundleFilePath": "/path/to/project/.rollipop/bundles/<bundlerId>.bundle"
 }
 ```
+
+`bundleFilePath` points to the file-system copy of the generated bundle. Rollipop keeps the bundle in memory and also writes it to this path; when the file is edited after the build, Rollipop serves the edited file content instead of the in-memory copy. This is intended for bundle-level debugging by tools and agents.
 
 #### `bundle_build_failed`
 
@@ -64,16 +70,6 @@ Emitted when a file change is detected.
 { "type": "watch_change", "bundlerId": "<bundlerId>", "file": "src/App.tsx" }
 ```
 
-#### `client_log`
-
-Emitted when the app logs to the console.
-
-```json
-{ "type": "client_log", "bundlerId": "<bundlerId>", "data": ["Hello from the app"] }
-```
-
-`bundlerId` is included when the HMR client has already been associated with a bundler instance. It may be omitted for logs received before that association is available.
-
 #### `device_connected` / `device_disconnected`
 
 Emitted when a device connects or disconnects via HMR.
@@ -92,34 +88,34 @@ Emitted once when the dev server is ready.
 
 #### `cache_reset`
 
-Emitted when the control API clears the build cache.
+Emitted when the MCP `reset_cache` tool clears the build cache.
 
 ```json
 { "type": "cache_reset" }
 ```
 
-## Control API
+### `/sse/client-logs` Event Types
 
-The dev server also provides an HTTP endpoint to trigger actions externally.
+#### `client_log`
 
-### `ALL /reset-cache`
+Emitted when the app logs to the console through the HMR client.
 
-Clears the entire build cache.
-
+```json
+{ "type": "client_log", "bundlerId": "<bundlerId>", "data": ["Hello from the app"] }
 ```
-curl http://localhost:8081/reset-cache
-```
+
+`bundlerId` is included when the HMR client has already been associated with a bundler instance. It may be omitted for logs received before that association is available.
 
 ## Usage Examples
 
 ### curl
 
 ```bash
-# Stream events
+# Stream build and dev-server events
 curl -N http://localhost:8081/sse/events
 
-# Reset cache
-curl http://localhost:8081/reset-cache
+# Stream app client logs
+curl -N http://localhost:8081/sse/client-logs
 ```
 
 ### Node.js

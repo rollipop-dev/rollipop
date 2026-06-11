@@ -24,6 +24,7 @@ export interface BundlerDevEngineOptions {
 }
 
 export type BundlerStatus = 'idle' | 'building' | 'build-done' | 'build-failed';
+type BundleBuildDoneEvent = Extract<ReportableEvent, { type: 'bundle_build_done' }>;
 
 export class BundlerDevEngine {
   private readonly initializeHandle: ReturnType<typeof taskHandler>;
@@ -73,7 +74,8 @@ export class BundlerDevEngine {
 
     this._state = 'initializing';
 
-    const config = bindReporter(this.config, (event) => {
+    let pendingBuildDoneEvent: BundleBuildDoneEvent | null = null;
+    const emitReportableEvent = (event: ReportableEvent) => {
       switch (event.type) {
         case 'bundle_build_started':
           this._status = 'building';
@@ -89,6 +91,17 @@ export class BundlerDevEngine {
       }
 
       this.eventBus.emit({ ...event, bundlerId: this.id });
+    };
+
+    const config = bindReporter(this.config, (event) => {
+      if (event.type === 'bundle_build_started') {
+        pendingBuildDoneEvent = null;
+      }
+      if (event.type === 'bundle_build_done') {
+        pendingBuildDoneEvent = event;
+        return;
+      }
+      emitReportableEvent(event);
     });
 
     const devEngine = await Bundler.devEngine(config, this.buildOptions, {
@@ -112,19 +125,35 @@ export class BundlerDevEngine {
           this._status = 'build-failed';
           this.eventBus.emit({ ...event, bundlerId: this.id });
         } else {
+          const changedFileCount = getChangedFileCount(errorOrResult.changedFiles);
           logger.trace('Detected changed files', {
             bundlerId: this.id,
             changedFiles: errorOrResult.changedFiles,
+          });
+          this._status = 'building';
+          this.eventBus.emit({
+            bundlerId: this.id,
+            type: 'bundle_build_started',
           });
           this.eventBus.emit({
             bundlerId: this.id,
             type: 'hmr_updates',
             updates: errorOrResult.updates,
           });
+          this._status = 'build-done';
+          this.eventBus.emit({
+            bundlerId: this.id,
+            type: 'bundle_build_done',
+            totalModules: changedFileCount,
+            transformedModules: changedFileCount,
+            cacheHitModules: 0,
+            duration: 0,
+          });
         }
       },
       onOutput: (errorOrResult) => {
         if (errorOrResult instanceof Error) {
+          pendingBuildDoneEvent = null;
           const normalizedError = normalizeRolldownError(errorOrResult);
           logger.trace('onOutput', { bundlerId: this.id });
           logger.error(errorOrResult.message);
@@ -137,12 +166,20 @@ export class BundlerDevEngine {
           this.eventBus.emit({ ...event, bundlerId: this.id });
         } else {
           const output = errorOrResult.output[0];
-          this.updateBundleStore(output);
+          const bundleStore = this.updateBundleStore(output);
           this.buildFailedError = null;
           logger.debug('Build completed', {
             bundlerId: this.id,
             bundleName: output.name,
+            bundleFilePath: bundleStore.bundleFilePath,
           });
+          if (pendingBuildDoneEvent != null) {
+            emitReportableEvent({
+              ...pendingBuildDoneEvent,
+              bundleFilePath: bundleStore.bundleFilePath,
+            });
+            pendingBuildDoneEvent = null;
+          }
         }
       },
       rebuildStrategy: 'auto',
@@ -154,13 +191,14 @@ export class BundlerDevEngine {
     this.initializeHandle.resolve();
   }
 
-  private updateBundleStore(output: OutputChunk) {
+  private updateBundleStore(output: OutputChunk): BundleStore {
     this.bundleStore = new FileSystemBundleStore(
       this.config.root,
       this.id,
       output.code,
       output.map?.toString(),
     );
+    return this.bundleStore;
   }
 
   async getBundle() {
@@ -178,6 +216,17 @@ export class BundlerDevEngine {
 
     return this.bundleStore;
   }
+}
+
+function getChangedFileCount(changedFiles: unknown): number {
+  if (Array.isArray(changedFiles)) {
+    return changedFiles.length;
+  }
+  if (changedFiles != null && typeof changedFiles === 'object' && 'size' in changedFiles) {
+    const size = (changedFiles as { size?: unknown }).size;
+    return typeof size === 'number' ? size : 0;
+  }
+  return 0;
 }
 
 export class BundlerPool {

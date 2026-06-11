@@ -13,13 +13,14 @@ import { logger } from '../logger';
 type SourceMapConsumerType = BasicSourceMapConsumer | IndexedSourceMapConsumer;
 
 export interface BundleStore {
+  bundleFilePath: string;
   code: string;
   sourceMap: string | undefined;
   sourceMapConsumer: Promise<SourceMapConsumerType> | undefined;
 }
 
 export class FileSystemBundleStore implements BundleStore {
-  private readonly bundleFilePath: string;
+  readonly bundleFilePath: string;
   private readonly _sourceMap: string | undefined;
   private lazySourceMapConsumer: Promise<SourceMapConsumerType> | null = null;
   private holder: { code: string; mtimeMs: number };

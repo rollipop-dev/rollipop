@@ -13,6 +13,22 @@ interface OptionalBundlerEvent {
   bundlerId?: string;
 }
 
+export interface BuildDiagnosticLog {
+  code?: string;
+  plugin?: string;
+  message: string;
+  stack?: string;
+  id?: string;
+  hook?: string;
+  frame?: string;
+  loc?: {
+    column: number;
+    file?: string;
+    line: number;
+  };
+  meta?: unknown;
+}
+
 export type ReportableEvent =
   | ({
       type: 'bundle_build_started';
@@ -23,6 +39,7 @@ export type ReportableEvent =
       transformedModules: number;
       cacheHitModules: number;
       duration: number;
+      bundleFilePath?: string;
     } & OptionalBundlerEvent)
   | ({
       type: 'bundle_build_failed';
@@ -37,6 +54,16 @@ export type ReportableEvent =
   | ({
       type: 'watch_change';
       id: string;
+    } & OptionalBundlerEvent)
+  | ({
+      type: 'build_log';
+      level: 'debug' | 'info';
+      log: BuildDiagnosticLog;
+    } & OptionalBundlerEvent)
+  | ({
+      type: 'build_error';
+      level: 'warn' | 'error';
+      log: BuildDiagnosticLog;
     } & OptionalBundlerEvent)
   | MetroCompatibleClientLogEvent;
 

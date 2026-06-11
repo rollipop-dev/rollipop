@@ -10,6 +10,8 @@ import type * as ws from 'ws';
 
 import type { ResolvedConfig } from '../config';
 import type { BuildOptions } from '../core/types';
+import type { BundlerPool } from './bundler-pool';
+import type { ServerEventBus } from './events/event-bus';
 import type { WebSocketClient } from './wss/server';
 
 export type FastifyInstance = BaseFastifyInstance & {
@@ -26,37 +28,30 @@ export interface ServerOptions {
   key?: string;
   cert?: string;
   buildOptions?: Pick<BuildOptions, 'cache'>;
+  mcp?: boolean;
 }
 
-export type DevServerEvents = {
-  'device.connected': { client: WebSocketClient };
-  'device.message': { client: WebSocketClient; data: ws.RawData };
-  'device.error': { client: WebSocketClient; error: Error };
-  'device.disconnected': { client: WebSocketClient };
-};
-
-export interface Middlewares {
+export interface DevServerContext {
   /**
-   * Register a middleware to the Fastify instance.
-   *
-   * **NOTE**: This is a wrapper of `instance.use`.
+   * The base URL of the development server.
    */
-  use: FastifyInstance['use'];
-}
-
-export interface DevServer extends Emitter<DevServerEvents> {
+  serverBaseUrl: string;
   /**
    * Resolved Rollipop config.
    */
   config: ResolvedConfig;
   /**
-   * The Fastify instance.
+   * Server options.
    */
-  instance: FastifyInstance;
+  options: ServerOptions;
   /**
-   * `express` and `connect` style middleware registration API.
+   * The bundler pool.
    */
-  middlewares: Middlewares;
+  bundlerPool: BundlerPool;
+  /**
+   * The event bus.
+   */
+  eventBus: ServerEventBus;
   /**
    * The message websocket server API.
    */
@@ -83,6 +78,34 @@ export interface DevServer extends Emitter<DevServerEvents> {
     sendAll: (eventName: string, payload?: unknown) => void;
   };
 }
+
+export type DevServerEvents = {
+  'device.connected': { client: WebSocketClient };
+  'device.message': { client: WebSocketClient; data: ws.RawData };
+  'device.error': { client: WebSocketClient; error: Error };
+  'device.disconnected': { client: WebSocketClient };
+};
+
+export interface Middlewares {
+  /**
+   * Register a middleware to the Fastify instance.
+   *
+   * **NOTE**: This is a wrapper of `instance.use`.
+   */
+  use: FastifyInstance['use'];
+}
+
+export type DevServer = {
+  /**
+   * The Fastify instance.
+   */
+  instance: FastifyInstance;
+  /**
+   * `express` and `connect` style middleware registration API.
+   */
+  middlewares: Middlewares;
+} & DevServerContext &
+  Emitter<DevServerEvents>;
 
 export interface BundleDetails {
   bundleType: string;

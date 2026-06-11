@@ -1,5 +1,10 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
+import { Bundler } from '../../core/bundler';
 import { createTestConfig } from '../../testing/config';
 import { BundlerPool } from '../bundler-pool';
 import { ServerEventBus } from '../events/event-bus';
@@ -21,7 +26,12 @@ vitest.mock('../../common/env', () => ({
 }));
 
 vitest.mock('../../utils/config', () => ({
-  bindReporter: vi.fn((config) => config),
+  bindReporter: vi.fn((config, onEvent) => ({
+    ...config,
+    reporter: {
+      update: onEvent,
+    },
+  })),
 }));
 
 vitest.mock('../logger', () => ({
@@ -94,5 +104,114 @@ describe('BundlerPool', () => {
     const instance2 = pool.get('index', { platform: 'ios', dev: true });
 
     expect(instance1).toBe(instance2);
+  });
+
+  it('emits bundle file path after writing build output', async () => {
+    resetPool();
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-bundler-pool-'));
+    const eventBus = new ServerEventBus();
+    const events: unknown[] = [];
+    eventBus.subscribe((event) => {
+      events.push(event);
+    });
+
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(
+      async (boundConfig, _buildOptions, options) => {
+        return {
+          run: vi.fn(async () => {
+            boundConfig.reporter.update({ type: 'bundle_build_started' });
+            boundConfig.reporter.update({
+              type: 'bundle_build_done',
+              totalModules: 1,
+              transformedModules: 1,
+              cacheHitModules: 0,
+              duration: 10,
+            });
+            expect(events).not.toContainEqual(
+              expect.objectContaining({ type: 'bundle_build_done' }),
+            );
+
+            await options.onOutput?.({
+              output: [
+                {
+                  type: 'chunk',
+                  name: 'index',
+                  code: 'console.log("ok");',
+                  map: null,
+                },
+              ],
+            } as any);
+          }),
+          getBundleState: vi
+            .fn()
+            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
+        } as any;
+      },
+    );
+
+    try {
+      const pool = new BundlerPool(createTestConfig(projectRoot), serverOptions, eventBus);
+      const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+      await instance.ensureInitialized;
+
+      const doneEvent = events.find(
+        (event) =>
+          typeof event === 'object' && event != null && (event as any).type === 'bundle_build_done',
+      ) as any;
+
+      expect(doneEvent).toEqual(
+        expect.objectContaining({
+          type: 'bundle_build_done',
+          bundlerId: 'ios-true',
+          bundleFilePath: path.join(projectRoot, '.rollipop', 'bundles', 'ios-true.bundle'),
+        }),
+      );
+      expect(fs.readFileSync(doneEvent.bundleFilePath, 'utf-8')).toBe('console.log("ok");');
+    } finally {
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('emits build lifecycle events around successful HMR updates', async () => {
+    resetPool();
+    const eventBus = new ServerEventBus();
+    const events: unknown[] = [];
+    eventBus.subscribe((event) => {
+      events.push(event);
+    });
+
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(
+      async (_boundConfig, _buildOptions, options) => {
+        return {
+          run: vi.fn(async () => {
+            await options.onHmrUpdates?.({
+              changedFiles: ['/root/project/App.tsx'],
+              updates: [],
+            } as any);
+          }),
+          getBundleState: vi
+            .fn()
+            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
+        } as any;
+      },
+    );
+
+    const pool = new BundlerPool(config, serverOptions, eventBus);
+    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+    await instance.ensureInitialized;
+
+    expect(instance.status).toBe('build-done');
+    expect(events).toEqual([
+      expect.objectContaining({ type: 'bundle_build_started', bundlerId: 'ios-true' }),
+      expect.objectContaining({ type: 'hmr_updates', bundlerId: 'ios-true' }),
+      expect.objectContaining({
+        type: 'bundle_build_done',
+        bundlerId: 'ios-true',
+        totalModules: 1,
+        transformedModules: 1,
+      }),
+    ]);
   });
 });

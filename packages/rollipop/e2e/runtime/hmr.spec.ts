@@ -6,6 +6,7 @@ import {
   type TestServer,
   cloneFixture,
   createFakeClient,
+  readFixtureFile,
   startTestServer,
   subscribeSSE,
   writeFixtureFile,
@@ -44,6 +45,17 @@ let client: FakeClient;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+function resetObservedEvents() {
+  sse.events.length = 0;
+  client.messages.length = 0;
+}
+
+async function prepareClientForHMR() {
+  resetObservedEvents();
+  client.registerModules([INDEX_MODULE_ID, APP_MODULE_ID]);
+  await sleep(1000);
+}
+
 beforeAll(async () => {
   fixture = cloneFixture('hmr-app');
   ts = await startTestServer(fixture.dir);
@@ -78,6 +90,11 @@ afterAll(async () => {
 }, 60_000);
 
 afterEach(async () => {
+  if (readFixtureFile(fixture.dir, 'App.tsx') === APP_TSX_ORIGINAL) {
+    await sleep(200);
+    return;
+  }
+
   writeFixtureFile(fixture.dir, 'App.tsx', APP_TSX_ORIGINAL);
   await sleep(200);
 });
@@ -96,53 +113,28 @@ describe('runtime e2e: HMR', () => {
     // an accept boundary (hmr_stage.rs#propagate_update) and, finding none
     // above the entry, returns `HmrUpdate::FullReload` — the exact behaviour
     // the user expects for entry-file changes.
-    const msgCursor = client.messages.length;
+    await prepareClientForHMR();
 
-    const reloadPromise = client.waitForMessage(
-      'hmr:reload',
-      (m) => client.messages.indexOf(m) >= msgCursor,
-      60_000,
-    );
-    const updateDonePromise = client.waitForMessage(
-      'hmr:update-done',
-      (m) => client.messages.indexOf(m) >= msgCursor,
-      60_000,
-    );
+    const reloadPromise = client.waitForMessage('hmr:reload', undefined, 60_000);
+    const updateDonePromise = client.waitForMessage('hmr:update-done', undefined, 60_000);
 
     client.invalidate(INDEX_MODULE_ID);
 
     await reloadPromise;
     await updateDonePromise;
 
-    const newMessages = client.messages.slice(msgCursor).map((m) => m.type);
+    const newMessages = client.messages.map((m) => m.type);
     expect(newMessages).toContain('hmr:reload');
     expect(newMessages).not.toContain('hmr:update');
   }, 60_000);
 
   it('dispatches a Patch (hmr:update) when a module with import.meta.hot.accept changes', async () => {
-    const msgCursor = client.messages.length;
-    const eventCursor = sse.events.length;
+    await prepareClientForHMR();
 
-    const watchPromise = sse.waitFor(
-      'watch_change',
-      (e) => e.file.endsWith('App.tsx') && sse.events.indexOf(e) >= eventCursor,
-      60_000,
-    );
-    const updateStartPromise = client.waitForMessage(
-      'hmr:update-start',
-      (m) => client.messages.indexOf(m) >= msgCursor,
-      60_000,
-    );
-    const updatePromise = client.waitForMessage(
-      'hmr:update',
-      (m) => client.messages.indexOf(m) >= msgCursor,
-      60_000,
-    );
-    const updateDonePromise = client.waitForMessage(
-      'hmr:update-done',
-      (m) => client.messages.indexOf(m) >= msgCursor,
-      60_000,
-    );
+    const watchPromise = sse.waitFor('watch_change', (e) => e.file.includes('App.tsx'), 60_000);
+    const updateStartPromise = client.waitForMessage('hmr:update-start', undefined, 60_000);
+    const updatePromise = client.waitForMessage('hmr:update', undefined, 60_000);
+    const updateDonePromise = client.waitForMessage('hmr:update-done', undefined, 60_000);
 
     writeFixtureFile(
       fixture.dir,
@@ -167,24 +159,15 @@ describe('runtime e2e: HMR', () => {
     expect(update.code).toContain('applyUpdates');
     expect(update.code).not.toMatch(/applyUpdates\(\s*\[\s*\]\s*\)/);
 
-    const newMessages = client.messages.slice(msgCursor).map((m) => m.type);
+    const newMessages = client.messages.map((m) => m.type);
     expect(newMessages).not.toContain('hmr:reload');
   }, 180_000);
 
   it('reports a build error via SSE bundle_build_failed and WS hmr:error', async () => {
-    const msgCursor = client.messages.length;
-    const eventCursor = sse.events.length;
+    await prepareClientForHMR();
 
-    const failedPromise = sse.waitFor(
-      'bundle_build_failed',
-      (e) => sse.events.indexOf(e) >= eventCursor,
-      60_000,
-    );
-    const errorPromise = client.waitForMessage(
-      'hmr:error',
-      (m) => client.messages.indexOf(m) >= msgCursor,
-      60_000,
-    );
+    const failedPromise = sse.waitFor('bundle_build_failed', undefined, 60_000);
+    const errorPromise = client.waitForMessage('hmr:error', undefined, 60_000);
 
     writeFixtureFile(
       fixture.dir,
@@ -193,9 +176,10 @@ describe('runtime e2e: HMR', () => {
 import { Text, View } from 'react-native';
 
 export function App() {
+  const broken = ;
   return (
     <View>
-      <Text>broken
+      <Text>{broken}</Text>
     </View>
   );
 }

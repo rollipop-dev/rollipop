@@ -2,7 +2,6 @@ import url from 'url';
 
 import { createDevServerMiddleware } from '@react-native-community/cli-server-api';
 import { createDevMiddleware } from '@react-native/dev-middleware';
-import { merge } from 'es-toolkit';
 import Fastify from 'fastify';
 import mitt from 'mitt';
 import type * as ws from 'ws';
@@ -10,7 +9,7 @@ import type * as ws from 'ws';
 import type { ResolvedConfig } from '../config';
 import { createPluginContext } from '../core/plugins/context';
 import type { Plugin } from '../core/plugins/types';
-import type { AsyncResult, BuildOptions } from '../core/types';
+import type { AsyncResult } from '../core/types';
 import { assertDevServerStatus } from '../utils/dev-server';
 import { BundlerPool } from './bundler-pool';
 import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
@@ -18,8 +17,6 @@ import { errorHandler } from './error';
 import { ServerEventBus } from './events/event-bus';
 import { DevServerLogger, logger } from './logger';
 import { mcp } from './mcp/server';
-import { bundlers } from './middlewares/bundlers';
-import { control } from './middlewares/control';
 import { requestLogger } from './middlewares/request-logger';
 import { serveAssets } from './middlewares/serve-assets';
 import { serveBundle } from './middlewares/serve-bundle';
@@ -27,7 +24,7 @@ import { sse } from './middlewares/sse';
 import { symbolicate } from './middlewares/symbolicate';
 import { toSSEEvent } from './sse/adapter';
 import { SSEEventPublisher } from './sse/event-bus';
-import type { DevServer, DevServerEvents, ServerOptions } from './types';
+import type { DevServer, DevServerContext, DevServerEvents, ServerOptions } from './types';
 import { HMRServer } from './wss/hmr-server';
 import { getWebSocketUpgradeHandler } from './wss/server';
 
@@ -52,6 +49,7 @@ export async function createDevServer(
   });
 
   const eventBus = new ServerEventBus();
+  const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
   const ssePublisher = new SSEEventPublisher();
   const reporter = config.reporter;
 
@@ -78,6 +76,8 @@ export async function createDevServer(
       case 'bundle_build_started':
       case 'bundle_build_done':
       case 'bundle_build_failed':
+      case 'build_log':
+      case 'build_error':
       case 'transform':
       case 'watch_change':
         reporter?.update(event);
@@ -105,11 +105,6 @@ export async function createDevServer(
         break;
     }
   });
-
-  const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
-  const getBundler = (bundleName: string, buildOptions: BuildOptions) => {
-    return bundlerPool.get(bundleName, merge(options?.buildOptions ?? {}, buildOptions));
-  };
 
   const { middleware: devMiddleware, websocketEndpoints } = createDevMiddleware({
     serverBaseUrl,
@@ -140,11 +135,12 @@ export async function createDevServer(
 
   await fastify.register(import('@fastify/middie'));
 
-  const devServer: DevServer = {
-    ...emitter,
-    config,
-    instance: fastify,
-    middlewares: { use: fastify.use.bind(fastify) },
+  const context: DevServerContext = {
+    serverBaseUrl,
+    config: Object.freeze(config),
+    options: Object.freeze(options ?? {}),
+    bundlerPool,
+    eventBus,
     message: Object.assign(messageServer, { broadcast }),
     events: Object.assign(eventsServer, { reportEvent }),
     hot: Object.assign(hmrServer.server, {
@@ -157,6 +153,13 @@ export async function createDevServer(
     }),
   };
 
+  const devServer: DevServer = {
+    ...context,
+    ...emitter,
+    instance: fastify,
+    middlewares: { use: fastify.use.bind(fastify) },
+  };
+
   const { invokePostConfigureServer } = await invokeConfigureServer(
     devServer,
     config.plugins ?? [],
@@ -166,19 +169,11 @@ export async function createDevServer(
     .use(requestLogger)
     .use(communityMiddleware)
     .use(devMiddleware)
-    .register(sse, { publisher: ssePublisher })
-    .register(control, { projectRoot, eventBus })
-    .register(bundlers, { bundlerPool })
-    .register(mcp, { projectRoot, eventBus })
-    .register(symbolicate, { getBundler })
-    .register(serveBundle, { eventBus, getBundler })
-    .register(serveAssets, {
-      projectRoot,
-      host,
-      port,
-      https,
-      preferNativePlatform: config.resolver.preferNativePlatform,
-    })
+    .register(symbolicate, { context })
+    .register(serveBundle, { context })
+    .register(serveAssets, { context })
+    .register(sse, { context })
+    .register(mcp, { context })
     .setErrorHandler(errorHandler);
 
   fastify.server.on(

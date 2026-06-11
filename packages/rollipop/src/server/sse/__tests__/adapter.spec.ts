@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import type { ReportableEvent } from '../../../types';
 import type { IdentifiedReportableEvent } from '../../events/types';
-import { toSSEEvent } from '../adapter';
+import { toSSEClientLogEvent, toSSEEvent } from '../adapter';
 
 describe('toSSEEvent', () => {
   const bundlerId = 'ios-true';
@@ -24,6 +24,7 @@ describe('toSSEEvent', () => {
       transformedModules: 70,
       cacheHitModules: 30,
       duration: 500,
+      bundleFilePath: '/tmp/.rollipop/bundles/ios-true.bundle',
     };
 
     expect(toSSEEvent(event)).toEqual({
@@ -33,6 +34,7 @@ describe('toSSEEvent', () => {
       transformedModules: 70,
       cacheHitModules: 30,
       duration: 500,
+      bundleFilePath: '/tmp/.rollipop/bundles/ios-true.bundle',
     });
   });
 
@@ -72,14 +74,15 @@ describe('toSSEEvent', () => {
     });
   });
 
-  it('should convert client_log without id', () => {
+  it('should exclude client_log from build events and convert it for the client log stream', () => {
     const event: ReportableEvent = {
       type: 'client_log',
       level: 'error',
       data: ['Something went wrong'],
     };
 
-    expect(toSSEEvent(event)).toEqual({
+    expect(toSSEEvent(event)).toBeNull();
+    expect(toSSEClientLogEvent(event)).toEqual({
       type: 'client_log',
       data: ['Something went wrong'],
     });

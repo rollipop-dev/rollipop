@@ -1,5 +1,5 @@
 /**
- * @see `tsdown.config.ts`
+ * @see `vite.config.ts`
  */
 declare global {
   var __ROLLIPOP_VERSION__: string;

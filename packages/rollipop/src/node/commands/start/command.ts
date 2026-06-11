@@ -19,6 +19,7 @@ export interface StartCommandOptions {
   resetCache?: boolean;
   // Rollipop specific options
   cache?: boolean;
+  mcp?: boolean;
 }
 
 export const command: CommandDefinition<StartCommandOptions> = {
@@ -74,6 +75,10 @@ export const command: CommandDefinition<StartCommandOptions> = {
       name: '--cache [boolean]',
       description: 'If false, the bundler will not load or store any cache',
       parse: parseBoolean,
+    },
+    {
+      name: '--mcp',
+      description: 'Enable the MCP server at /mcp',
     },
     {
       name: '--projectRoot <path>',

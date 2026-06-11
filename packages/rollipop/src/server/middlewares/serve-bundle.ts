@@ -3,12 +3,10 @@ import type { FastifyReply } from 'fastify';
 import fp from 'fastify-plugin';
 import { asConst, type FromSchema } from 'json-schema-to-ts';
 
-import type { BuildOptions } from '../../core/types';
 import { BundleResponse } from '../../utils/response';
-import type { BundlerDevEngine } from '../bundler-pool';
 import { bundleRequestSchema, type BundleRequestSchema } from '../common/schema';
-import type { ServerEventBus } from '../events/event-bus';
 import { isBundlerEventForId } from '../events/types';
+import type { DevServerContext } from '../types';
 
 const routeParamSchema = asConst({
   type: 'object',
@@ -22,8 +20,7 @@ const routeParamSchema = asConst({
 type RouteParams = FromSchema<typeof routeParamSchema>;
 
 export interface ServeBundlePluginOptions {
-  eventBus: ServerEventBus;
-  getBundler: (bundleName: string, buildOptions: BuildOptions) => BundlerDevEngine;
+  context: DevServerContext;
 }
 
 function withGetBundleErrorHandler<T>(reply: FastifyReply, task: Promise<T>) {
@@ -34,7 +31,7 @@ function withGetBundleErrorHandler<T>(reply: FastifyReply, task: Promise<T>) {
 
 const plugin = fp<ServeBundlePluginOptions>(
   (fastify, options) => {
-    const { eventBus, getBundler } = options;
+    const { context } = options;
 
     const getBundleOptions = (buildOptions: BundleRequestSchema) => {
       return {
@@ -63,13 +60,13 @@ const plugin = fp<ServeBundlePluginOptions>(
         }
 
         const buildOptions = getBundleOptions(query);
-        const bundler = getBundler(params.name, buildOptions);
+        const bundler = context.bundlerPool.get(params.name, buildOptions);
         const isSupportMultipart = accept?.includes('multipart/mixed') ?? false;
 
         if (isSupportMultipart) {
           const bundleResponse = new BundleResponse(reply);
 
-          const unsubscribe = eventBus.subscribe((event) => {
+          const unsubscribe = context.eventBus.subscribe((event) => {
             if (isBundlerEventForId(event, bundler.id) && event.type === 'transform') {
               bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
             }
@@ -107,10 +104,8 @@ const plugin = fp<ServeBundlePluginOptions>(
         }
 
         const buildOptions = getBundleOptions(query);
-        const bundle = await withGetBundleErrorHandler(
-          reply,
-          getBundler(params.name, buildOptions).getBundle(),
-        );
+        const bundler = context.bundlerPool.get(params.name, buildOptions);
+        const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
         const sourceMap = bundle.sourceMap;
         invariant(sourceMap, 'Source map is not available');
 

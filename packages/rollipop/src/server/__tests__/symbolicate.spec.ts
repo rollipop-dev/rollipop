@@ -22,6 +22,7 @@ function createMockSourceMapConsumer(mappings: Map<string, any>) {
 
 function createMockBundleStore(sourceMapConsumer: any, code = 'var x = 1;'): BundleStore {
   return {
+    bundleFilePath: '/tmp/index.bundle',
     code,
     sourceMap: '{}',
     sourceMapConsumer: Promise.resolve(sourceMapConsumer),
@@ -150,6 +151,7 @@ describe('symbolicate', () => {
 
   it('should work without source map consumer', async () => {
     const bundleStore: BundleStore = {
+      bundleFilePath: '/tmp/index.bundle',
       code: 'var x = 1;',
       sourceMap: undefined,
       sourceMapConsumer: Promise.resolve(undefined as any),

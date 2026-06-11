@@ -12,6 +12,7 @@ export default defineConfig({
       'docs/next-env.d.ts',
       'examples/*/android/**',
       'examples/*/ios/**',
+      '**/CHANGELOG.md',
       'rolldown/**',
       '**/__fixtures__/**',
       '**/.**',

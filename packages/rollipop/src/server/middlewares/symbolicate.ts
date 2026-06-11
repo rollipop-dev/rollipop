@@ -4,12 +4,11 @@ import fp from 'fastify-plugin';
 import { asConst, type FromSchema } from 'json-schema-to-ts';
 
 import { isDebugEnabled } from '../../common/env';
-import type { BuildOptions } from '../../core/types';
 import { getBaseBundleName } from '../../utils/bundle';
 import { parseUrl } from '../../utils/url';
-import type { BundlerDevEngine } from '../bundler-pool';
 import type { StackFrameInput } from '../symbolicate';
 import { symbolicate, type SymbolicateResult } from '../symbolicate';
+import type { DevServerContext } from '../types';
 
 const bodySchema = asConst({
   type: 'object',
@@ -31,12 +30,12 @@ interface SymbolicateRequestBody {
 }
 
 export interface SymbolicatePluginOptions {
-  getBundler: (bundleName: string, buildOptions: BuildOptions) => BundlerDevEngine;
+  context: DevServerContext;
 }
 
 const plugin = fp<SymbolicatePluginOptions>(
   (fastify, options) => {
-    const { getBundler } = options;
+    const { context } = options;
 
     fastify.post<{ Body: Body }>('/symbolicate', {
       schema: {
@@ -53,11 +52,10 @@ const plugin = fp<SymbolicatePluginOptions>(
         invariant(query.platform, 'No platform found in query');
         invariant(query.dev, 'No dev found in query');
 
+        const platform = query.platform as string;
+        const dev = query.dev === 'true';
         const bundleName = getBaseBundleName(pathname);
-        const bundler = getBundler(bundleName, {
-          platform: query.platform as string,
-          dev: query.dev === 'true',
-        });
+        const bundler = context.bundlerPool.get(bundleName, { platform, dev });
         const bundle = await bundler.getBundle();
         const symbolicateResult = await symbolicate(bundle, stack);
 
