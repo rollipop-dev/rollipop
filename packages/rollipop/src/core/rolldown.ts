@@ -33,7 +33,6 @@ import {
   type SwcPluginOptions,
   babel,
   devServer,
-  json,
   prelude,
   reactNative,
   reporter,
@@ -200,7 +199,6 @@ export async function resolveRolldownOptions(
     plugins: withTransformBoundary(context, [
       prelude(preludePluginOptions),
       reactNative(reactNativePluginOptions),
-      json(),
       babel(babelPluginOptions),
       swc(swcPluginOptions),
       devServer(devServerPluginOptions),

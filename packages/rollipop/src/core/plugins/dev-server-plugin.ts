@@ -1,6 +1,6 @@
 import type * as rolldown from '@rollipop/rolldown';
-import { exactRegex, id, include } from '@rollipop/rolldown-pluginutils';
 import { rollipopReactRefreshWrapperPlugin as reactRefresh } from '@rollipop/rolldown/experimental';
+import { exactRegex, id, include } from '@rollipop/rolldown/filter';
 
 import { ResolvedConfig } from '../../config';
 import type { ResolvedHmrConfig } from '../../utils/config';

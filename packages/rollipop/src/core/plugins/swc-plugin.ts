@@ -1,5 +1,5 @@
 import type * as rolldown from '@rollipop/rolldown';
-import { id, include } from '@rollipop/rolldown-pluginutils';
+import { id, include } from '@rollipop/rolldown/filter';
 import * as swc from '@swc/core';
 
 import type { ResolvedConfig, TransformerConfig } from '../../config';

@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import MagicString from 'magic-string';
 import type { Plugin, ResolvedConfig } from 'rollipop';
-import { id, include, prefixRegex } from 'rollipop/pluginutils';
+import { id, include, prefixRegex } from 'rollipop/filter';
 
 import {
   HMR_EVENT,

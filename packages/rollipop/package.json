@@ -37,9 +37,9 @@
         "default": "./dist/commands.cjs"
       }
     },
-    "./pluginutils": {
-      "types": "./dist/pluginutils.d.ts",
-      "default": "./dist/pluginutils.js"
+    "./filter": {
+      "types": "./dist/filter.d.ts",
+      "default": "./dist/filter.js"
     },
     "./runtime": {
       "import": {
@@ -80,7 +80,6 @@
     "@react-native/babel-plugin-codegen": "^0.84.1",
     "@react-native/dev-middleware": "^0.84.1",
     "@rollipop/rolldown": "catalog:rolldown",
-    "@rollipop/rolldown-pluginutils": "catalog:rolldown",
     "@swc/core": "^1.15.18",
     "@swc/helpers": "^0.5.19",
     "@types/ws": "^8",

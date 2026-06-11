@@ -1,9 +1,9 @@
 import type * as rolldown from '@rollipop/rolldown';
-import { id, include, type TopLevelFilterExpression } from '@rollipop/rolldown-pluginutils';
 import {
   rollipopReactNativePlugin,
   type RollipopReactNativePluginConfig,
 } from '@rollipop/rolldown/experimental';
+import { id, include, type TopLevelFilterExpression } from '@rollipop/rolldown/filter';
 
 import { stripFlowTypes } from '../../common/transformer';
 import {

@@ -1,11 +1,11 @@
 import type * as babel from '@babel/core';
 import type * as rolldown from '@rollipop/rolldown';
-import type { TopLevelFilterExpression } from '@rollipop/rolldown-pluginutils';
 import type {
   DevWatchOptions,
   RollipopReactNativeFlowConfig,
   RollipopReactNativeWorkletsConfig,
 } from '@rollipop/rolldown/experimental';
+import type { TopLevelFilterExpression } from '@rollipop/rolldown/filter';
 import type { TransformOptions } from '@rollipop/rolldown/utils';
 import type * as swc from '@swc/core';
 

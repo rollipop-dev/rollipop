@@ -85,7 +85,7 @@ export default defineConfig({
     },
     {
       ...commonPackConfig,
-      entry: 'src/pluginutils.ts',
+      entry: 'src/filter.ts',
       format: 'esm',
       platform: 'node',
       dts: true,

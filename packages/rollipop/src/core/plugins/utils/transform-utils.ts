@@ -1,4 +1,5 @@
 import type * as rolldown from '@rollipop/rolldown';
+import { id, include } from '@rollipop/rolldown/filter';
 
 import type { PluginOption } from '../../../config';
 import type { BundlerContext } from '../../types';
@@ -73,12 +74,24 @@ export function withTransformBoundary(
     },
   };
 
-  const changeWatcherPlugin: Plugin = {
-    name: 'rollipop:transform-change-watcher',
+  const fileWatcherPlugin: Plugin = {
+    name: 'rollipop:transform-file-watcher',
     watchChange(id) {
       context.state.hmrUpdates.add(id);
     },
   };
 
-  return [initializer, changeWatcherPlugin, plugins];
+  // Skip JSON files from subsequent transforms.
+  const skipJsonPlugin: Plugin = {
+    name: 'rollipop:transform-skip-json',
+    transform: {
+      order: 'pre',
+      filter: [include(id(/\.json$/))],
+      handler(_code, id) {
+        return { meta: setFlag(this, id, TransformFlag.SKIP_ALL) };
+      },
+    },
+  };
+
+  return [initializer, fileWatcherPlugin, skipJsonPlugin, plugins];
 }
