@@ -78,7 +78,8 @@ export interface BundlerContext {
 }
 
 export interface BundlerState {
-  hmrUpdates: Set<string>;
+  revision: number;
+  latestBuildStartTime: number;
 }
 
 export type BuildType = 'build' | 'serve';

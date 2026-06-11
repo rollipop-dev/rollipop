@@ -6,9 +6,15 @@ import type { BundlerContext } from '../../types';
 import type { Plugin } from '../types';
 
 export const TRANSFORM_FLAGS_KEY = Symbol('transform-flags');
+export const REVISION_KEY = Symbol('revision');
 
 export type TransformMeta = rolldown.CustomPluginOptions & {
   [TRANSFORM_FLAGS_KEY]: TransformFlag;
+  [REVISION_KEY]?: number;
+};
+
+type CurrentTransformMeta = TransformMeta & {
+  [REVISION_KEY]: number;
 };
 
 export enum TransformFlag {
@@ -19,21 +25,30 @@ export enum TransformFlag {
 }
 
 export function setFlag(
-  context: rolldown.PluginContext,
+  this: rolldown.PluginContext,
+  context: BundlerContext,
   id: string,
   flag: TransformFlag,
   options?: { override?: boolean },
 ): rolldown.CustomPluginOptions {
-  const moduleInfo = context.getModuleInfo(id);
-  if (moduleInfo && hasFlag(moduleInfo.meta)) {
+  const revision = context.state.revision;
+  const moduleInfo = this.getModuleInfo(id);
+  if (moduleInfo) {
+    const meta = moduleInfo.meta as Partial<TransformMeta>;
     if (options?.override) {
-      moduleInfo.meta[TRANSFORM_FLAGS_KEY] = flag;
-    } else {
+      meta[TRANSFORM_FLAGS_KEY] = flag;
+    } else if (isCurrentRevision(moduleInfo.meta, revision)) {
       moduleInfo.meta[TRANSFORM_FLAGS_KEY] |= flag;
+    } else {
+      meta[TRANSFORM_FLAGS_KEY] = flag;
     }
+    meta[REVISION_KEY] = revision;
     return moduleInfo.meta;
   } else {
-    return { [TRANSFORM_FLAGS_KEY]: flag };
+    return {
+      [TRANSFORM_FLAGS_KEY]: flag,
+      [REVISION_KEY]: revision,
+    };
   }
 }
 
@@ -41,16 +56,30 @@ export function hasFlag(meta: rolldown.CustomPluginOptions): meta is TransformMe
   return TRANSFORM_FLAGS_KEY in meta;
 }
 
-export function getFlag(context: rolldown.PluginContext, id: string): TransformFlag {
-  const moduleInfo = context.getModuleInfo(id);
-  return getFlagFromModuleInfo(moduleInfo);
+export function getFlag(
+  this: rolldown.PluginContext,
+  context: BundlerContext,
+  id: string,
+): TransformFlag {
+  const moduleInfo = this.getModuleInfo(id);
+  return getFlagFromModuleInfo(context, moduleInfo);
 }
 
-export function getFlagFromModuleInfo(moduleInfo: rolldown.ModuleInfo | null): TransformFlag {
-  if (moduleInfo && hasFlag(moduleInfo.meta)) {
+export function getFlagFromModuleInfo(
+  context: BundlerContext,
+  moduleInfo: rolldown.ModuleInfo | null,
+): TransformFlag {
+  if (moduleInfo && isCurrentRevision(moduleInfo.meta, context.state.revision)) {
     return moduleInfo.meta[TRANSFORM_FLAGS_KEY];
   }
   return TransformFlag.NONE;
+}
+
+function isCurrentRevision(
+  meta: rolldown.CustomPluginOptions,
+  revision: number,
+): meta is CurrentTransformMeta {
+  return hasFlag(meta) && meta[REVISION_KEY] === revision;
 }
 
 export interface TransformBoundaryPluginOptions {
@@ -61,23 +90,11 @@ export function withTransformBoundary(
   context: BundlerContext,
   plugins: PluginOption,
 ): PluginOption {
-  const initializer: Plugin = {
-    name: 'rollipop:transform-initializer',
-    transform: {
-      order: 'pre',
-      handler(_code, id) {
-        if (context.state.hmrUpdates.has(id)) {
-          context.state.hmrUpdates.delete(id);
-          return { meta: setFlag(this, id, TransformFlag.NONE, { override: true }) };
-        }
-      },
-    },
-  };
-
-  const fileWatcherPlugin: Plugin = {
-    name: 'rollipop:transform-file-watcher',
-    watchChange(id) {
-      context.state.hmrUpdates.add(id);
+  const initializerPlugin: Plugin = {
+    name: 'rollipop:build-initializer',
+    buildStart() {
+      context.state.revision += 1;
+      context.state.latestBuildStartTime = Date.now();
     },
   };
 
@@ -88,10 +105,10 @@ export function withTransformBoundary(
       order: 'pre',
       filter: [include(id(/\.json$/))],
       handler(_code, id) {
-        return { meta: setFlag(this, id, TransformFlag.SKIP_ALL) };
+        return { meta: setFlag.call(this, context, id, TransformFlag.SKIP_ALL) };
       },
     },
   };
 
-  return [initializer, fileWatcherPlugin, skipJsonPlugin, plugins];
+  return [initializerPlugin, skipJsonPlugin, plugins];
 }

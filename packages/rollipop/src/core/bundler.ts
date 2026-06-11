@@ -60,7 +60,7 @@ export class Bundler {
     const id = Bundler.createId(config, buildOptions);
     const root = config.root;
     const storage = FileStorage.getInstance(config.root);
-    const state: BundlerState = { hmrUpdates: new Set() };
+    const state: BundlerState = { revision: 0, latestBuildStartTime: 0 };
     const context: BundlerContext = { id, root, storage, buildType, state };
 
     return context;

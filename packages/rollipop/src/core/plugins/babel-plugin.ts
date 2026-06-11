@@ -4,10 +4,12 @@ import { invariant } from 'es-toolkit';
 
 import type { TransformerConfig } from '../../config';
 import { mergeBabelOptions } from '../../utils/babel';
+import type { BundlerContext } from '../types';
 import { isJSX, isTS } from './utils';
 import { getFlag, TransformFlag } from './utils/transform-utils';
 
 export interface BabelPluginOptions {
+  context: BundlerContext;
   /**
    * When `false`, the legacy JS preset (TS strip / Flow strip / RN
    * codegen) is applied. When `true`, the preset is skipped and only
@@ -18,6 +20,7 @@ export interface BabelPluginOptions {
 }
 
 function babelPlugin({
+  context,
   useNativeTransformPipeline,
   transformConfig,
 }: BabelPluginOptions): rolldown.Plugin[] {
@@ -47,7 +50,7 @@ function babelPlugin({
     },
     transform: {
       handler(code, id) {
-        const flags = getFlag(this, id);
+        const flags = getFlag.call(this, context, id);
         if (flags & TransformFlag.SKIP_ALL) {
           return;
         }

@@ -26,7 +26,7 @@ describe('resolveRolldownOptions', () => {
         get: () => ({ build: {} }),
         set: () => {},
       } as unknown as BundlerContext['storage'],
-      state: { hmrUpdates: new Set<string>() },
+      state: { revision: 0, latestBuildStartTime: 0 },
     } satisfies BundlerContext;
     const options = await resolveRolldownOptions(
       context,

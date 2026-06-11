@@ -4,10 +4,12 @@ import * as swc from '@swc/core';
 
 import type { ResolvedConfig, TransformerConfig } from '../../config';
 import { mergeSwcOptions } from '../../utils/swc';
+import type { BundlerContext } from '../types';
 import { ROLLDOWN_RUNTIME_EXCLUDE_FILTER } from './shared/filters';
 import { getFlag, TransformFlag } from './utils/transform-utils';
 
 export interface SwcPluginOptions {
+  context: BundlerContext;
   /**
    * When `false`, the legacy JS preset for the resolved `runtimeTarget`
    * is applied to every module (TS/JSX strip, hermes target). When
@@ -20,6 +22,7 @@ export interface SwcPluginOptions {
 }
 
 function swcPlugin({
+  context,
   useNativeTransformPipeline,
   runtimeTarget,
   transformConfig,
@@ -63,7 +66,7 @@ function swcPlugin({
     transform: {
       filter: [ROLLDOWN_RUNTIME_EXCLUDE_FILTER],
       handler(code, id) {
-        if (getFlag(this, id) & TransformFlag.SKIP_ALL) {
+        if (getFlag.call(this, context, id) & TransformFlag.SKIP_ALL) {
           return;
         }
 

@@ -174,8 +174,8 @@ export async function resolveRolldownOptions(
     context,
     buildOptions,
   );
-  const babelPluginOptions = resolveBabelPluginOptions(config);
-  const swcPluginOptions = resolveSwcPluginOptions(config);
+  const babelPluginOptions = resolveBabelPluginOptions(config, context);
+  const swcPluginOptions = resolveSwcPluginOptions(config, context);
   const devServerPluginOptions = resolveDevServerPluginOptions(config, hmrConfig);
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
 
@@ -285,6 +285,7 @@ async function resolveReactNativePluginOptions(
   buildOptions: ResolvedBuildOptions,
 ): Promise<ReactNativePluginOptions> {
   return {
+    context,
     projectRoot: config.root,
     platform: buildOptions.platform,
     preferNativePlatform: config.resolver.preferNativePlatform,
@@ -341,15 +342,23 @@ function resolveWorkletsConfig(
   );
 }
 
-function resolveBabelPluginOptions(config: ResolvedConfig): BabelPluginOptions {
+function resolveBabelPluginOptions(
+  config: ResolvedConfig,
+  context: BundlerContext,
+): BabelPluginOptions {
   return {
+    context,
     useNativeTransformPipeline: config.experimental?.nativeTransformPipeline,
     transformConfig: config.transformer.babel,
   };
 }
 
-function resolveSwcPluginOptions(config: ResolvedConfig): SwcPluginOptions {
+function resolveSwcPluginOptions(
+  config: ResolvedConfig,
+  context: BundlerContext,
+): SwcPluginOptions {
   return {
+    context,
     useNativeTransformPipeline: config.experimental?.nativeTransformPipeline,
     runtimeTarget: config.runtimeTarget,
     transformConfig: config.transformer.swc,

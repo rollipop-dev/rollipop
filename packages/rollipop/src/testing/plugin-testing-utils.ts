@@ -1,16 +1,29 @@
 import type * as rolldown from '@rollipop/rolldown';
 import MagicString from 'magic-string';
 
-import { TRANSFORM_FLAGS_KEY, TransformFlag } from '../core/plugins/utils/transform-utils';
+import {
+  REVISION_KEY,
+  TRANSFORM_FLAGS_KEY,
+  TransformFlag,
+} from '../core/plugins/utils/transform-utils';
+
+type InitialModuleInfo = TransformFlag | { flag: TransformFlag; revision?: number };
 
 export function testPluginDriver(
   plugins: rolldown.Plugin | rolldown.Plugin[],
-  initialModuleInfo: Record<string, TransformFlag> = {},
+  initialModuleInfo: Record<string, InitialModuleInfo> = {},
 ) {
   const context = {
     getModuleInfo: (id: string) => {
+      const info = initialModuleInfo[id];
       return {
-        meta: initialModuleInfo[id] == null ? {} : { [TRANSFORM_FLAGS_KEY]: initialModuleInfo[id] },
+        meta:
+          info == null
+            ? {}
+            : {
+                [TRANSFORM_FLAGS_KEY]: typeof info === 'number' ? info : info.flag,
+                [REVISION_KEY]: typeof info === 'number' ? 1 : (info.revision ?? 1),
+              },
       };
     },
   } as any;

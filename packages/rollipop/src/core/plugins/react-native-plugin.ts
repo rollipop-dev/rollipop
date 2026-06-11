@@ -12,10 +12,11 @@ import {
   generateAssetRegistryCode,
   resolveScaledAssets,
 } from '../assets';
-import type { BuildType } from '../types';
+import type { BuildType, BundlerContext } from '../types';
 import { TransformFlag, getFlag, setFlag } from './utils/transform-utils';
 
 export interface ReactNativePluginOptions {
+  context: BundlerContext;
   projectRoot: string;
   platform: string;
   preferNativePlatform: boolean;
@@ -48,6 +49,7 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
     platform,
     preferNativePlatform,
     buildType,
+    context,
     assetsDir,
     assetExtensions,
     assetRegistryPath,
@@ -62,7 +64,7 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
       order: 'pre',
       filter: codegenFilter,
       handler(_code, id) {
-        return { meta: setFlag(this, id, TransformFlag.CODEGEN_REQUIRED) };
+        return { meta: setFlag.call(this, context, id, TransformFlag.CODEGEN_REQUIRED) };
       },
     },
   };
@@ -73,14 +75,14 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
       order: 'pre',
       filter: flowFilter,
       async handler(code, id) {
-        const flags = getFlag(this, id);
+        const flags = getFlag.call(this, context, id);
 
         if (flags & TransformFlag.SKIP_ALL) {
           return;
         }
 
         if (flags & TransformFlag.CODEGEN_REQUIRED) {
-          return { meta: setFlag(this, id, TransformFlag.STRIP_FLOW_REQUIRED) };
+          return { meta: setFlag.call(this, context, id, TransformFlag.STRIP_FLOW_REQUIRED) };
         }
 
         const result = await stripFlowTypes(id, code);
@@ -117,7 +119,7 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
 
         return {
           code: generateAssetRegistryCode(assetRegistryPath, assetData),
-          meta: setFlag(this, id, TransformFlag.SKIP_ALL),
+          meta: setFlag.call(this, context, id, TransformFlag.SKIP_ALL),
           moduleType: 'js',
         };
       },
