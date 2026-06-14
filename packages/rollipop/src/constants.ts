@@ -9,6 +9,9 @@ export const ROLLIPOP_VERSION = globalThis.__ROLLIPOP_VERSION__;
 
 export const GLOBAL_IDENTIFIER = 'global';
 
+export const ROLLIPOP_VIRTUAL_PREFIX = '\0rollipop/';
+export const ROLLIPOP_VIRTUAL_ENTRY_ID = `${ROLLIPOP_VIRTUAL_PREFIX}entry`;
+
 /**
  * @see {@link https://github.com/facebook/metro/blob/0.81.x/docs/Configuration.md#resolvermainfields}
  */

@@ -8,6 +8,7 @@ import { invariant, isNotNil, merge } from 'es-toolkit';
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
 import { Polyfill, type ResolvedConfig, type RollipopReactNativeWorkletsConfig } from '../config';
+import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { applyOverrideRolldownOptions } from '../config/compose-override';
 import { getGlobalVariables } from '../internal/react-native';
 import type { BuildDiagnosticLog } from '../types';
@@ -27,13 +28,13 @@ import { loadEnv } from './env';
 import {
   type BabelPluginOptions,
   type DevServerPluginOptions,
-  type PreludePluginOptions,
+  type EntryPluginOptions,
   type ReactNativePluginOptions,
   type ReporterPluginOptions,
   type SwcPluginOptions,
   babel,
   devServer,
-  prelude,
+  entry,
   reactNative,
   reporter,
   swc,
@@ -166,7 +167,7 @@ export async function resolveRolldownOptions(
     rolldownTransform,
   );
 
-  const preludePluginOptions = resolvePreludePluginOptions(config);
+  const entryPluginOptions = resolveEntryPluginOptions(config);
   const reactNativePluginOptions = await resolveReactNativePluginOptions(
     config,
     context,
@@ -180,7 +181,7 @@ export async function resolveRolldownOptions(
   const inputOptions: rolldown.InputOptions = {
     platform: 'neutral',
     cwd: config.root,
-    input: config.entry,
+    input: ROLLIPOP_VIRTUAL_ENTRY_ID,
     tsconfig: config.tsconfig,
     resolve: mergedResolveOptions,
     transform: mergedTransformOptions,
@@ -195,7 +196,7 @@ export async function resolveRolldownOptions(
         : null),
     },
     plugins: withTransformBoundary(context, [
-      prelude(preludePluginOptions),
+      entry(entryPluginOptions),
       reactNative(reactNativePluginOptions),
       babel(babelPluginOptions),
       swc(swcPluginOptions),
@@ -254,7 +255,6 @@ export async function resolveRolldownOptions(
     sourcemapPathTransform:
       rolldownSourcemapPathTransform ?? createProjectRootSourcemapPathTransform(config.root),
     codeSplitting: false,
-    strictExecutionOrder: true,
     // `@rollipop/rolldown` specific options
     globalIdentifiers: rolldownGlobalIdentifiers,
     persistentCache: cache,
@@ -273,10 +273,10 @@ export async function resolveRolldownOptions(
 
 resolveRolldownOptions.cache = new Map<string, RolldownOptions>();
 
-function resolvePreludePluginOptions(config: ResolvedConfig): PreludePluginOptions {
+function resolveEntryPluginOptions(config: ResolvedConfig): EntryPluginOptions {
   return {
     entryPath: config.entry,
-    modulePaths: config.serializer.prelude,
+    preludePaths: config.serializer.prelude,
   };
 }
 
