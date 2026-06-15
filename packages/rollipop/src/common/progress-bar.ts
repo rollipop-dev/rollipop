@@ -42,9 +42,7 @@ const runningRenderer: StateRenderer<{ type: 'running'; moduleId: string }> = {
       .map((n) => (n < width ? fg : bg))
       .join('');
 
-    const progressLabel = unknownTotal
-      ? chalk.gray('(calculating...)')
-      : `(${progress.toFixed(2)}%)`;
+    const progressLabel = unknownTotal ? '' : `(${progress.toFixed(2)}%)`;
     const moduleCountLabel = unknownTotal ? `${current} modules` : `${current}/${total} modules`;
 
     const line1 = [
