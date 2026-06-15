@@ -1,8 +1,14 @@
+import * as fs from 'node:fs';
+import path from 'node:path';
+
 import type { OutputChunk } from '@rollipop/rolldown';
+import type * as rolldownExperimental from '@rollipop/rolldown/experimental';
 import { invariant } from 'es-toolkit';
 
+import { isDebugEnabled } from '../common/env';
 import type { ResolvedConfig } from '../config';
 import { Bundler } from '../core/bundler';
+import { ensureSharedDataPath } from '../core/fs/data';
 import type { BuildOptions, DevEngine } from '../core/types';
 import type { ReportableEvent } from '../types';
 import { getBaseBundleName } from '../utils/bundle';
@@ -120,6 +126,10 @@ export class BundlerDevEngine {
           };
           this.eventBus.emit({ ...event, bundlerId: this.id });
         } else if (this.isHmrEnabled) {
+          if (isDebugEnabled()) {
+            this.storeHmrChunk(errorOrResult.updates);
+          }
+
           logger.trace('Detected changed files', {
             bundlerId: this.id,
             changedFiles: errorOrResult.changedFiles,
@@ -179,6 +189,29 @@ export class BundlerDevEngine {
       output.map?.toString(),
     );
     return this.bundleStore;
+  }
+
+  private storeHmrChunk(updates: rolldownExperimental.BindingClientHmrUpdate[]) {
+    let isFullReload = false;
+
+    const chunkCodes = updates.map(({ update }) => {
+      switch (update.type) {
+        case 'Patch':
+          return update.code;
+        case 'FullReload':
+          isFullReload = true;
+          return '';
+        case 'Noop':
+          return '// Noop';
+      }
+    });
+
+    const code = isFullReload ? '// FullReload' : chunkCodes.join('\n\n');
+    const sharedDataPath = ensureSharedDataPath(this.config.root);
+    const chunkFilePath = path.join(sharedDataPath, `${this.id}-hmr-chunk.js`);
+
+    fs.writeFileSync(chunkFilePath, code, { encoding: 'utf-8' });
+    logger.debug(`HMR chunk file stored at ${chunkFilePath}`);
   }
 
   async getBundle() {

@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
+import { isDebugEnabled } from '../../common/env';
 import { Bundler } from '../../core/bundler';
 import { createTestConfig } from '../../testing/config';
 import { BundlerPool } from '../bundler-pool';
@@ -206,6 +207,47 @@ describe('BundlerPool', () => {
     expect(events).toEqual([
       expect.objectContaining({ type: 'hmr_updates', bundlerId: 'ios-true' }),
     ]);
+  });
+
+  it('stores HMR patch chunks when debug mode is enabled', async () => {
+    resetPool();
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-chunk-'));
+    const eventBus = new ServerEventBus();
+    vi.mocked(isDebugEnabled).mockReturnValue(true);
+
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(
+      async (_boundConfig, _buildOptions, options) => {
+        return {
+          run: vi.fn(async () => {
+            await options.onHmrUpdates?.({
+              changedFiles: [path.join(projectRoot, 'App.tsx')],
+              updates: [
+                { update: { type: 'Patch', code: 'console.log("patch");' } },
+                { update: { type: 'Noop' } },
+              ],
+            } as any);
+          }),
+          getBundleState: vi
+            .fn()
+            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
+        } as any;
+      },
+    );
+
+    try {
+      const pool = new BundlerPool(createTestConfig(projectRoot), serverOptions, eventBus);
+      const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+      await instance.ensureInitialized;
+
+      const chunkFilePath = path.join(projectRoot, '.rollipop', 'ios-true-hmr-chunk.js');
+      expect(fs.readFileSync(chunkFilePath, 'utf-8')).toBe(
+        'console.log("patch");\n\n// Noop',
+      );
+    } finally {
+      vi.mocked(isDebugEnabled).mockReturnValue(false);
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
   });
 
   it('emits hmr_failed without build lifecycle events for failed HMR updates', async () => {
