@@ -76,6 +76,7 @@ __rollipop_define__(function(global, module, __rollipop_exports__, __rollipop_re
 __rollipop_define__(function(global, module, __rollipop_exports__, __rollipop_require__) {
 //#region \0rollipop/entry
 	__rollipop_require__.r(__rollipop_exports__);
+	var import_prelude_10 = __rollipop_require__(2);
 
 //#endregion
 }, 1);
