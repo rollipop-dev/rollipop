@@ -8,6 +8,26 @@ import { resolveBuildOptions } from '../../utils/build-options';
 import { resolveRolldownOptions } from '../rolldown';
 import type { BundlerContext } from '../types';
 
+function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
+  const plugins: rolldown.Plugin[] = [];
+  const visit = (plugin: unknown) => {
+    if (plugin == null) {
+      return;
+    }
+    if (Array.isArray(plugin)) {
+      plugin.forEach(visit);
+      return;
+    }
+    plugins.push(plugin as rolldown.Plugin);
+  };
+
+  visit(options.input?.plugins);
+
+  const plugin = plugins.find((plugin) => plugin.name === 'rollipop:status');
+  expect(plugin).toBeDefined();
+  return plugin!;
+}
+
 describe('resolveRolldownOptions', () => {
   it('reports rolldown plugin logs through the reporter pipeline', async () => {
     resolveRolldownOptions.cache.clear();
@@ -73,5 +93,79 @@ describe('resolveRolldownOptions', () => {
       }),
     });
     expect(defaultHandler).not.toHaveBeenCalled();
+  });
+
+  it('persists completed build totals for fresh progress reporter instances', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const data = { build: {} as Record<string, { totalModules: number }> };
+    const storage = {
+      get: () => data,
+      set: (value: typeof data) => {
+        data.build = { ...data.build, ...value.build };
+      },
+    } as unknown as BundlerContext['storage'];
+    const createContext = () =>
+      ({
+        id: 'test-bundler',
+        root,
+        buildType: 'build',
+        storage,
+        state: { revision: 0, latestBuildStartTime: 0 },
+      }) satisfies BundlerContext;
+    const createConfig = () => {
+      const config = createTestConfig(root);
+      config.devMode.hmr = false;
+      config.reactNative.assetRegistryPath = path.join(root, 'package.json');
+      return config;
+    };
+    const buildOptions = resolveBuildOptions(createConfig(), { platform: 'ios', dev: true });
+
+    const firstOptions = await resolveRolldownOptions(
+      createContext(),
+      createConfig(),
+      buildOptions,
+    );
+    const firstPlugin = findReporterPlugin(firstOptions);
+    const firstBuildStart = firstPlugin.buildStart as unknown as () => void;
+    const firstBuildEnd = firstPlugin.buildEnd as unknown as () => void;
+    const firstTransform = firstPlugin.transform as unknown as {
+      handler: (code: string, id: string) => void | Promise<void>;
+    };
+
+    firstBuildStart();
+    await firstTransform.handler('', '/entry.ts');
+    await firstTransform.handler('', '/dep.ts');
+    firstBuildEnd();
+
+    expect(data.build['test-bundler']).toEqual({ totalModules: 2 });
+
+    resolveRolldownOptions.cache.clear();
+
+    const events: unknown[] = [];
+    const secondConfig = createConfig();
+    secondConfig.reporter = {
+      update(event) {
+        events.push(event);
+      },
+    };
+
+    const secondOptions = await resolveRolldownOptions(createContext(), secondConfig, buildOptions);
+    const secondPlugin = findReporterPlugin(secondOptions);
+    const secondBuildStart = secondPlugin.buildStart as unknown as () => void;
+    const secondTransform = secondPlugin.transform as unknown as {
+      handler: (code: string, id: string) => void | Promise<void>;
+    };
+
+    secondBuildStart();
+    await secondTransform.handler('', '/entry.ts');
+
+    expect(events).toContainEqual({
+      type: 'transform',
+      id: '/entry.ts',
+      totalModules: 2,
+      transformedModules: 1,
+    });
   });
 });
