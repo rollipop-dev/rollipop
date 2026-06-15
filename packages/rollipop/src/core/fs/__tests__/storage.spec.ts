@@ -4,9 +4,11 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi, vitest } from 'vite-plus/test';
 
 import type { FileStorageData } from '../../../common/types';
+import { ensureSharedDataPath } from '../data';
 import { FileStorage } from '../storage';
 
 vitest.mock('../data', () => ({
+  ensureSharedDataPath: vi.fn((basePath: string) => path.join(basePath, '.rollipop')),
   getSharedDataPath: (basePath: string) => path.join(basePath, '.rollipop'),
 }));
 
@@ -21,6 +23,7 @@ describe('FileStorage', () => {
 
   beforeEach(() => {
     resetSingleton();
+    vi.mocked(ensureSharedDataPath).mockClear();
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
     vi.spyOn(fs, 'readFileSync').mockReturnValue('{}');
     vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
@@ -42,6 +45,12 @@ describe('FileStorage', () => {
       const instance = FileStorage.getInstance(basePath);
 
       expect(instance.get()).toEqual({ build: {} });
+    });
+
+    it('should ensure the storage directory exists', () => {
+      FileStorage.getInstance(basePath);
+
+      expect(ensureSharedDataPath).toHaveBeenCalledWith(basePath);
     });
 
     it('should load existing data from file', () => {

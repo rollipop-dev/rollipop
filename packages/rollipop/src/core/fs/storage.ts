@@ -4,7 +4,7 @@ import path from 'node:path';
 import { merge } from 'es-toolkit';
 
 import { FileStorageData } from '../../common/types';
-import { getSharedDataPath } from './data';
+import { ensureSharedDataPath } from './data';
 
 const DEFAULT_DATA: FileStorageData = {
   build: {},
@@ -23,7 +23,7 @@ export class FileStorage {
   }
 
   private constructor(private readonly basePath: string) {
-    this.dataFilePath = path.join(getSharedDataPath(basePath), 'rollipop.json');
+    this.dataFilePath = path.join(ensureSharedDataPath(basePath), 'rollipop.json');
 
     if (fs.existsSync(this.dataFilePath)) {
       this.data = JSON.parse(fs.readFileSync(this.dataFilePath, 'utf-8'));

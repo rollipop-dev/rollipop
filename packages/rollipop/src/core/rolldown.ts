@@ -11,7 +11,7 @@ import { Polyfill, type ResolvedConfig, type RollipopReactNativeWorkletsConfig }
 import { applyOverrideRolldownOptions } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { getGlobalVariables } from '../internal/react-native';
-import type { BuildDiagnosticLog } from '../types';
+import type { BuildDiagnosticLog, Reporter } from '../types';
 import { ResolvedBuildOptions } from '../utils/build-options';
 import { resolveHmrConfig } from '../utils/config';
 import { defineEnvFromObject } from '../utils/env';
@@ -23,7 +23,7 @@ import {
 } from '../utils/reporters';
 import { resolveRuntimeTarget } from '../utils/runtime-target';
 import { getBaseUrl } from '../utils/server';
-import { getBuildTotalModules } from '../utils/storage';
+import { getBuildTotalModules, setBuildTotalModules } from '../utils/storage';
 import { loadEnv } from './env';
 import {
   type BabelPluginOptions,
@@ -383,10 +383,23 @@ function resolveReporterPluginOptions(
   buildOptions: ResolvedBuildOptions,
 ): ReporterPluginOptions {
   const statusReporter = createStatusReporter(config, context, buildOptions);
+  const buildTotalModulesReporter = createBuildTotalModulesReporter(context);
 
   return {
     initialTotalModules: getBuildTotalModules(context.storage, context.id),
-    reporter: mergeReporters([statusReporter, config.reporter].filter(isNotNil)),
+    reporter: mergeReporters(
+      [buildTotalModulesReporter, statusReporter, config.reporter].filter(isNotNil),
+    ),
+  };
+}
+
+function createBuildTotalModulesReporter(context: BundlerContext): Reporter {
+  return {
+    update(event) {
+      if (event.type === 'bundle_build_done') {
+        setBuildTotalModules(context.storage, context.id, event.totalModules);
+      }
+    },
   };
 }
 
