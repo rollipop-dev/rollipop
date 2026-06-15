@@ -108,10 +108,6 @@ export class BundlerDevEngine {
       host: this.options.server.host,
       port: this.options.server.port,
       onHmrUpdates: (errorOrResult) => {
-        if (!this.isHmrEnabled) {
-          return;
-        }
-
         if (errorOrResult instanceof Error) {
           logger.error('Failed to handle HMR updates', {
             bundlerId: this.id,
@@ -123,7 +119,7 @@ export class BundlerDevEngine {
             error: normalizedError,
           };
           this.eventBus.emit({ ...event, bundlerId: this.id });
-        } else {
+        } else if (this.isHmrEnabled) {
           logger.trace('Detected changed files', {
             bundlerId: this.id,
             changedFiles: errorOrResult.changedFiles,

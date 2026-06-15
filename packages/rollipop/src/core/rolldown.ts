@@ -156,7 +156,7 @@ export async function resolveRolldownOptions(
         __DEV__: asLiteral(dev),
         'process.env.NODE_ENV': asLiteral(nodeEnvironment(dev)),
         'process.env.DEBUG_ROLLIPOP': asLiteral(isDebugEnabled()),
-        ...(hmrEnabled ? null : { 'import.meta.hot': '{}' }),
+        ...(hmrEnabled ? null : { 'import.meta.hot': 'undefined' }),
         ...defineEnvFromObject(env),
         ...defineEnvFromObject(builtInEnv),
       },
