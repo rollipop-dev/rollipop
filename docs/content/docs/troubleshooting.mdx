@@ -16,9 +16,14 @@ Set the `DEBUG_ROLLIPOP` environment variable to enable debug and trace logging:
 # Enable debug logging
 DEBUG_ROLLIPOP=1 rollipop start
 
+# Equivalent
+DEBUG_ROLLIPOP=true rollipop start
+
 # Or for bundle command
 DEBUG_ROLLIPOP=1 rollipop bundle --entry-file ./index.js --bundle-output ./dist/main.bundle.js
 ```
+
+When debug mode is enabled, Rollipop prints additional debug logs for the running command or dev server process.
 
 ## Programmatic Usage
 
@@ -33,6 +38,16 @@ import * as Rollipop from 'rollipop';
 const config = await Rollipop.loadConfig();
 const server = await Rollipop.runServer(config, { port: 8081 });
 ```
+
+## Inspect Generated Bundles
+
+After a dev server build completes, Rollipop writes the generated bundle to:
+
+```txt
+.rollipop/bundles/<id>.bundle
+```
+
+You can inspect this file to debug the generated bundle code. If you edit the file after the build, the dev server serves the edited bundle content instead of the in-memory copy. This is intended for bundle-level debugging and for quickly testing a bundle edit before moving the real fix back to source, config, or plugin code.
 
 ## Reporting Issues
 
@@ -49,40 +64,6 @@ If you encounter an issue that isn't covered in this guide:
 - Minimal reproduction steps
 
 3. **Create a new issue**: If the issue hasn't been reported, create a new issue at [github.com/rollipop-dev/rollipop/issues/new](https://github.com/rollipop-dev/rollipop/issues/new)
-
-### Issue Template
-
-When reporting an issue, please include:
-
-```markdown
-**Describe the bug**
-A clear and concise description of what the bug is.
-
-**To Reproduce**
-Steps to reproduce the behavior:
-
-1. Run `rollipop start ...`
-2. See error
-
-**Expected behavior**
-What you expected to happen.
-
-**Debug logs**
-Paste logs from running with `DEBUG_ROLLIPOP=1`:
-```
-
-[paste logs here]
-
-```
-
-**Environment:**
-- Rollipop version: [e.g., 1.0.0]
-- Node.js version: [e.g., 20.0.0]
-- OS: [e.g., macOS 14.0]
-
-**Additional context**
-Any other context about the problem.
-```
 
 ## Getting Help
 
