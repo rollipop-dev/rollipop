@@ -1,0 +1,20 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`resolveRolldownOptions > transforms only polyfills that opt into Rollipop transform 1`] = `
+"var __BUNDLE_START_TIME__ = globalThis.nativePerformanceNow ? nativePerformanceNow() : Date.now();
+var __DEV__ = false;
+var process = globalThis.process || {};
+process.env = process.env || {};
+process.env.NODE_ENV = process.env.NODE_ENV || "production";
+//#region \\0rollipop/polyfill?index=0&path=
+var __PLAIN_TRANSFORMED__ = 1;
+//#endregion
+//#region \\0rollipop/polyfill?index=1&path=
+(function (global) {
+	global.__IIFE_TRANSFORMED__ = 2;
+})(typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : this);
+//#endregion
+//#region \\0rollipop/polyfill?index=2&path=
+var __PLAIN_UNTRANSFORMED__: number = 3;
+//#endregion"
+`;

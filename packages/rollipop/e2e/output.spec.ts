@@ -140,17 +140,11 @@ describe('output', () => {
       expect(chunk.code).toContain('nativePerformanceNow');
     });
 
-    it('injects global binding', async () => {
-      const chunk = await build('serializer/prelude');
-
-      expect(chunk.code).toMatch(/var global=typeof globalThis!=='undefined'\?globalThis/);
-    });
-
     it('injects process polyfill with NODE_ENV', async () => {
       const chunk = await build('serializer/prelude');
 
-      expect(chunk.code).toContain('var process=globalThis.process||{}');
-      expect(chunk.code).toContain('process.env=process.env||{}');
+      expect(chunk.code).toContain('var process = globalThis.process || {}');
+      expect(chunk.code).toContain('process.env = process.env || {}');
     });
 
     it('dev server mode adds React Refresh stubs', async () => {

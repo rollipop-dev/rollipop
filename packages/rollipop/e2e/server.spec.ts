@@ -2,7 +2,6 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 
-import { GLOBAL_IDENTIFIER } from '../src/constants';
 import { startTestServer, type TestServer } from './runtime/harness';
 
 const EXAMPLE_DIR = path.resolve(import.meta.dirname, '../../../examples/0.84');
@@ -113,11 +112,7 @@ describe('dev server', () => {
     });
 
     it('contains __DEV__ = true in development mode', () => {
-      expect(code).toContain('var __DEV__=true');
-    });
-
-    it('contains global identifier definition', () => {
-      expect(code).toContain(`var ${GLOBAL_IDENTIFIER}=typeof globalThis`);
+      expect(code).toContain('var __DEV__ = true');
     });
 
     it('contains __BUNDLE_START_TIME__ for performance tracking', () => {
@@ -125,7 +120,7 @@ describe('dev server', () => {
     });
 
     it('contains process.env.NODE_ENV = "development"', () => {
-      expect(code).toContain('NODE_ENV=process.env.NODE_ENV||"development"');
+      expect(code).toContain('NODE_ENV = process.env.NODE_ENV || "development"');
     });
 
     it('contains React Refresh stubs ($RefreshReg$, $RefreshSig$)', () => {
@@ -155,11 +150,11 @@ describe('dev server', () => {
     }, 120_000);
 
     it('contains __DEV__ = false in production mode', () => {
-      expect(code).toContain('var __DEV__=false');
+      expect(code).toContain('var __DEV__ = false');
     });
 
     it('contains process.env.NODE_ENV = "production"', () => {
-      expect(code).toContain('NODE_ENV=process.env.NODE_ENV||"production"');
+      expect(code).toContain('NODE_ENV = process.env.NODE_ENV || "production"');
     });
 
     it('does NOT contain React Refresh stubs in production', () => {

@@ -29,6 +29,62 @@ function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOp
 }
 
 describe('resolveRolldownOptions', () => {
+  it('transforms only polyfills that opt into Rollipop transform', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    config.devMode.hmr = false;
+    config.reactNative.assetRegistryPath = path.join(root, 'package.json');
+    config.serializer.polyfills = [
+      {
+        type: 'plain',
+        // TypeScript
+        code: 'var __PLAIN_TRANSFORMED__: number = 1;',
+        withTransform: true,
+      },
+      {
+        type: 'iife',
+        // Flow
+        code: 'global.__IIFE_TRANSFORMED__ = (2: number);',
+        withTransform: true,
+      },
+      {
+        type: 'plain',
+        code: 'var __PLAIN_UNTRANSFORMED__: number = 3;',
+      },
+    ];
+    const context = {
+      id: 'test-bundler',
+      root,
+      buildType: 'build',
+      storage: {
+        get: () => ({ build: {} }),
+        set: () => {},
+      } as unknown as BundlerContext['storage'],
+      state: { revision: 0, latestBuildStartTime: 0 },
+    } satisfies BundlerContext;
+    const options = await resolveRolldownOptions(
+      context,
+      config,
+      resolveBuildOptions(config, { platform: 'ios', dev: false }),
+    );
+
+    expect(typeof options.output?.intro).toBe('function');
+    const intro = options.output!.intro as (
+      chunk: rolldown.OutputChunk,
+    ) => string | Promise<string>;
+    const introCode = await intro({ fileName: 'bundle.js' } as rolldown.OutputChunk);
+
+    expect(introCode).toContain('var __PLAIN_TRANSFORMED__ = 1;');
+    expect(introCode).not.toContain('var __PLAIN_TRANSFORMED__: number = 1;');
+    expect(introCode).toMatch(/\(function\s*\(global\d*\)/);
+    expect(introCode).toMatch(/global\d*\.__IIFE_TRANSFORMED__ = 2;/);
+    expect(introCode).not.toContain('global.__IIFE_TRANSFORMED__ = (2: number);');
+    expect(introCode).toContain('var __PLAIN_UNTRANSFORMED__: number = 3;');
+    expect(introCode).toMatchSnapshot();
+  });
+
   it('reports rolldown plugin logs through the reporter pipeline', async () => {
     resolveRolldownOptions.cache.clear();
 

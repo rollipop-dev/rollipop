@@ -1,7 +1,13 @@
 import dedent from 'dedent';
 
-import { GLOBAL_IDENTIFIER } from '../constants';
 import { indent } from '../utils/string';
+
+export const GLOBAL_OBJECT_EXPRESSION = [
+  `typeof globalThis !== 'undefined' ? globalThis`,
+  ` : typeof global !== 'undefined' ? global`,
+  ` : typeof window !== 'undefined' ? window`,
+  ' : this',
+].join('');
 
 export function asLiteral(value: unknown) {
   return JSON.stringify(value);
@@ -11,7 +17,7 @@ export function nodeEnvironment(dev: boolean) {
   return dev ? 'development' : 'production';
 }
 
-export function iife(body: string, path = '<unknown>') {
+export function iife(body: string) {
   const bodyPlaceholder = '__BODY__';
 
   /**
@@ -19,15 +25,14 @@ export function iife(body: string, path = '<unknown>') {
    * // foo.js
    * (function (global) {
    *   __BODY__
-   * })(_);
+   * })(...);
    * ```
    */
   const iife = dedent`
-  // ${path}
   (function (global) {
   ${bodyPlaceholder}
-  })(${GLOBAL_IDENTIFIER});
+  })(${GLOBAL_OBJECT_EXPRESSION});
   `;
 
-  return iife.replace(bodyPlaceholder, indent(body, 1));
+  return iife.replace(bodyPlaceholder, indent(body, 1, '\t')).trim();
 }

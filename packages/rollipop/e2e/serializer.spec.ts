@@ -64,9 +64,8 @@ describe('serializer', () => {
         serializer: { polyfills: [polyfill] },
       });
 
-      // Should be wrapped in (function(global) { ... })(_)
+      // Should be wrapped in `(function(global) { ... })(...)`
       expect(chunk.code).toMatch(/\(function\s*\(global\)/);
-      expect(chunk.code).toContain('_');
       expect(chunk.code).toContain('myPolyfill');
     });
 

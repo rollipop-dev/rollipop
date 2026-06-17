@@ -7,8 +7,6 @@ declare global {
 
 export const ROLLIPOP_VERSION = globalThis.__ROLLIPOP_VERSION__;
 
-export const GLOBAL_IDENTIFIER = 'global';
-
 export const ROLLIPOP_VIRTUAL_PREFIX = '\0rollipop/';
 export const ROLLIPOP_VIRTUAL_ENTRY_ID = `${ROLLIPOP_VIRTUAL_PREFIX}entry`;
 
@@ -76,8 +74,6 @@ export const DEFAULT_ASSET_REGISTRY_PATH = 'react-native/Libraries/Image/AssetRe
 export const DEFAULT_HMR_CLIENT_PATH = 'react-native/Libraries/Utilities/HMRClient.js';
 
 export const DEFAULT_REACT_NATIVE_GLOBAL_IDENTIFIERS = [
-  // Global binding name
-  GLOBAL_IDENTIFIER,
   // polyfillPromise
   'Promise',
   // setUpRegeneratorRuntime

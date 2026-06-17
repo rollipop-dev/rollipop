@@ -350,8 +350,9 @@ export interface SerializerConfig {
 }
 
 export type Polyfill = string | PolyfillWithCode | PolyfillWithPath;
-export type PolyfillWithCode = { type: PolyfillType; code: string };
-export type PolyfillWithPath = { type: PolyfillType; path: string };
+export type PolyfillOptions = { withTransform?: boolean };
+export type PolyfillWithCode = { type: PolyfillType; code: string } & PolyfillOptions;
+export type PolyfillWithPath = { type: PolyfillType; path: string } & PolyfillOptions;
 export type PolyfillType = 'plain' | 'iife';
 
 export type OptimizationConfig = rolldown.OptimizationOptions & {

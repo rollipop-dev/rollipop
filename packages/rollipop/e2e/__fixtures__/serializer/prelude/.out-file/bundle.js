@@ -1,7 +1,8 @@
-var __BUNDLE_START_TIME__=globalThis.nativePerformanceNow?nativePerformanceNow():Date.now();
-var __DEV__=false;
-var global=typeof globalThis!=='undefined'?globalThis:typeof global !== 'undefined'?global:typeof window!=='undefined'?window:this;
-var process=globalThis.process||{};process.env=process.env||{};process.env.NODE_ENV=process.env.NODE_ENV||"production";
+var __BUNDLE_START_TIME__ = globalThis.nativePerformanceNow ? nativePerformanceNow() : Date.now();
+var __DEV__ = false;
+var process = globalThis.process || {};
+process.env = process.env || {};
+process.env.NODE_ENV = process.env.NODE_ENV || "production";
 (function(global) {
 //#region \0rollipop/runtime
 var __rollipop_modules__ = {};

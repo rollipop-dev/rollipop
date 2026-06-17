@@ -123,22 +123,16 @@ describe('environment variables', () => {
       const dev = await build('env/basic', { mode: 'development' }, { dev: true });
 
       // __DEV__ is defined in the intro global vars
-      expect(prod.code).toContain('var __DEV__=false');
-      expect(dev.code).toContain('var __DEV__=true');
+      expect(prod.code).toContain('var __DEV__ = false');
+      expect(dev.code).toContain('var __DEV__ = true');
     });
 
     it('process.env.NODE_ENV reflects mode', async () => {
       const prod = await build('env/basic');
       const dev = await build('env/basic', { mode: 'development' }, { dev: true });
 
-      expect(prod.code).toContain('NODE_ENV=process.env.NODE_ENV||"production"');
-      expect(dev.code).toContain('NODE_ENV=process.env.NODE_ENV||"development"');
-    });
-
-    it('global is replaced with _', async () => {
-      const chunk = await build('env/basic');
-
-      expect(chunk.code).toContain('_');
+      expect(prod.code).toContain('NODE_ENV = process.env.NODE_ENV || "production"');
+      expect(dev.code).toContain('NODE_ENV = process.env.NODE_ENV || "development"');
     });
   });
 });

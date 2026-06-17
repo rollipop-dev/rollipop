@@ -7,7 +7,7 @@ import { invariant, isNotNil, merge } from 'es-toolkit';
 
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
-import { Polyfill, type ResolvedConfig, type RollipopReactNativeWorkletsConfig } from '../config';
+import type { ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
 import { applyOverrideRolldownOptions } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { getGlobalVariables } from '../internal/react-native';
@@ -15,6 +15,7 @@ import type { BuildDiagnosticLog, Reporter } from '../types';
 import { ResolvedBuildOptions } from '../utils/build-options';
 import { resolveHmrConfig } from '../utils/config';
 import { defineEnvFromObject } from '../utils/env';
+import { createVirtualModuleId, escapeVirtualModuleId } from '../utils/id';
 import { resolveFrom, resolvePackageJson } from '../utils/node-resolve';
 import {
   CompatStatusReporter,
@@ -24,6 +25,7 @@ import {
 import { resolveRuntimeTarget } from '../utils/runtime-target';
 import { getBaseUrl } from '../utils/server';
 import { getBuildTotalModules, setBuildTotalModules } from '../utils/storage';
+import { transformWithRollipop } from '../utils/transform';
 import { loadEnv } from './env';
 import {
   type BabelPluginOptions,
@@ -96,7 +98,6 @@ export async function resolveRolldownOptions(
 
   // Serializer
   const {
-    polyfills,
     banner: rolldownBanner,
     footer: rolldownFooter,
     postBanner: rolldownPostBanner,
@@ -237,7 +238,7 @@ export async function resolveRolldownOptions(
     intro: async (chunk) => {
       return [
         ...getGlobalVariables(dev, context.buildType),
-        ...loadPolyfills(polyfills),
+        ...loadPolyfills(config),
         typeof rolldownIntro === 'function' ? await rolldownIntro(chunk) : rolldownIntro,
       ]
         .filter(isNotNil)
@@ -460,16 +461,22 @@ function createProjectRootSourcemapPathTransform(
   };
 }
 
-function loadPolyfills(polyfills: Polyfill[]) {
-  return polyfills.map((polyfill) => {
+function loadPolyfills(config: ResolvedConfig) {
+  return config.serializer.polyfills.map((polyfill, index) => {
     if (typeof polyfill === 'string') {
       return fs.readFileSync(polyfill, 'utf-8');
     }
 
     const path = 'path' in polyfill ? polyfill.path : undefined;
     const content = 'code' in polyfill ? polyfill.code : fs.readFileSync(polyfill.path, 'utf-8');
+    const id = createVirtualModuleId('polyfill', { index: index.toString(), path: path ?? '' });
+    const code = polyfill.withTransform ? transformWithRollipop(id, content, config).code : content;
 
-    return polyfill.type === 'iife' ? iife(content, path) : content;
+    return [
+      `//#region ${escapeVirtualModuleId(id)}`,
+      polyfill.type === 'iife' ? iife(code) : code,
+      '//#endregion',
+    ].join('\n');
   });
 }
 

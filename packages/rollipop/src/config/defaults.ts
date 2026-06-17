@@ -62,8 +62,8 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       },
     },
     serializer: {
-      prelude: [getInitializeCorePath(projectRoot)],
-      polyfills: await Promise.all(
+      prelude: [getInitializeCorePath(projectRoot)] as string[],
+      polyfills: (await Promise.all(
         getPolyfillScriptPaths(reactNativePath).map(async (path) => {
           const code = fs.readFileSync(path, 'utf-8');
           const result = await stripFlowTypes(path, code);
@@ -73,7 +73,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
             code: result.code,
           } satisfies Polyfill;
         }),
-      ),
+      )) as Polyfill[],
     },
     watcher: {
       skipWrite: true,
@@ -117,9 +117,9 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       })(),
     },
     envDir: projectRoot,
-    envFile: DEFAULT_ENV_FILE,
-    envPrefix: DEFAULT_ENV_PREFIX,
-    runtimeTarget: DEFAULT_RUNTIME_TARGET,
+    envFile: DEFAULT_ENV_FILE as NonNullable<Config['envFile']>,
+    envPrefix: DEFAULT_ENV_PREFIX as NonNullable<Config['envPrefix']>,
+    runtimeTarget: DEFAULT_RUNTIME_TARGET as NonNullable<Config['runtimeTarget']>,
     experimental: {
       nativeTransformPipeline: false as boolean,
     },

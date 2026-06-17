@@ -155,8 +155,7 @@ async function main() {
     // Default prelude (InitializeCore from react-native)
     hasInitializeCore: chunk.code.includes('InitializeCore'),
     // Built-in defines & global variables
-    hasDevFalse: chunk.code.includes('var __DEV__=false'),
-    hasGlobal: chunk.code.includes('_'),
+    hasDevFalse: chunk.code.includes('var __DEV__ = false'),
     hasBundleStartTime: chunk.code.includes('__BUNDLE_START_TIME__'),
     hasNodeEnv: chunk.code.includes('process.env.NODE_ENV'),
     // Default polyfills from react-native (injected as IIFE)
@@ -216,7 +215,6 @@ describe('Yarn PnP', () => {
     expect(result.hasInitializeCore).toBe(true);
     // Built-in defines & global variables
     expect(result.hasDevFalse).toBe(true);
-    expect(result.hasGlobal).toBe(true);
     expect(result.hasBundleStartTime).toBe(true);
     expect(result.hasNodeEnv).toBe(true);
     // Default polyfills from react-native

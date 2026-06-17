@@ -1,7 +1,7 @@
 import { pick } from 'es-toolkit';
 
 import type { ResolvedConfig } from '../config';
-import { ROLLIPOP_VERSION } from '../constants';
+import { ROLLIPOP_VERSION, ROLLIPOP_VIRTUAL_PREFIX } from '../constants';
 import type { BuildOptions } from '../core/types';
 import { md5 } from './hash';
 import { serialize } from './serialize';
@@ -30,4 +30,12 @@ function filterTransformAffectedConfig(config: ResolvedConfig) {
     devMode,
     plugins.map((plugin, index) => `${plugin.name}#${index}`),
   ];
+}
+
+export function createVirtualModuleId(path: string, query?: Record<string, string>) {
+  return `${ROLLIPOP_VIRTUAL_PREFIX}${path}${query ? `?${new URLSearchParams(query).toString()}` : ''}`;
+}
+
+export function escapeVirtualModuleId(id: string) {
+  return id.replace('\0', '\\0');
 }

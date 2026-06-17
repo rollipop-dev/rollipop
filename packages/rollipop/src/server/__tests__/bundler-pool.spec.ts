@@ -241,9 +241,7 @@ describe('BundlerPool', () => {
       await instance.ensureInitialized;
 
       const chunkFilePath = path.join(projectRoot, '.rollipop', 'ios-true-hmr-chunk.js');
-      expect(fs.readFileSync(chunkFilePath, 'utf-8')).toBe(
-        'console.log("patch");\n\n// Noop',
-      );
+      expect(fs.readFileSync(chunkFilePath, 'utf-8')).toBe('console.log("patch");\n\n// Noop');
     } finally {
       vi.mocked(isDebugEnabled).mockReturnValue(false);
       fs.rmSync(projectRoot, { recursive: true, force: true });

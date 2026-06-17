@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { isNotNil } from 'es-toolkit';
 
-import { GLOBAL_IDENTIFIER } from '../constants';
+import { asLiteral } from '../common/code';
 import type { BuildType } from '../core/types';
 
 export function getInitializeCorePath(basePath: string) {
@@ -17,10 +17,11 @@ export function getPolyfillScriptPaths(reactNativePath: string) {
 export function getGlobalVariables(dev: boolean, buildType: BuildType) {
   const isDevServerMode = dev && buildType === 'serve';
   return [
-    `var __BUNDLE_START_TIME__=globalThis.nativePerformanceNow?nativePerformanceNow():Date.now();`,
-    `var __DEV__=${dev};`,
-    `var ${GLOBAL_IDENTIFIER}=typeof globalThis!=='undefined'?globalThis:typeof global !== 'undefined'?global:typeof window!=='undefined'?window:this;`,
-    `var process=globalThis.process||{};process.env=process.env||{};process.env.NODE_ENV=process.env.NODE_ENV||"${dev ? 'development' : 'production'}";`,
+    `var __BUNDLE_START_TIME__ = globalThis.nativePerformanceNow ? nativePerformanceNow() : Date.now();`,
+    `var __DEV__ = ${asLiteral(dev)};`,
+    `var process = globalThis.process || {};`,
+    'process.env = process.env || {};',
+    `process.env.NODE_ENV = process.env.NODE_ENV || ${asLiteral(dev ? 'development' : 'production')};`,
     isDevServerMode ? `var $RefreshReg$ = () => {};` : null,
     isDevServerMode ? `var $RefreshSig$ = () => (v) => v;` : null,
   ].filter(isNotNil);
