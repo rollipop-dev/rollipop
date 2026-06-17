@@ -1,5 +1,20 @@
 # rollipop
 
+## 1.0.0-alpha.24
+
+### Patch Changes
+
+- 5e7cb24: Fix build progress totals.
+- c84f887: fix invalid `import.meta.hot` value when hmr disabled
+- 5905c09: store hmr chunk
+- 748100b: add `withTransform` option to polyfill config
+- 45908a3: bump rolldown to 1.0.14
+- 3b39838: support `rollipop` custom output type
+- 162fed1: Resolve bundle entry file paths before building.
+- 20e775c: add skills command
+- 96636bc: Run the app entry through a virtual entry module.
+- 69afb2a: add `minify` as affected option field
+
 ## 1.0.0-alpha.23
 
 ### Patch Changes

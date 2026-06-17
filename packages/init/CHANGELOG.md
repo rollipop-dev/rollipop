@@ -1,5 +1,7 @@
 # @rollipop/init
 
+## 1.0.0-alpha.24
+
 ## 1.0.0-alpha.23
 
 ## 1.0.0-alpha.22
