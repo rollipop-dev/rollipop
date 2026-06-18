@@ -1,5 +1,0 @@
----
-"rollipop": minor
----
-
-pre-alpha

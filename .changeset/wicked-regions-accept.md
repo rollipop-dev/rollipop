@@ -1,5 +1,0 @@
----
-"rollipop": patch
----
-
-add `configureServer`

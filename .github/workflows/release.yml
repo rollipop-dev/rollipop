@@ -1,40 +1,40 @@
 name: Release
 
-env:
-  BASE_BRANCH: 'main'
-
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      preset:
-        description: 'The preset version to release'
-        required: true
-        default: 'manual'
-        type: choice
-        options:
-          - manual
-          - dev
-      version:
-        description: The version to release
-        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
+  publish-to-npm:
+    name: Publish to NPM
+    if: "${{ startsWith(github.event.head_commit.message, 'release: v') }}"
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Prepare metadata
+        id: metadata
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version=$(jq -r '.version' packages/rollipop/package.json)
+          tag="v${version}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Setup Tools
         uses: jdx/mise-action@v3
@@ -50,28 +50,30 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Publish with custom version
-        if: inputs.preset
-        run: |
-          if [ "${{ inputs.preset }}" = "manual" ]; then
-            if [ -z "${{ inputs.version }}" ]; then
-              echo "No version provided"
-              exit 1
-            fi
-            yarn scripts:version ${{ inputs.version }}
-          else
-            yarn scripts:version ${{ inputs.preset }}
-          fi
-          yarn scripts:publish dev
+      - name: Publish packages
+        run: yarn scripts:publish
 
-      - name: Create Release Pull Request
-        if: ${{ !inputs.preset }}
-        uses: changesets/action@v1
-        with:
-          version: yarn changeset version
-          publish: yarn scripts:publish
-          commit: 'chore(release): version packages'
-          title: 'chore(release): version packages'
+      - name: Get changelog from commit body
+        id: changelog
+        run: |
+          {
+            echo 'CHANGELOG<<EOF'
+            git show -s --format=%b
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: github_release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_BRANCH: ${{ env.BASE_BRANCH }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ steps.metadata.outputs.tag }}
+          TARGET: ${{ github.sha }}
+          NOTES: ${{ steps.changelog.outputs.CHANGELOG }}
+        run: |
+          url=$(gh release create "$TAG_NAME" \
+            --target "$TARGET" \
+            --title "$TAG_NAME" \
+            --notes "$NOTES"
+            --prerelease)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
