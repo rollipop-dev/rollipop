@@ -1,0 +1,84 @@
+name: Prepare Release
+
+env:
+  BASE_BRANCH: main
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (e.g., 1.0.0)
+        required: true
+        type: string
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Prepare release metadata
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+            echo "Invalid release version: $INPUT_VERSION"
+            exit 1
+          fi
+
+          echo "VERSION=$INPUT_VERSION" >> "$GITHUB_ENV"
+          echo "TAG=v$INPUT_VERSION" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Tools
+        uses: jdx/mise-action@v3
+
+      - name: Setup Node
+        run: corepack enable
+
+      - name: Set package versions
+        run: yarn scripts:version "$VERSION"
+
+      - name: Generate changelog via git cliff
+        id: changelog
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
+        env:
+          # Used to make request to GitHub without ratelimits.
+          # `secrets.GIT_CLIFF_TOKEN` only has read permission.
+          GITHUB_TOKEN: ${{ secrets.GIT_CLIFF_TOKEN }}
+        with:
+          version: v2.9.1 # git cliff version
+          config: cliff.toml
+          args: --use-branch-tags --unreleased --prepend CHANGELOG.md --tag ${{ env.TAG }}
+
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Create release pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          add-paths: |
+            CHANGELOG.md
+            packages/**/package.json
+          commit-message: 'release: ${{ env.TAG }}'
+          title: 'release: ${{ env.TAG }}'
+          body: ${{ steps.changelog.outputs.content }}
+          branch: release/${{ env.TAG }}
+          delete-branch: true
+          base: ${{ env.BASE_BRANCH }}
+          assignees: leegeunhyeok

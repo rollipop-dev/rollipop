@@ -5,7 +5,6 @@ export default defineConfig({
     printWidth: 100,
     singleQuote: true,
     ignorePatterns: [
-      '.changeset/**',
       'docs/.next/**',
       'docs/.source/**',
       'docs/out/**',
