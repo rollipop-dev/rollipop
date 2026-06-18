@@ -1,6 +1,6 @@
 {
   "name": "@rollipop/plugin-module-federation",
-  "version": "1.0.0-alpha.23",
+  "version": "1.0.0-alpha.24",
   "homepage": "https://github.com/rollipop-dev/rollipop#readme",
   "bugs": {
     "url": "https://github.com/rollipop-dev/rollipop/issues"
@@ -48,5 +48,6 @@
   },
   "peerDependencies": {
     "rollipop": "workspace:*"
-  }
+  },
+  "stableVersion": "1.0.0-alpha.23"
 }

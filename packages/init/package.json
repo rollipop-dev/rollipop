@@ -1,6 +1,6 @@
 {
   "name": "@rollipop/init",
-  "version": "1.0.0-alpha.23",
+  "version": "1.0.0-alpha.24",
   "homepage": "https://github.com/rollipop-dev/rollipop#readme",
   "bugs": {
     "url": "https://github.com/rollipop-dev/rollipop/issues"
@@ -33,5 +33,6 @@
     "@oxc-node/core": "^0.1.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
-  }
+  },
+  "stableVersion": "1.0.0-alpha.23"
 }

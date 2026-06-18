@@ -1,3 +1,46 @@
+
+## [1.0.0-alpha.24] - 2026-06-18
+
+### 🚀 Features
+
+- add skills command by @leegeunhyeok
+- add `withTransform` option to polyfill config by @leegeunhyeok
+- store hmr chunk by @leegeunhyeok
+- support `rollipop` format (#101) by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- add `minify` as affected option field by @leegeunhyeok
+- invalid `import.meta.hot` value when hmr disabled by @leegeunhyeok
+- build progress total cache (#103) by @leegeunhyeok
+- resolve bundle entry file paths (#102) by @leegeunhyeok
+- preserve prelude order without strict execution (#99) by @leegeunhyeok
+
+### 🚜 Refactor
+
+- add ident by @leegeunhyeok
+
+### 📚 Documentation
+
+- update troubleshooting.mdx by @leegeunhyeok
+- fix sidebar styles by @leegeunhyeok
+- update main title by @leegeunhyeok
+- add ARCHITECTURE.md by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump next from 16.2.1 to 16.2.6 (#114) by @dependabot[bot]
+- renew release pipeline by @leegeunhyeok
+- deps: bump ws from 6.2.3 to 8.21.0 (#109) by @dependabot[bot]
+- deps: bump hono from 4.12.10 to 4.12.25 (#108) by @dependabot[bot]
+- deps: bump dompurify from 3.3.3 to 3.4.9 (#107) by @dependabot[bot]
+- deps: bump launch-editor from 2.12.0 to 2.14.1 (#106) by @dependabot[bot]
+- deps-dev: bump @babel/core from 7.29.0 to 7.29.6 (#105) by @dependabot[bot]
+- deps: bump tar from 7.5.2 to 7.5.16 (#104) by @dependabot[bot]
+- bump rolldown to 1.0.14 by @leegeunhyeok
+- update repository links by @leegeunhyeok
+- add issue templates by @leegeunhyeok
+
 ## [1.0.0-alpha.23] - 2026-06-12
 
 ### 🚀 Features

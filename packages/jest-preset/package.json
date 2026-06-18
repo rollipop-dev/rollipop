@@ -1,6 +1,6 @@
 {
   "name": "@rollipop/jest-preset",
-  "version": "1.0.0-alpha.23",
+  "version": "1.0.0-alpha.24",
   "homepage": "https://github.com/rollipop-dev/rollipop#readme",
   "bugs": {
     "url": "https://github.com/rollipop-dev/rollipop/issues"
@@ -56,5 +56,6 @@
     "react-native": {
       "optional": true
     }
-  }
+  },
+  "stableVersion": "1.0.0-alpha.23"
 }
