@@ -48,6 +48,7 @@ jobs:
         run: |
           yarn install --immutable
           yarn scripts:version "$VERSION"
+          yarn fmt:fix
 
       - name: Generate changelog via git cliff
         id: changelog
