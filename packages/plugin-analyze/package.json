@@ -1,6 +1,7 @@
 {
   "name": "@rollipop/plugin-analyze",
   "version": "1.0.0-alpha.24",
+  "stableVersion": "1.0.0-alpha.23",
   "homepage": "https://github.com/rollipop-dev/rollipop#readme",
   "bugs": {
     "url": "https://github.com/rollipop-dev/rollipop/issues"
@@ -42,6 +43,5 @@
   },
   "peerDependencies": {
     "rollipop": "workspace:*"
-  },
-  "stableVersion": "1.0.0-alpha.23"
+  }
 }
