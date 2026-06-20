@@ -10,14 +10,7 @@ export function transformWithRollipop(id: string, code: string, config: Resolved
   if (transformer == null) {
     transformer = new RollipopReactNativeTransformer({
       envName: config.mode,
-      runtimeTarget: (() => {
-        switch (config.runtimeTarget) {
-          case 'hermes-v1':
-            return 'HermesV1';
-          case 'hermes':
-            return 'Hermes';
-        }
-      })(),
+      runtimeTarget: config.runtimeTarget,
       flow: config.experimental.flow,
       worklets: config.experimental.worklets,
       swc: {

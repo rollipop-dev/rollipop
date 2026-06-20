@@ -5,9 +5,8 @@ process.env = process.env || {};
 process.env.NODE_ENV = process.env.NODE_ENV || "production";
 (function(global) {
 //#region \0rollipop/runtime
-var __rollipop_modules__ = {};
 var __rollipop_module_cache = {};
-function  __rollipop_require__(id) {
+function __rollipop_require__(id) {
   var cached = __rollipop_module_cache[id];
   if (cached !== undefined) return cached.exports;
   var factory = __rollipop_modules__[id];
@@ -17,10 +16,6 @@ function  __rollipop_require__(id) {
   module.loaded = true;
   return module.exports;
 }
-function __rollipop_define__(factory, id) {
-  __rollipop_modules__[id] = factory;
-}
-__rollipop_require__.m = __rollipop_modules__;
 __rollipop_require__.c = __rollipop_module_cache;
 __rollipop_require__.o = function(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
@@ -66,23 +61,24 @@ __rollipop_require__.e = function(id) {
   throw new Error('External module ' + id + ' is not available');
 };
 //#endregion
-__rollipop_define__(function(global, module, __rollipop_exports__, __rollipop_require__) {
+var __rollipop_modules__ = __rollipop_require__.m = {
+2: function(global, module, __rollipop_exports__, __rollipop_require__) {
 //#region index.ts
 	__rollipop_require__.r(__rollipop_exports__);
 	console.log("main entry");
 
 //#endregion
-}, 2);
-
-__rollipop_define__(function(global, module, __rollipop_exports__, __rollipop_require__) {
+}
+,
+1: function(global, module, __rollipop_exports__, __rollipop_require__) {
 //#region \0rollipop/entry
 	__rollipop_require__.r(__rollipop_exports__);
 	var import_prelude_10 = __rollipop_require__(2);
 
 //#endregion
-}, 1);
-
+}
+};
 __rollipop_require__(1);
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : typeof window !== 'undefined' ? window : this);
 /* FUNCTION_OVERRIDE */
 //# sourceMappingURL=bundle.js.map

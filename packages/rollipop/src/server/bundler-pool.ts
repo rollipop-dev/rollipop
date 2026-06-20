@@ -220,7 +220,7 @@ export class BundlerDevEngine {
 
     const state = await this.devEngine.getBundleState();
     logger.debug('Bundle state', { bundlerId: this.id, state });
-    if (state.lastFullBuildFailed) {
+    if (state.lastBuildErrored) {
       throw new Error(this.buildFailedError?.message ?? 'Build failed');
     }
     if (state.hasStaleOutput || this.bundleStore == null) {

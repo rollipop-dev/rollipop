@@ -22,7 +22,6 @@ import {
   mergeReporters,
   ProgressBarStatusReporter,
 } from '../utils/reporters';
-import { resolveRuntimeTarget } from '../utils/runtime-target';
 import { getBaseUrl } from '../utils/server';
 import { getBuildTotalModules, setBuildTotalModules } from '../utils/storage';
 import { transformWithRollipop } from '../utils/transform';
@@ -316,7 +315,7 @@ function resolveReactNativeBuiltinPluginConfig(
 
   return {
     envName: config.mode,
-    runtimeTarget: resolveRuntimeTarget(config.runtimeTarget),
+    runtimeTarget: config.runtimeTarget,
     flow: config.experimental.flow,
     worklets: resolveWorkletsConfig(config),
   };

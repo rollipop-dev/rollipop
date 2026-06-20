@@ -29,10 +29,10 @@ describe('transformWithRollipop', () => {
 
     const result = transformWithRollipop('/polyfill.js', 'const answer = 1;', config);
 
-    expect(result.code).toBe('[Hermes] /polyfill.js: const answer = 1;');
+    expect(result.code).toBe('[hermes] /polyfill.js: const answer = 1;');
     expect(RollipopReactNativeTransformer).toHaveBeenCalledWith({
       envName: 'production',
-      runtimeTarget: 'Hermes',
+      runtimeTarget: 'hermes',
       flow: undefined,
       worklets: undefined,
       swc: {
@@ -66,10 +66,10 @@ describe('transformWithRollipop', () => {
 
     expect(RollipopReactNativeTransformer).toHaveBeenCalledTimes(2);
     expect(vi.mocked(RollipopReactNativeTransformer).mock.calls[0]![0]).toMatchObject({
-      runtimeTarget: 'HermesV1',
+      runtimeTarget: 'hermes-v1',
     });
     expect(vi.mocked(RollipopReactNativeTransformer).mock.calls[1]![0]).toMatchObject({
-      runtimeTarget: 'Hermes',
+      runtimeTarget: 'hermes',
     });
   });
 });
