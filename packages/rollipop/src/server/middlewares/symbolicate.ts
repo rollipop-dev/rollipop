@@ -1,11 +1,10 @@
 import chalk from 'chalk';
-import { invariant } from 'es-toolkit';
 import fp from 'fastify-plugin';
 import { asConst, type FromSchema } from 'json-schema-to-ts';
 
 import { isDebugEnabled } from '../../common/env';
 import { getBaseBundleName } from '../../utils/bundle';
-import { parseUrl } from '../../utils/url';
+import { parseUrl, type Query } from '../../utils/url';
 import type { StackFrameInput } from '../symbolicate';
 import { symbolicate, type SymbolicateResult } from '../symbolicate';
 import type { DevServerContext } from '../types';
@@ -29,6 +28,11 @@ interface SymbolicateRequestBody {
   extraData: Record<string, unknown>;
 }
 
+interface ParsedBundleUrl {
+  pathname: string;
+  query: Query;
+}
+
 export interface SymbolicatePluginOptions {
   context: DevServerContext;
 }
@@ -44,16 +48,15 @@ const plugin = fp<SymbolicatePluginOptions>(
       async handler(request, reply) {
         const { stack } = request.body as SymbolicateRequestBody;
 
-        const bundleUrl = stack.find((frame) => frame.file?.startsWith('http'));
-        invariant(bundleUrl?.file, 'No bundle URL found in stack frames');
+        const bundleUrl = findBundleUrl(stack);
+        if (bundleUrl == null) {
+          await reply.header('Content-Type', 'application/json').send(createFallbackResult(stack));
+          return;
+        }
 
-        const { pathname, query } = parseUrl(bundleUrl.file);
-        invariant(pathname, 'No pathname found in bundle URL');
-        invariant(query.platform, 'No platform found in query');
-        invariant(query.dev, 'No dev found in query');
-
+        const { pathname, query } = bundleUrl;
         const platform = query.platform as string;
-        const dev = query.dev === 'true';
+        const dev = query.dev == null ? context.config.mode === 'development' : query.dev === 'true';
         const bundleName = getBaseBundleName(pathname);
         const bundler = context.bundlerPool.get(bundleName, { platform, dev });
         const bundle = await bundler.getBundle();
@@ -69,6 +72,37 @@ const plugin = fp<SymbolicatePluginOptions>(
   },
   { name: 'symbolicate' },
 );
+
+function findBundleUrl(stack: StackFrameInput[]): ParsedBundleUrl | null {
+  for (const frame of stack) {
+    if (!frame.file?.startsWith('http')) {
+      continue;
+    }
+
+    const parsed = parseStackFrameFile(frame.file);
+    if (parsed?.query.platform) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function parseStackFrameFile(file: string): ParsedBundleUrl | null {
+  try {
+    const { pathname, query } = parseUrl(file);
+    return pathname ? { pathname, query } : null;
+  } catch {
+    return null;
+  }
+}
+
+function createFallbackResult(stack: StackFrameInput[]): SymbolicateResult {
+  return {
+    stack: stack.map((frame) => ({ ...frame })),
+    codeFrame: null,
+  };
+}
 
 function printSymbolicateResult(
   rawStackFrame: StackFrameInput[],
