@@ -56,7 +56,8 @@ const plugin = fp<SymbolicatePluginOptions>(
 
         const { pathname, query } = bundleUrl;
         const platform = query.platform as string;
-        const dev = query.dev == null ? context.config.mode === 'development' : query.dev === 'true';
+        const dev =
+          query.dev == null ? context.config.mode === 'development' : query.dev === 'true';
         const bundleName = getBaseBundleName(pathname);
         const bundler = context.bundlerPool.get(bundleName, { platform, dev });
         const bundle = await bundler.getBundle();
