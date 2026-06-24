@@ -6,6 +6,8 @@ import type { OutputChunk } from '@rollipop/rolldown';
 import type { ResolvedConfig } from '../src/config/defaults';
 import type { Config, Polyfill } from '../src/config/types';
 import {
+  DEFAULT_ANALYZE_FILE,
+  DEFAULT_ANALYZE_REPORT_FILE,
   DEFAULT_ENV_FILE,
   DEFAULT_ENV_PREFIX,
   DEFAULT_RESOLVER_CONDITION_NAMES,
@@ -34,6 +36,7 @@ export interface TestConfigOptions {
   serializer?: Partial<NonNullable<Config['serializer']>> & { polyfills?: Polyfill[] };
   optimization?: Partial<NonNullable<Config['optimization']>>;
   reactNative?: Partial<NonNullable<Config['reactNative']>>;
+  analyzer?: Partial<NonNullable<Config['analyzer']>>;
   sourcemap?: Config['sourcemap'];
   sourcemapBaseUrl?: Config['sourcemapBaseUrl'];
   sourcemapDebugIds?: Config['sourcemapDebugIds'];
@@ -87,6 +90,13 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       hmrClientPath: path.resolve(FIXTURES_DIR, '_mock', 'hmr-client.js'),
       globalIdentifiers: [],
       ...options.reactNative,
+    },
+    analyzer: {
+      enabled: false,
+      analyzeFile: DEFAULT_ANALYZE_FILE,
+      reportFile: DEFAULT_ANALYZE_REPORT_FILE,
+      autoOpen: false,
+      ...options.analyzer,
     },
     devMode: { hmr: false },
     experimental: {

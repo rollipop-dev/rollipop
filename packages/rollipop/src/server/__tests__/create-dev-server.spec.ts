@@ -261,9 +261,10 @@ describe('createDevServer', () => {
       id: 'ios-dev',
       entry: 'index',
       status: 'idle',
-      optionsSnapshot: {
+      buildOptions: {
         platform: 'ios',
         dev: true,
+        cache: true,
         minify: false,
       },
     } as unknown as BundlerDevEngine);

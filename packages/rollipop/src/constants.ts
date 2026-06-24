@@ -15,8 +15,7 @@ export const ROLLIPOP_VIRTUAL_ENTRY_ID = `${ROLLIPOP_VIRTUAL_PREFIX}entry`;
  */
 export const DEFAULT_RESOLVER_MAIN_FIELDS = ['react-native', 'browser', 'main'];
 export const DEFAULT_RESOLVER_ALIAS_FIELDS = [['react-native'], ['browser']];
-// Rolldown adds `import` or `require` per dependency edge.
-export const DEFAULT_RESOLVER_CONDITION_NAMES = ['react-native'];
+export const DEFAULT_RESOLVER_CONDITION_NAMES = ['react-native']; // Note: `import` and `require` are added internally by Rolldown.
 
 /**
  * Unlike the Metro bundler configuration, this prioritizes resolving TypeScript and ESM first.
@@ -143,3 +142,6 @@ export const DEFAULT_ENV_PREFIX = 'ROLLIPOP_';
 export const DEFAULT_ENV_FILE = '.env';
 
 export const DEFAULT_RUNTIME_TARGET = 'hermes-v1';
+
+export const DEFAULT_ANALYZE_FILE = 'analyze-data.json';
+export const DEFAULT_ANALYZE_REPORT_FILE = 'report.html';

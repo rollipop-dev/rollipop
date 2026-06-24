@@ -1,4 +1,3 @@
-import { analyze } from '@rollipop/plugin-analyze';
 import { rozenite } from '@rollipop/plugin-rozenite';
 import { svg } from '@rollipop/plugin-svg';
 import { defineConfig, type PluginOption } from 'rollipop';
@@ -11,11 +10,14 @@ function myPlugin(): PluginOption {
 
 export default defineConfig({
   entry: 'index.js',
+  analyzer: {
+    enabled: true,
+    autoOpen: true,
+  },
   plugins: [
     svg(),
     myPlugin(),
     rozenite({ enabled: process.env.WITH_ROZENITE === 'true', logLevel: 'debug' }),
-    analyze(),
   ],
   terminal: {
     extraCommands: [

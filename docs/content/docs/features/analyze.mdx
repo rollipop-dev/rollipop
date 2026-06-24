@@ -2,57 +2,72 @@
 title: Bundle Analysis
 ---
 
-The `@rollipop/plugin-analyze` plugin generates an interactive visualization of your bundle, helping you identify large modules and optimize bundle size.
-
-## Installation
-
-<Tabs items={['npm', 'pnpm', 'yarn']}>
-  <Tab value="npm">```npm install --save-dev @rollipop/plugin-analyze```</Tab>
-  <Tab value="pnpm">```pnpm add -D @rollipop/plugin-analyze```</Tab>
-  <Tab value="yarn">```yarn add -D @rollipop/plugin-analyze```</Tab>
-</Tabs>
+Rollipop can generate an interactive bundle analysis report, helping you identify large modules and optimize bundle size.
 
 ## Usage
 
 ```ts title="rollipop.config.ts"
 import { defineConfig } from 'rollipop';
-import { analyzePlugin } from '@rollipop/plugin-analyze';
 
 export default defineConfig({
-  plugins: [analyzePlugin()],
+  analyzer: {
+    enabled: true,
+  },
 });
 ```
 
-After building, the plugin generates two outputs:
+When enabled, Rollipop generates two outputs:
 
-- **JSON data file** (`analyze-data.json`): Raw analysis data of the bundle
-- **HTML report** (`index.html`): Interactive visualization generated from the data
+- **JSON data file**: Raw analysis data of the bundle
+- **HTML report**: Interactive visualization generated from the data
 
-You can also upload the JSON data file to the [Analyzer](https://leegeunhyeok.github.io/rolldown-analyzer) web app to view the analysis without generating a local report.
+In build mode, files are written to the bundle output directory:
+
+- `analyze-data.json`
+- `report.html`
+
+In development mode, there is no bundle output directory, so Rollipop writes id-scoped files under the project shared data directory:
+
+- `.rollipop/analyze/<bundler-id>.json`
+- `.rollipop/analyze/<bundler-id>.html`
+
+You can also upload the JSON data file to the [Analyzer](https://leegeunhyeok.github.io/rolldown-analyzer) web app.
 
 ## Options
 
-### analyzeDataFileName
+### enabled
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Enable bundle analysis.
+
+### analyzeFile
 
 - **Type:** `string`
 - **Default:** `'analyze-data.json'`
 
-Output filename for the analysis data.
+Output filename for the analysis data in build mode.
 
-### outDir
+### reportFile
 
 - **Type:** `string`
-- **Default:** Bundle output directory
+- **Default:** `'report.html'`
 
-Output directory for the analysis report.
+Output filename for the generated HTML report in build mode.
 
 ### autoOpen
 
 - **Type:** `boolean`
 - **Default:** `false`
 
-Automatically open the analysis report in the browser after the build completes.
+Automatically open the generated report in the browser after a build completes.
 
 ```ts
-analyzePlugin({ autoOpen: true });
+export default defineConfig({
+  analyzer: {
+    enabled: true,
+    autoOpen: true,
+  },
+});
 ```

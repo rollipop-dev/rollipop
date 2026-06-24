@@ -65,6 +65,10 @@ export interface Config {
    */
   reporter?: Reporter;
   /**
+   * Bundle analyzer configuration.
+   */
+  analyzer?: AnalyzerConfig;
+  /**
    * Dev mode specific configuration. (for dev server)
    */
   devMode?: DevModeConfig;
@@ -455,6 +459,34 @@ export interface CodegenConfig {
    * Filter for codegen transformation pipeline.
    */
   filter?: rolldown.HookFilter | TopLevelFilterExpression[];
+}
+
+export interface AnalyzerConfig {
+  /**
+   * Whether to enable the bundle analyzer.
+   *
+   * Defaults to: `false`
+   */
+  enabled?: boolean;
+  /**
+   * Output filename for the analysis data.
+   *
+   * Defaults to: `analyze-data.json`
+   */
+  analyzeFile?: string;
+  /**
+   * Output filename for the generated HTML report.
+   *
+   * Defaults to: `report.html`
+   */
+  reportFile?: string;
+  /**
+   * Automatically open the generated report in the browser.
+   * (Only available in `build` mode)
+   *
+   * Defaults to: `false`
+   */
+  autoOpen?: boolean;
 }
 
 export interface TerminalConfig {

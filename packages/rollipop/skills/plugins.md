@@ -24,7 +24,7 @@ Module federation is an early-stage feature. Preserve the host-vs-remote role sp
 
 ### Bundle Analysis
 
-Use the analyze plugin when the task is to inspect bundle size or module composition. Read https://rollipop.dev/docs/features/analyze.md.
+Use the built-in analyzer config when the task is to inspect bundle size or module composition. Read https://rollipop.dev/docs/features/analyze.md.
 
 ### Rozenite
 

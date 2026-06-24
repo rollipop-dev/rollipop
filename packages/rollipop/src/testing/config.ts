@@ -2,6 +2,8 @@ import path from 'node:path';
 
 import type { Config, ResolvedConfig } from '../config';
 import {
+  DEFAULT_ANALYZE_FILE,
+  DEFAULT_ANALYZE_REPORT_FILE,
   DEFAULT_ASSET_EXTENSIONS,
   DEFAULT_ASSET_REGISTRY_PATH,
   DEFAULT_ENV_FILE,
@@ -72,6 +74,12 @@ export function createTestConfig(basePath: string): ResolvedConfig {
     reporter: {
       update: () => {},
     } as Reporter,
+    analyzer: {
+      enabled: false,
+      analyzeFile: DEFAULT_ANALYZE_FILE,
+      reportFile: DEFAULT_ANALYZE_REPORT_FILE,
+      autoOpen: false,
+    },
     terminal: {
       status: process.stderr.isTTY ? 'progress' : 'compat',
     },

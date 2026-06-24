@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import { isDebugEnabled } from '../common/env';
 import { stripFlowTypes } from '../common/transformer';
 import {
+  DEFAULT_ANALYZE_FILE,
+  DEFAULT_ANALYZE_REPORT_FILE,
   DEFAULT_ASSET_EXTENSIONS,
   DEFAULT_ASSET_REGISTRY_PATH,
   DEFAULT_ENV_FILE,
@@ -21,6 +23,7 @@ import { resolvePackagePath } from '../utils/node-resolve';
 import { ClientLogReporter } from '../utils/reporters';
 import type { PluginFlattenConfig } from './merge-config';
 import type {
+  AnalyzerConfig,
   Config,
   DevModeConfig,
   OptimizationConfig,
@@ -105,6 +108,12 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       hmr: true as NonNullable<DevModeConfig['hmr']>,
     },
     reporter: new ClientLogReporter() as Reporter,
+    analyzer: {
+      enabled: false,
+      analyzeFile: DEFAULT_ANALYZE_FILE,
+      reportFile: DEFAULT_ANALYZE_REPORT_FILE,
+      autoOpen: false,
+    } as Required<AnalyzerConfig>,
     terminal: {
       status: ((): TerminalConfig['status'] => {
         if (isDebugEnabled()) {

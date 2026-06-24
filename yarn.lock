@@ -6793,22 +6793,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@rollipop/plugin-analyze@workspace:*, @rollipop/plugin-analyze@workspace:packages/plugin-analyze":
-  version: 0.0.0-use.local
-  resolution: "@rollipop/plugin-analyze@workspace:packages/plugin-analyze"
-  dependencies:
-    open: "npm:11.0.0"
-    rolldown-analyzer: "npm:0.1.0"
-    rollipop: "workspace:*"
-    typescript: "catalog:"
-    vite-plus: "catalog:"
-  peerDependencies:
-    rollipop: "workspace:*"
-  bin:
-    plugin-analyze: ./bin/index.js
-  languageName: unknown
-  linkType: soft
-
 "@rollipop/plugin-module-federation@workspace:*, @rollipop/plugin-module-federation@workspace:packages/plugin-module-federation":
   version: 0.0.0-use.local
   resolution: "@rollipop/plugin-module-federation@workspace:packages/plugin-module-federation"
@@ -11668,7 +11652,6 @@ __metadata:
     "@react-navigation/native": "npm:^7.1.33"
     "@react-navigation/native-stack": "npm:^7.14.4"
     "@rollipop/jest-preset": "workspace:*"
-    "@rollipop/plugin-analyze": "workspace:*"
     "@rollipop/plugin-rozenite": "workspace:*"
     "@rollipop/plugin-svg": "workspace:*"
     "@rozenite/react-navigation-plugin": "npm:^1.3.0"
@@ -18542,9 +18525,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rolldown-analyzer@npm:0.1.0":
-  version: 0.1.0
-  resolution: "rolldown-analyzer@npm:0.1.0"
+"rolldown-analyzer@npm:0.2.0":
+  version: 0.2.0
+  resolution: "rolldown-analyzer@npm:0.2.0"
   dependencies:
     commander: "npm:^14.0.3"
     diff: "npm:^8.0.3"
@@ -18552,7 +18535,7 @@ __metadata:
     pathe: "npm:^2.0.3"
   bin:
     rolldown-analyzer: bin/cli.js
-  checksum: 10c0/4558be963f0f919fc061acda1433a8bba266d01c86b9d28d5e7d92e91f7609b76f5c26466a8c4a3e4d0cf5dd6eccc633c0923591ed592cdc3e596096abec9cf1
+  checksum: 10c0/284a936f3fbac999ae9044cec8ffcdf8349a73cf0da73531ce585f84b02d159b2f5f8b8903716b433adbe4665b61f592bc7f8c5ff25b2034d67f10dfedcea01e
   languageName: node
   linkType: hard
 
@@ -18609,6 +18592,8 @@ __metadata:
     magic-string: "npm:0.30.21"
     mime: "npm:4.1.0"
     mitt: "npm:3.0.1"
+    open: "npm:11.0.0"
+    rolldown-analyzer: "npm:0.2.0"
     source-map: "npm:0.7.6"
     strip-ansi: "npm:7.2.0"
     typescript: "catalog:"

@@ -27,12 +27,14 @@ import { getBuildTotalModules, setBuildTotalModules } from '../utils/storage';
 import { transformWithRollipop } from '../utils/transform';
 import { loadEnv } from './env';
 import {
+  type AnalyzePluginOptions,
   type BabelPluginOptions,
   type DevServerPluginOptions,
   type EntryPluginOptions,
   type ReactNativePluginOptions,
   type ReporterPluginOptions,
   type SwcPluginOptions,
+  analyze,
   babel,
   devServer,
   entry,
@@ -177,6 +179,7 @@ export async function resolveRolldownOptions(
   const swcPluginOptions = resolveSwcPluginOptions(config, context);
   const devServerPluginOptions = resolveDevServerPluginOptions(config, hmrConfig);
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
+  const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
 
   const inputOptions: rolldown.InputOptions = {
     platform: 'neutral',
@@ -202,6 +205,7 @@ export async function resolveRolldownOptions(
       swc(swcPluginOptions),
       devServer(devServerPluginOptions),
       reporter(reporterPluginOptions),
+      analyze(analyzePluginOptions),
       userPlugins,
     ]),
     checks: {
@@ -386,6 +390,19 @@ function resolveReporterPluginOptions(
     reporter: mergeReporters(
       [buildTotalModulesReporter, statusReporter, config.reporter].filter(isNotNil),
     ),
+  };
+}
+
+function resolveAnalyzePluginOptions(
+  config: ResolvedConfig,
+  context: BundlerContext,
+): AnalyzePluginOptions {
+  return {
+    context,
+    enabled: config.analyzer.enabled,
+    analyzeFile: config.analyzer.analyzeFile,
+    reportFile: config.analyzer.reportFile,
+    autoOpen: config.analyzer.autoOpen,
   };
 }
 

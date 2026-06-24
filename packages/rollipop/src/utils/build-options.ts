@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { merge } from 'es-toolkit';
+import { merge, cloneDeep } from 'es-toolkit';
 
 import type { ResolvedConfig } from '../config';
 import type { BuildOptions } from '../core/types';
@@ -11,20 +11,25 @@ const DEFAULT_BUILD_OPTIONS: Partial<BuildOptions> = {
 };
 
 export function resolveBuildOptions(config: ResolvedConfig, buildOptions: BuildOptions) {
-  if (buildOptions.outfile) {
-    buildOptions.outfile = path.resolve(config.root, buildOptions.outfile);
+  const resolvedBuildOptions = cloneDeep(buildOptions);
+
+  if (resolvedBuildOptions.outfile) {
+    resolvedBuildOptions.outfile = path.resolve(config.root, resolvedBuildOptions.outfile);
   }
 
   if (
-    (buildOptions.sourcemap === true || buildOptions.sourcemap === 'hidden') &&
-    buildOptions.sourcemapOutfile
+    (resolvedBuildOptions.sourcemap === true || resolvedBuildOptions.sourcemap === 'hidden') &&
+    resolvedBuildOptions.sourcemapOutfile
   ) {
-    buildOptions.sourcemapOutfile = path.resolve(config.root, buildOptions.sourcemapOutfile);
+    resolvedBuildOptions.sourcemapOutfile = path.resolve(
+      config.root,
+      resolvedBuildOptions.sourcemapOutfile,
+    );
   }
 
-  return merge(DEFAULT_BUILD_OPTIONS, {
-    ...buildOptions,
-    dev: buildOptions.dev ?? config.mode === 'development',
+  return merge(cloneDeep(DEFAULT_BUILD_OPTIONS), {
+    ...resolvedBuildOptions,
+    dev: resolvedBuildOptions.dev ?? config.mode === 'development',
   });
 }
 

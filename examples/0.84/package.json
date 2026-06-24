@@ -36,7 +36,6 @@
     "@react-native/metro-config": "0.84.1",
     "@react-native/typescript-config": "0.84.1",
     "@rollipop/jest-preset": "workspace:*",
-    "@rollipop/plugin-analyze": "workspace:*",
     "@rollipop/plugin-rozenite": "workspace:*",
     "@rollipop/plugin-svg": "workspace:*",
     "@rozenite/react-navigation-plugin": "^1.3.0",

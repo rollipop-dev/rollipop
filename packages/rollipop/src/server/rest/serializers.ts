@@ -61,7 +61,7 @@ export function serializeBundler(serverBaseUrl: string, bundler: BundlerDevEngin
   const query = new URLSearchParams({
     platform: options.platform,
     dev: String(options.dev),
-    minify: String(options.minify),
+    minify: options.minify === true ? 'true' : 'false',
   });
 
   return {

@@ -242,7 +242,7 @@ export class BundlerDevEngine {
 
   async triggerFullBuild() {
     await this.ensureInitialized;
-    await this.devEngine.triggerFullBuild();
+    this.devEngine.triggerFullBuild();
   }
 }
 
