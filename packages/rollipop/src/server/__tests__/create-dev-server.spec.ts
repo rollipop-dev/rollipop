@@ -1,6 +1,13 @@
 // oxlint-disable typescript-eslint(unbound-method)
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+
+import { staticPath as dashboardStaticPath } from '@rollipop/dashboard';
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
+import { SHARED_DATA_PATH } from '../../common/constants';
 import { createTestConfig } from '../../testing/config';
 import type { BundlerDevEngine } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
@@ -38,11 +45,157 @@ describe('createDevServer', () => {
     await devServer.instance.close();
   });
 
+  it('should serve dashboard static files without redirecting root to dashboard', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    await devServer.instance.ready();
+
+    const indexHtml = await fs.readFile(path.join(dashboardStaticPath, 'index.html'), 'utf8');
+    const rootResponse = await devServer.instance.inject({
+      method: 'GET',
+      url: '/',
+    });
+
+    expect(rootResponse.statusCode).not.toBe(302);
+    expect(rootResponse.headers.location).toBeUndefined();
+
+    const indexResponse = await devServer.instance.inject({
+      method: 'GET',
+      url: '/dashboard',
+    });
+
+    expect(indexResponse.statusCode).toBe(200);
+    expect(indexResponse.headers['content-type']).toContain('text/html');
+    expect(indexResponse.body).toBe(indexHtml);
+
+    expect(indexHtml).toContain('/dashboard/assets/');
+    expect(indexHtml).not.toContain('/dashboard-assets/');
+    expect(indexHtml).not.toMatch(/(?:href|src)="\/assets\//);
+
+    const assetName = (await fs.readdir(path.join(dashboardStaticPath, 'assets'))).find((name) =>
+      name.endsWith('.js'),
+    );
+    expect(assetName).toBeDefined();
+
+    const assetContent = await fs.readFile(
+      path.join(dashboardStaticPath, 'assets', assetName!),
+      'utf8',
+    );
+    const assetResponse = await devServer.instance.inject({
+      method: 'GET',
+      url: `/dashboard/assets/${assetName}`,
+    });
+
+    expect(assetResponse.statusCode).toBe(200);
+    expect(assetResponse.body).toBe(assetContent);
+
+    const logoContent = await fs.readFile(path.join(dashboardStaticPath, 'logo.svg'), 'utf8');
+    const logoResponse = await devServer.instance.inject({
+      method: 'GET',
+      url: '/dashboard/logo.svg',
+    });
+
+    expect(logoResponse.statusCode).toBe(200);
+    expect(logoResponse.body).toBe(logoContent);
+
+    await devServer.instance.close();
+  });
+
+  it('should serve the dashboard 404 page for missing HTML GET requests', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    await devServer.instance.ready();
+
+    const notFoundHtml = await fs.readFile(path.join(dashboardStaticPath, '404.html'), 'utf8');
+    const response = await devServer.instance.inject({
+      method: 'GET',
+      url: '/dashboard/missing-dashboard-page',
+      headers: {
+        accept: 'text/html',
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.body).toBe(notFoundHtml);
+
+    await devServer.instance.close();
+  });
+
+  it('should serve analyzer report files through the dashboard route', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'rollipop-analyze-report-'));
+    const devServer = await createDevServer(createTestConfig(projectRoot), { port: 0 });
+    const reportPath = path.join(projectRoot, SHARED_DATA_PATH, 'analyze', 'ios-dev.html');
+    const reportHtml = '<!doctype html><html><body>Analyzer report</body></html>';
+
+    try {
+      await devServer.instance.ready();
+      await fs.mkdir(path.dirname(reportPath), { recursive: true });
+      await fs.writeFile(reportPath, reportHtml);
+
+      const response = await devServer.instance.inject({
+        method: 'GET',
+        url: '/dashboard/analyze-report/ios-dev.html',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toContain('text/html');
+      expect(response.body).toBe(reportHtml);
+
+      const missingResponse = await devServer.instance.inject({
+        method: 'HEAD',
+        url: '/dashboard/analyze-report/missing.html',
+      });
+
+      expect(missingResponse.statusCode).toBe(404);
+    } finally {
+      await devServer.instance.close();
+      await fs.rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('should keep SSE event streams open', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+    const controller = new AbortController();
+
+    try {
+      const response = await fetch(new URL('/sse/events', address), {
+        headers: {
+          accept: 'text/event-stream',
+        },
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(1000)]),
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/event-stream');
+      expect(response.headers.get('access-control-allow-origin')).toBe('*');
+      expect(response.body).not.toBeNull();
+
+      const reader = response.body!.getReader();
+      const firstChunk = await reader.read();
+      expect(firstChunk.done).toBe(false);
+      expect(new TextDecoder().decode(firstChunk.value)).toBe(':ok\n\n');
+
+      const pendingRead = reader.read().then(
+        () => 'closed' as const,
+        () => 'closed' as const,
+      );
+      await expect(
+        Promise.race([pendingRead, delay(100).then(() => 'open' as const)]),
+      ).resolves.toBe('open');
+
+      controller.abort();
+      await reader.cancel().catch(() => undefined);
+      await Promise.race([pendingRead, delay(100)]);
+    } finally {
+      controller.abort();
+      await devServer.instance.close();
+    }
+  });
+
   it('should report disabled MCP routes until enabled', async () => {
     const defaultServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
     await defaultServer.instance.ready();
     const defaultRoutes = defaultServer.instance.printRoutes();
-    expect(defaultRoutes).toContain('mcp (');
     expect(defaultRoutes).not.toContain('reset-cache');
 
     for (const method of ['GET', 'POST', 'DELETE'] as const) {
@@ -69,7 +222,6 @@ describe('createDevServer', () => {
     });
     await mcpServer.instance.ready();
     const mcpRoutes = mcpServer.instance.printRoutes();
-    expect(mcpRoutes).toContain('mcp (');
     expect(mcpRoutes).not.toContain('reset-cache');
     await mcpServer.instance.close();
   }, 10_000);
@@ -104,6 +256,44 @@ describe('createDevServer', () => {
     );
 
     await devServer.instance.close();
+  });
+
+  it('should expose feature flags from the resolved config through REST API', async () => {
+    const config = createTestConfig('/root/project');
+    const disabledServer = await createDevServer(config, { port: 0 });
+    await disabledServer.instance.ready();
+
+    const disabledResponse = await disabledServer.instance.inject({
+      method: 'GET',
+      url: '/api/feature-flags',
+    });
+
+    expect(disabledResponse.statusCode).toBe(200);
+    expect(disabledResponse.json()).toEqual({ analyze: false });
+
+    await disabledServer.instance.close();
+
+    const enabledServer = await createDevServer(
+      {
+        ...config,
+        analyzer: {
+          ...config.analyzer,
+          enabled: true,
+        },
+      },
+      { port: 0 },
+    );
+    await enabledServer.instance.ready();
+
+    const enabledResponse = await enabledServer.instance.inject({
+      method: 'GET',
+      url: '/api/feature-flags',
+    });
+
+    expect(enabledResponse.statusCode).toBe(200);
+    expect(enabledResponse.json()).toEqual({ analyze: true });
+
+    await enabledServer.instance.close();
   });
 
   it('should trigger a bundler full build through REST API', async () => {

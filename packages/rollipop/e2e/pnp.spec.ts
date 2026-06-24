@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 const MONOREPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 const ROLLIPOP_DIR = path.resolve(import.meta.dirname, '..');
 const FIXTURE_DIR = path.resolve(import.meta.dirname, '__fixtures__/react-native-app');
+const DASHBOARD_WORKSPACE_DIR = 'packages/dashboard';
 
 let tmpDir: string;
 
@@ -51,6 +52,45 @@ function log(message: string) {
   console.log(`[pnp-test] ${message}`);
 }
 
+function writeDashboardWorkspaceStub() {
+  const dashboardDir = path.join(tmpDir, DASHBOARD_WORKSPACE_DIR);
+
+  fs.mkdirSync(path.join(dashboardDir, 'dist'), { recursive: true });
+  fs.writeFileSync(
+    path.join(dashboardDir, 'package.json'),
+    JSON.stringify(
+      {
+        name: '@rollipop/dashboard',
+        version: '0.0.0',
+        private: true,
+        type: 'module',
+        main: 'index.js',
+        types: 'index.d.ts',
+      },
+      null,
+      2,
+    ),
+  );
+  fs.writeFileSync(
+    path.join(dashboardDir, 'index.js'),
+    `
+import path from 'node:path';
+
+export const staticPath = path.join(import.meta.dirname, 'dist');
+`.trimStart(),
+  );
+  fs.writeFileSync(
+    path.join(dashboardDir, 'index.d.ts'),
+    `
+declare const staticPath: string;
+
+export { staticPath };
+`.trimStart(),
+  );
+  fs.writeFileSync(path.join(dashboardDir, 'dist/index.html'), '<!doctype html>');
+  fs.writeFileSync(path.join(dashboardDir, 'dist/404.html'), '<!doctype html>');
+}
+
 beforeAll(() => {
   const yarnVersion = getYarnVersion();
   const nodeVersion = process.version;
@@ -64,6 +104,7 @@ beforeAll(() => {
   for (const file of fs.readdirSync(FIXTURE_DIR)) {
     fs.cpSync(path.join(FIXTURE_DIR, file), path.join(tmpDir, file), { recursive: true });
   }
+  writeDashboardWorkspaceStub();
 
   // Standalone tsconfig
   fs.writeFileSync(
@@ -113,6 +154,7 @@ beforeAll(() => {
         name: 'rollipop-pnp-test',
         private: true,
         packageManager: `yarn@${yarnVersion}`,
+        workspaces: [DASHBOARD_WORKSPACE_DIR],
         dependencies: {
           react: examplePkg.dependencies['react'],
           'react-native': examplePkg.dependencies['react-native'],

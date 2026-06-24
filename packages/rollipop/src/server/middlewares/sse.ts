@@ -29,11 +29,14 @@ const plugin = fp<SSEPluginOptions>(
 
     const registerStream = (path: string, streamPublisher: SSEEventPublisher) => {
       fastify.get(path, (request, reply) => {
+        reply.hijack();
+
         const res = reply.raw;
         res.writeHead(200, {
           Connection: 'keep-alive',
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
+          'Access-Control-Allow-Origin': '*',
           'X-Accel-Buffering': 'no',
         });
 

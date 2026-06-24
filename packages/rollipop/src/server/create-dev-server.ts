@@ -17,6 +17,7 @@ import { errorHandler } from './error';
 import { ServerEventBus } from './events/event-bus';
 import { DevServerLogger, logger } from './logger';
 import { mcp } from './mcp/server';
+import { dashboard } from './middlewares/dashboard';
 import { requestLogger } from './middlewares/request-logger';
 import { serveAssets } from './middlewares/serve-assets';
 import { serveBundle } from './middlewares/serve-bundle';
@@ -174,6 +175,7 @@ export async function createDevServer(
     .use(requestLogger)
     .use(communityMiddleware)
     .use(devMiddleware)
+    .register(dashboard, { context })
     .register(symbolicate, { context })
     .register(serveBundle, { context })
     .register(serveAssets, { context })

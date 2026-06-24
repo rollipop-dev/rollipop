@@ -28,6 +28,12 @@ export function serializeConfigInfo(config: ResolvedConfig) {
   };
 }
 
+export function serializeFeatureFlags(config: ResolvedConfig) {
+  return {
+    analyze: config.analyzer.enabled,
+  };
+}
+
 export function serializeDevServerStatus({
   serverBaseUrl,
   startedAt,
@@ -61,7 +67,7 @@ export function serializeBundler(serverBaseUrl: string, bundler: BundlerDevEngin
   const query = new URLSearchParams({
     platform: options.platform,
     dev: String(options.dev),
-    minify: options.minify === true ? 'true' : 'false',
+    minify: String(typeof options.minify === 'boolean' ? options.minify : Boolean(options.minify)),
   });
 
   return {

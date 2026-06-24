@@ -6,6 +6,7 @@ import {
   serializeConfigInfo,
   serializeDevice,
   serializeDevServerStatus,
+  serializeFeatureFlags,
   serializeProjectInfo,
 } from './serializers';
 
@@ -31,6 +32,10 @@ export function getProjectInfo(context: DevServerContext) {
 
 export function getConfigInfo(context: DevServerContext) {
   return serializeConfigInfo(context.config);
+}
+
+export function getFeatureFlags(context: DevServerContext) {
+  return serializeFeatureFlags(context.config);
 }
 
 export function getDevServerStatus(context: DevServerContext) {

@@ -16,6 +16,8 @@ export default defineConfig({
       '**/.**',
       // package: rollipop
       'packages/rollipop/src/runtime/runtime-utils.ts',
+      // package: dashboard
+      'packages/dashboard/public/mockServiceWorker.js',
     ],
     experimentalSortImports: {
       groups: [
@@ -35,7 +37,13 @@ export default defineConfig({
     },
   },
   lint: {
-    ignorePatterns: ['rolldown/**', 'docs/**', 'examples/**', '**/__fixtures__/**'],
+    ignorePatterns: [
+      'rolldown/**',
+      'docs/**',
+      'examples/**',
+      '**/__fixtures__/**',
+      'packages/dashboard/public/mockServiceWorker.js',
+    ],
     options: {
       typeAware: true,
       typeCheck: true,
