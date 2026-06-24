@@ -11,7 +11,7 @@ GET /sse/events
 GET /sse/client-logs
 ```
 
-`/sse/events` streams build, HMR, device, server, and cache events. `/sse/client-logs` streams app console logs forwarded by the HMR client.
+`/sse/events` streams build, HMR client, server, and cache events. `/sse/client-logs` streams app console logs forwarded by the HMR client.
 
 Each endpoint returns a `text/event-stream` response. Each event is formatted as:
 
@@ -20,7 +20,7 @@ event: <event_type>
 data: <json_payload>
 ```
 
-Bundler-scoped events include `bundlerId`. Use this value with the MCP `get_bundler_status` tool when polling the latest state for a specific bundle. Device, server, and cache events are not tied to a single bundler instance. Client log events are streamed separately from build events.
+Bundler-scoped events include `bundlerId`. Use this value with the MCP `get_bundler_status` tool when polling the latest state for a specific bundle. Client lifecycle, server, and cache events are not tied to a single bundler instance. Client log events are streamed separately from build events.
 
 ### `/sse/events` Event Types
 
@@ -82,12 +82,12 @@ Emitted when a file change is detected.
 { "type": "watch_change", "bundlerId": "<bundlerId>", "file": "src/App.tsx" }
 ```
 
-#### `device_connected` / `device_disconnected`
+#### `client_connected` / `client_disconnected`
 
-Emitted when a device connects or disconnects via HMR.
+Emitted when an HMR client connects or disconnects.
 
 ```json
-{ "type": "device_connected", "clientId": 0 }
+{ "type": "client_connected", "clientId": 0 }
 ```
 
 #### `server_ready`

@@ -6,7 +6,7 @@ import type { DevServerContext } from '../types';
 import type { McpToolContext } from './tools';
 import { AppLogDiagnostics } from './tools/app-log-diagnostics';
 import { BuildDiagnostics } from './tools/build-diagnostics';
-import { DeviceDiagnostics } from './tools/device-diagnostics';
+import { ClientDiagnostics } from './tools/client-diagnostics';
 
 export interface McpRuntimeOptions {
   eventBus: ServerEventBus;
@@ -22,6 +22,6 @@ export function createMcpToolContext(context: DevServerContext): McpToolContext 
     context,
     appLogDiagnostics: new AppLogDiagnostics(context),
     buildDiagnostics: new BuildDiagnostics(context),
-    deviceDiagnostics: new DeviceDiagnostics(context),
+    clientDiagnostics: new ClientDiagnostics(context),
   };
 }

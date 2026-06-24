@@ -13,9 +13,9 @@ export type SSEBuildEvent =
   | { type: 'bundle_build_failed'; bundlerId: string; error: string }
   | { type: 'hmr_failed'; bundlerId: string; error: string }
   | { type: 'watch_change'; bundlerId: string; file: string }
-  // Device lifecycle events
-  | { type: 'device_connected'; clientId: number }
-  | { type: 'device_disconnected'; clientId: number }
+  // HMR client lifecycle events
+  | { type: 'client_connected'; clientId: number }
+  | { type: 'client_disconnected'; clientId: number }
   // Server lifecycle events
   | { type: 'server_ready'; host: string; port: number }
   // Control API events

@@ -47,7 +47,7 @@ export function getAgentGuide(baseUrl = defaultBaseUrl): string {
     '',
     '  Useful event types:',
     '    bundle_build_started, bundle_build_done, bundle_build_failed',
-    '    watch_change, hmr_failed, device_connected, device_disconnected',
+    '    watch_change, hmr_failed, client_connected, client_disconnected',
     '    server_ready, cache_reset',
     '    client_log is streamed separately from /sse/client-logs',
     '',

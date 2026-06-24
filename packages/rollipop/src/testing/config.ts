@@ -84,5 +84,8 @@ export function createTestConfig(basePath: string): ResolvedConfig {
     },
   } satisfies Config;
 
-  return defaultConfig;
+  return {
+    ...defaultConfig,
+    configFile: path.join(basePath, 'rollipop.config.ts'),
+  };
 }

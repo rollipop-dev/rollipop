@@ -20,21 +20,21 @@ export type ServerEvent =
   | BundlerEvent
   | MetroCompatibleClientLogEvent
   | {
-      type: 'device_connected';
+      type: 'client_connected';
       client: WebSocketClient;
     }
   | {
-      type: 'device_message';
+      type: 'client_message';
       client: WebSocketClient;
       data: ws.RawData;
     }
   | {
-      type: 'device_error';
+      type: 'client_error';
       client: WebSocketClient;
       error: Error;
     }
   | {
-      type: 'device_disconnected';
+      type: 'client_disconnected';
       client: WebSocketClient;
     }
   | {

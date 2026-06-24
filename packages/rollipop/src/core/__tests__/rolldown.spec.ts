@@ -85,7 +85,7 @@ describe('resolveRolldownOptions', () => {
     expect(introCode).toMatchSnapshot();
   });
 
-  it('reports rolldown plugin logs through the reporter pipeline', async () => {
+  it('reports rolldown build logs through the reporter pipeline', async () => {
     resolveRolldownOptions.cache.clear();
 
     const reporter = { update: vi.fn() };
@@ -116,7 +116,7 @@ describe('resolveRolldownOptions', () => {
       {
         code: 'PLUGIN_LOG',
         plugin: 'test-plugin',
-        message: 'plugin info',
+        message: 'build info',
       } as rolldown.RolldownLog,
       defaultHandler,
     );
@@ -125,7 +125,7 @@ describe('resolveRolldownOptions', () => {
       {
         code: 'PLUGIN_WARNING',
         plugin: 'test-plugin',
-        message: 'plugin warning',
+        message: 'build warning',
       } as rolldown.RolldownLog,
       defaultHandler,
     );
@@ -136,7 +136,7 @@ describe('resolveRolldownOptions', () => {
       log: expect.objectContaining({
         code: 'PLUGIN_LOG',
         plugin: 'test-plugin',
-        message: 'plugin info',
+        message: 'build info',
       }),
     });
     expect(reporter.update).toHaveBeenCalledWith({
@@ -145,7 +145,7 @@ describe('resolveRolldownOptions', () => {
       log: expect.objectContaining({
         code: 'PLUGIN_WARNING',
         plugin: 'test-plugin',
-        message: 'plugin warning',
+        message: 'build warning',
       }),
     });
     expect(defaultHandler).not.toHaveBeenCalled();

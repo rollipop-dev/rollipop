@@ -44,9 +44,10 @@ export class BundlerDevEngine {
   private _status: BundlerStatus = 'idle';
 
   constructor(
+    private readonly bundleName: string,
     private readonly options: BundlerDevEngineOptions,
     private readonly config: ResolvedConfig,
-    private readonly buildOptions: ResolvedBuildOptions,
+    readonly buildOptions: ResolvedBuildOptions,
     private readonly eventBus: ServerEventBus,
   ) {
     this._id = Bundler.createId(config, buildOptions);
@@ -58,6 +59,14 @@ export class BundlerDevEngine {
 
   get id() {
     return this._id;
+  }
+
+  get entry() {
+    return this.bundleName;
+  }
+
+  get projectRoot() {
+    return this.config.root;
   }
 
   /** Snapshot of the bundler's current lifecycle state. */
@@ -230,6 +239,11 @@ export class BundlerDevEngine {
 
     return this.bundleStore;
   }
+
+  async triggerFullBuild() {
+    await this.ensureInitialized;
+    await this.devEngine.triggerFullBuild();
+  }
 }
 
 export class BundlerPool {
@@ -253,6 +267,7 @@ export class BundlerPool {
     } else {
       logger.debug('Preparing new bundler instance', { bundleName, key });
       const instance = new BundlerDevEngine(
+        baseBundleName,
         {
           server: this.resolvedServerOptions,
         },
@@ -272,10 +287,14 @@ export class BundlerPool {
    */
   getInstanceById(id: string): BundlerDevEngine | undefined {
     for (const instance of BundlerPool.instances.values()) {
-      if (instance.id === id) {
+      if (instance.id === id && instance.projectRoot === this.config.root) {
         return instance;
       }
     }
     return undefined;
+  }
+
+  getInstances(): BundlerDevEngine[] {
+    return Array.from(BundlerPool.instances.values());
   }
 }

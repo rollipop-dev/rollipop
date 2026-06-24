@@ -48,13 +48,13 @@ const server = await Rollipop.runServer(config, {
   host: 'localhost',
 });
 
-// Listen to device events
-server.on('device.connected', ({ client }) => {
-  console.log('Device connected:', client.id);
+// Listen to HMR client events
+server.on('client.connected', ({ client }) => {
+  console.log('Client connected:', client.id);
 });
 
-server.on('device.disconnected', ({ client }) => {
-  console.log('Device disconnected:', client.id);
+server.on('client.disconnected', ({ client }) => {
+  console.log('Client disconnected:', client.id);
 });
 
 console.log('Dev server running at:', server.instance.listeningOrigin);

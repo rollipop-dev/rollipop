@@ -56,7 +56,7 @@ export function setupInteractiveMode(options: InteractiveModeOptions) {
   readline.emitKeypressEvents(process.stdin);
   process.stdin.setRawMode(true);
 
-  devServer.on('device.connected', () => {
+  devServer.on('client.connected', () => {
     void debuggerOpener.autoOpen().catch(() => {
       logger.error('Failed to open debugger');
     });

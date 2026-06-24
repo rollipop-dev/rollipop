@@ -35,7 +35,7 @@ Use the MCP `tools/list` request for the current tool names, descriptions, and p
 High-level tool groups:
 
 - Build events and cache: `get_build_events`, `get_bundler_status`, `build_logs`, `build_errors`, `clear_build_diagnostics`, `reset_cache`
-- App execution and logs: `list_devices`, `reload`, `get_console_logs`, `clear_console_logs`
+- App execution and logs: `list_clients`, `reload`, `get_console_logs`, `clear_console_logs`
 - Source mapping and build info: `symbolicate_stack`, `get_build_info`
 
 ## Build Events
@@ -49,10 +49,10 @@ Returns a JSON array of events collected during the listening period. Event type
 - `bundle_build_started` / `bundle_build_done` / `bundle_build_failed` — build lifecycle
 - `watch_change` — file change detected
 - `hmr_failed` — HMR update failure
-- `device_connected` / `device_disconnected` — device lifecycle
+- `client_connected` / `client_disconnected` — HMR client lifecycle
 - `cache_reset` — cache cleared through the MCP `reset_cache` tool
 
-Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `hmr_failed`. Device, server, and cache events omit `bundlerId`.
+Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `hmr_failed`. Client lifecycle, server, and cache events omit `bundlerId`.
 
 App console logs are not build events. Use the SSE `/sse/client-logs` stream for live HMR-forwarded app logs, or `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
 
@@ -70,7 +70,7 @@ Rollipop MCP stays focused on bundler-facing diagnostics: build state, build log
 
 Use `get_console_logs` for buffered app logs and `clear_console_logs` before a focused repro when older app logs may be noisy. For live streaming, use `/sse/client-logs`.
 
-Build diagnostics and app logs are intentionally separate. Use `build_errors` for Rolldown/plugin warnings, Rollipop build crashes, and HMR update failures. Use `get_console_logs` for app logs that the React Native HMR client forwards to Rollipop.
+Build diagnostics and app logs are intentionally separate. Use `build_errors` for Rolldown warnings, Rollipop build crashes, and HMR update failures. Use `get_console_logs` for app logs that the React Native HMR client forwards to Rollipop.
 
 For CDP debugging, runtime evaluation, runtime exceptions, network inspection, or CPU/heap profiling, use [`agent-cdp`](https://github.com/callstackincubator/agent-cdp) against the Rollipop dev server target. For React component tree inspection and React DevTools profiling, use [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools).
 

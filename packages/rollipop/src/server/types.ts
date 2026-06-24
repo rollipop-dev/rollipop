@@ -12,6 +12,7 @@ import type { ResolvedConfig } from '../config';
 import type { BuildOptions } from '../core/types';
 import type { BundlerPool } from './bundler-pool';
 import type { ServerEventBus } from './events/event-bus';
+import type { DevServerState } from './state/store';
 import type { WebSocketClient } from './wss/server';
 
 export type FastifyInstance = BaseFastifyInstance & {
@@ -53,11 +54,15 @@ export interface DevServerContext {
    */
   eventBus: ServerEventBus;
   /**
+   * Shared dev-server state for REST, MCP, and future integrations.
+   */
+  state: DevServerState;
+  /**
    * The message websocket server API.
    */
   message: ws.Server & {
     /**
-     * Broadcast a message to all connected devices.
+     * Broadcast a message to all connected clients.
      */
     broadcast: (method: string, params?: Record<string, any>) => void;
   };
@@ -80,10 +85,10 @@ export interface DevServerContext {
 }
 
 export type DevServerEvents = {
-  'device.connected': { client: WebSocketClient };
-  'device.message': { client: WebSocketClient; data: ws.RawData };
-  'device.error': { client: WebSocketClient; error: Error };
-  'device.disconnected': { client: WebSocketClient };
+  'client.connected': { client: WebSocketClient };
+  'client.message': { client: WebSocketClient; data: ws.RawData };
+  'client.error': { client: WebSocketClient; error: Error };
+  'client.disconnected': { client: WebSocketClient };
 };
 
 export interface Middlewares {

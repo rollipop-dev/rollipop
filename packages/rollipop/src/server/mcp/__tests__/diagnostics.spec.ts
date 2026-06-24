@@ -2,21 +2,25 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { createTestConfig } from '../../../testing/config';
 import { ServerEventBus } from '../../events/event-bus';
+import { DevServerState } from '../../state/store';
 import type { DevServerContext } from '../../types';
 import type { WebSocketClient } from '../../wss/server';
 import { AppLogDiagnostics } from '../tools/app-log-diagnostics';
 import { BuildDiagnostics } from '../tools/build-diagnostics';
-import { DeviceDiagnostics } from '../tools/device-diagnostics';
+import { ClientDiagnostics } from '../tools/client-diagnostics';
 
 function createTestContext(eventBus = new ServerEventBus()): DevServerContext {
+  const serverBaseUrl = 'http://localhost:8081';
+
   return {
-    serverBaseUrl: 'http://localhost:8081',
+    serverBaseUrl,
     config: createTestConfig('/root/project'),
     options: {},
     bundlerPool: {
       getInstanceById: vi.fn(),
     } as any,
     eventBus,
+    state: new DevServerState({ eventBus }),
     message: {
       broadcast: vi.fn(),
     } as any,
@@ -31,16 +35,16 @@ function createTestContext(eventBus = new ServerEventBus()): DevServerContext {
 }
 
 describe('MCP diagnostics', () => {
-  it('tracks HMR devices and client logs from server events', () => {
+  it('tracks HMR clients and client logs from server events', () => {
     const eventBus = new ServerEventBus();
     const context = createTestContext(eventBus);
-    const deviceDiagnostics = new DeviceDiagnostics(context);
+    const clientDiagnostics = new ClientDiagnostics(context);
     const appLogDiagnostics = new AppLogDiagnostics(context);
     const client = { id: 7 } as WebSocketClient;
 
-    eventBus.emit({ type: 'device_connected', client });
+    eventBus.emit({ type: 'client_connected', client });
     eventBus.emit({
-      type: 'device_message',
+      type: 'client_message',
       client,
       data: Buffer.from(
         JSON.stringify({
@@ -56,9 +60,9 @@ describe('MCP diagnostics', () => {
       level: 'info',
       data: ['hello', { ok: true }],
     });
-    eventBus.emit({ type: 'device_disconnected', client });
+    eventBus.emit({ type: 'client_disconnected', client });
 
-    expect(deviceDiagnostics.getDevices()).toEqual([
+    expect(clientDiagnostics.getClients()).toEqual([
       expect.objectContaining({
         id: 7,
         connected: false,
@@ -77,7 +81,7 @@ describe('MCP diagnostics', () => {
     ]);
   });
 
-  it('buffers plugin build diagnostics separately from app console logs', () => {
+  it('buffers build diagnostics separately from app console logs', () => {
     const eventBus = new ServerEventBus();
     const context = createTestContext(eventBus);
     const buildDiagnostics = new BuildDiagnostics(context);
@@ -93,7 +97,7 @@ describe('MCP diagnostics', () => {
       log: {
         code: 'PLUGIN_LOG',
         plugin: 'test-plugin',
-        message: 'plugin info',
+        message: 'build info',
       },
     });
     eventBus.emit({
@@ -103,7 +107,7 @@ describe('MCP diagnostics', () => {
       log: {
         code: 'PLUGIN_WARNING',
         plugin: 'test-plugin',
-        message: 'plugin warning',
+        message: 'build warning',
       },
     });
     eventBus.emit({ type: 'bundle_build_failed', bundlerId: 'ios-dev', error });
@@ -122,7 +126,7 @@ describe('MCP diagnostics', () => {
         bundlerId: 'ios-dev',
         log: expect.objectContaining({
           plugin: 'test-plugin',
-          message: 'plugin info',
+          message: 'build info',
         }),
       }),
     ]);
@@ -131,7 +135,7 @@ describe('MCP diagnostics', () => {
         source: 'rolldown',
         level: 'warn',
         bundlerId: 'ios-dev',
-        log: expect.objectContaining({ message: 'plugin warning' }),
+        log: expect.objectContaining({ message: 'build warning' }),
       }),
       expect.objectContaining({
         source: 'build',

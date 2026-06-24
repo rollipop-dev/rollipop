@@ -3,11 +3,12 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { createTestConfig } from '../../../testing/config';
 import { ServerEventBus } from '../../events/event-bus';
+import { DevServerState } from '../../state/store';
 import type { DevServerContext } from '../../types';
 import { registerTools, type McpToolContext } from '../tools';
 import { AppLogDiagnostics } from '../tools/app-log-diagnostics';
 import { BuildDiagnostics } from '../tools/build-diagnostics';
-import { DeviceDiagnostics } from '../tools/device-diagnostics';
+import { ClientDiagnostics } from '../tools/client-diagnostics';
 
 interface ToolCallResult {
   content: Array<{ text: string }>;
@@ -49,12 +50,15 @@ function createTestContext(
   eventBus: ServerEventBus,
   bundlerPool: DevServerContext['bundlerPool'],
 ): DevServerContext {
+  const serverBaseUrl = 'http://localhost:8081';
+
   return {
-    serverBaseUrl: 'http://localhost:8081',
+    serverBaseUrl,
     config: createTestConfig('/root/project'),
     options: {},
     bundlerPool,
     eventBus,
+    state: new DevServerState({ eventBus }),
     message: {
       broadcast: vi.fn(),
     } as any,
@@ -74,7 +78,7 @@ describe('MCP tools', () => {
       context: devServerContext,
       appLogDiagnostics: new AppLogDiagnostics(devServerContext),
       buildDiagnostics: new BuildDiagnostics(devServerContext),
-      deviceDiagnostics: new DeviceDiagnostics(devServerContext),
+      clientDiagnostics: new ClientDiagnostics(devServerContext),
     };
   }
 

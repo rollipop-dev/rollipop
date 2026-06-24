@@ -87,6 +87,8 @@ describe('BundlerPool', () => {
     const android = pool.get('index.bundle', { platform: 'android', dev: true });
 
     expect(ios).not.toBe(android);
+    expect(ios.buildOptions).toEqual({ platform: 'ios', dev: true, minify: false });
+    expect(android.buildOptions).toEqual({ platform: 'android', dev: true, minify: false });
   });
 
   it('should return different instances for different dev modes', () => {

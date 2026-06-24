@@ -8,11 +8,11 @@ export function toSSEEvent(event: ServerEvent): SSEBuildEvent | null {
     case 'client_log':
       return null;
 
-    case 'device_connected':
-      return { type: 'device_connected', clientId: event.client.id };
+    case 'client_connected':
+      return { type: 'client_connected', clientId: event.client.id };
 
-    case 'device_disconnected':
-      return { type: 'device_disconnected', clientId: event.client.id };
+    case 'client_disconnected':
+      return { type: 'client_disconnected', clientId: event.client.id };
 
     case 'server_ready':
     case 'cache_reset':
@@ -26,8 +26,8 @@ export function toSSEEvent(event: ServerEvent): SSEBuildEvent | null {
       return reporterEventToSSEEvent(event);
 
     case 'hmr_updates':
-    case 'device_message':
-    case 'device_error':
+    case 'client_message':
+    case 'client_error':
     case 'transform':
     case 'build_log':
     case 'build_error':

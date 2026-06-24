@@ -19,13 +19,13 @@ import type { DevServerContext } from '../../types';
 import type { AppLogDiagnostics } from './app-log-diagnostics';
 import type { BuildDiagnostics } from './build-diagnostics';
 import { getBuildInfo } from './build-info';
-import type { DeviceDiagnostics } from './device-diagnostics';
+import type { ClientDiagnostics } from './client-diagnostics';
 
 export interface McpToolContext {
   context: DevServerContext;
   appLogDiagnostics: AppLogDiagnostics;
   buildDiagnostics: BuildDiagnostics;
-  deviceDiagnostics: DeviceDiagnostics;
+  clientDiagnostics: ClientDiagnostics;
 }
 
 type ToolArgsSchema<Args extends object> = {
@@ -77,7 +77,7 @@ const symbolicateStackArgs = arkType({
 }>;
 
 export function registerTools(server: McpServer, options: McpToolContext): void {
-  const { context, appLogDiagnostics, buildDiagnostics, deviceDiagnostics } = options;
+  const { context, appLogDiagnostics, buildDiagnostics, clientDiagnostics } = options;
 
   const tools = [
     defineTool({
@@ -196,12 +196,12 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       },
     }),
     defineTool({
-      name: 'list_devices',
-      title: 'List Devices',
+      name: 'list_clients',
+      title: 'List Clients',
       description: 'Return known HMR clients.',
       inputSchema: emptyArgs,
       async handler() {
-        return jsonResult(deviceDiagnostics.getDevices());
+        return jsonResult(clientDiagnostics.getClients());
       },
     }),
     defineTool({
@@ -211,7 +211,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       inputSchema: emptyArgs,
       async handler() {
         context.message.broadcast('reload');
-        return jsonResult({ reloaded: true, devices: deviceDiagnostics.getDevices() });
+        return jsonResult({ reloaded: true, clients: clientDiagnostics.getClients() });
       },
     }),
     defineTool({

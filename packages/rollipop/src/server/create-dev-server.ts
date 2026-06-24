@@ -22,8 +22,10 @@ import { serveAssets } from './middlewares/serve-assets';
 import { serveBundle } from './middlewares/serve-bundle';
 import { sse } from './middlewares/sse';
 import { symbolicate } from './middlewares/symbolicate';
+import { rest } from './rest';
 import { toSSEEvent } from './sse/adapter';
 import { SSEEventPublisher } from './sse/event-bus';
+import { DevServerState } from './state/store';
 import type { DevServer, DevServerContext, DevServerEvents, ServerOptions } from './types';
 import { HMRServer } from './wss/hmr-server';
 import { getWebSocketUpgradeHandler } from './wss/server';
@@ -49,6 +51,7 @@ export async function createDevServer(
   });
 
   const eventBus = new ServerEventBus();
+  const state = new DevServerState({ eventBus });
   const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
   const ssePublisher = new SSEEventPublisher();
   const reporter = config.reporter;
@@ -89,20 +92,20 @@ export async function createDevServer(
         reporter?.update(event);
         break;
 
-      case 'device_connected':
-        emitter.emit('device.connected', { client: event.client });
+      case 'client_connected':
+        emitter.emit('client.connected', { client: event.client });
         break;
 
-      case 'device_message':
-        emitter.emit('device.message', { client: event.client, data: event.data });
+      case 'client_message':
+        emitter.emit('client.message', { client: event.client, data: event.data });
         break;
 
-      case 'device_error':
-        emitter.emit('device.error', { client: event.client, error: event.error });
+      case 'client_error':
+        emitter.emit('client.error', { client: event.client, error: event.error });
         break;
 
-      case 'device_disconnected':
-        emitter.emit('device.disconnected', { client: event.client });
+      case 'client_disconnected':
+        emitter.emit('client.disconnected', { client: event.client });
         break;
     }
   });
@@ -129,10 +132,10 @@ export async function createDevServer(
     bundlerPool,
     eventBus,
   })
-    .on('connection', (client) => eventBus.emit({ type: 'device_connected', client }))
-    .on('message', (client, data) => eventBus.emit({ type: 'device_message', client, data }))
-    .on('error', (client, error) => eventBus.emit({ type: 'device_error', client, error }))
-    .on('close', (client) => eventBus.emit({ type: 'device_disconnected', client }));
+    .on('connection', (client) => eventBus.emit({ type: 'client_connected', client }))
+    .on('message', (client, data) => eventBus.emit({ type: 'client_message', client, data }))
+    .on('error', (client, error) => eventBus.emit({ type: 'client_error', client, error }))
+    .on('close', (client) => eventBus.emit({ type: 'client_disconnected', client }));
 
   await fastify.register(import('@fastify/middie'));
 
@@ -142,6 +145,7 @@ export async function createDevServer(
     options: Object.freeze(options ?? {}),
     bundlerPool,
     eventBus,
+    state,
     message: Object.assign(messageServer, { broadcast }),
     events: Object.assign(eventsServer, { reportEvent }),
     hot: Object.assign(hmrServer.server, {
@@ -173,6 +177,7 @@ export async function createDevServer(
     .register(symbolicate, { context })
     .register(serveBundle, { context })
     .register(serveAssets, { context })
+    .register(rest, { context })
     .register(sse, { context })
     .register(mcp, { context })
     .setErrorHandler(errorHandler);

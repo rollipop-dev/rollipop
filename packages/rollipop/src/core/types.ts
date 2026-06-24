@@ -50,6 +50,7 @@ export interface BuildOptions {
 
 export type DevEngine = BaseDevEngine & {
   getContext: () => BundlerContext;
+  triggerFullBuild: () => void | Promise<void>;
 };
 
 export type DevEngineOptions = Omit<DevOptions, 'watch'> & {

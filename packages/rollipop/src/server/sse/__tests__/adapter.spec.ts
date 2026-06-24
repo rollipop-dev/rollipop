@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import type { ReportableEvent } from '../../../types';
 import type { IdentifiedReportableEvent } from '../../events/types';
+import type { WebSocketClient } from '../../wss/server';
 import { toSSEClientLogEvent, toSSEEvent } from '../adapter';
 
 describe('toSSEEvent', () => {
@@ -104,5 +105,18 @@ describe('toSSEEvent', () => {
 
   it('should pass through non-reporter server events', () => {
     expect(toSSEEvent({ type: 'cache_reset' })).toEqual({ type: 'cache_reset' });
+  });
+
+  it('should convert HMR client lifecycle events', () => {
+    const client = { id: 1 } as WebSocketClient;
+
+    expect(toSSEEvent({ type: 'client_connected', client })).toEqual({
+      type: 'client_connected',
+      clientId: 1,
+    });
+    expect(toSSEEvent({ type: 'client_disconnected', client })).toEqual({
+      type: 'client_disconnected',
+      clientId: 1,
+    });
   });
 });

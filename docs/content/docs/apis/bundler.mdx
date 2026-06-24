@@ -92,10 +92,10 @@ interface DevServer extends Emitter<DevServerEvents> {
 }
 
 type DevServerEvents = {
-  'device.connected': { client: WebSocketClient };
-  'device.message': { client: WebSocketClient; data: ws.RawData };
-  'device.error': { client: WebSocketClient; error: Error };
-  'device.disconnected': { client: WebSocketClient };
+  'client.connected': { client: WebSocketClient };
+  'client.message': { client: WebSocketClient; data: ws.RawData };
+  'client.error': { client: WebSocketClient; error: Error };
+  'client.disconnected': { client: WebSocketClient };
 };
 ```
 
@@ -111,21 +111,21 @@ const server = await Rollipop.runServer(config, {
   host: 'localhost',
 });
 
-// Listen to device events
-server.on('device.connected', ({ client }) => {
-  console.log('Device connected:', client.id);
+// Listen to HMR client events
+server.on('client.connected', ({ client }) => {
+  console.log('Client connected:', client.id);
 });
 
-server.on('device.disconnected', ({ client }) => {
-  console.log('Device disconnected:', client.id);
+server.on('client.disconnected', ({ client }) => {
+  console.log('Client disconnected:', client.id);
 });
 
-server.on('device.message', ({ client, data }) => {
-  console.log('Message from device:', client.id, data);
+server.on('client.message', ({ client, data }) => {
+  console.log('Message from client:', client.id, data);
 });
 
-server.on('device.error', ({ client, error }) => {
-  console.error('Device error:', client.id, error);
+server.on('client.error', ({ client, error }) => {
+  console.error('Client error:', client.id, error);
 });
 
 console.log('Dev server running at:', server.instance.listeningOrigin);

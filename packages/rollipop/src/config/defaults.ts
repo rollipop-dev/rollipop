@@ -128,5 +128,12 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
   return defaultConfig;
 }
 
+export interface InternalConfig {
+  /**
+   * The path to the config file that was used to load the config.
+   */
+  configFile: string;
+}
+
 export type DefaultConfig = Awaited<ReturnType<typeof getDefaultConfig>>;
-export type ResolvedConfig = DefaultConfig & PluginFlattenConfig;
+export type ResolvedConfig = DefaultConfig & PluginFlattenConfig & InternalConfig;

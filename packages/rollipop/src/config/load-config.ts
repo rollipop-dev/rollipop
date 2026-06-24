@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 import * as c12 from 'c12';
-import { omit } from 'es-toolkit';
+import { invariant, omit } from 'es-toolkit';
 
 import { createPluginContext } from '../core/plugins/context';
 import type { Plugin, PluginConfig, ResolvedPluginConfig } from '../core/plugins/types';
@@ -29,7 +29,7 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
     rcFile: false,
   };
 
-  const { config: userConfig } = await c12.loadConfig<Config>(
+  const { config: userConfig, configFile: resolvedConfigFile } = await c12.loadConfig<Config>(
     configFile
       ? { configFile: path.resolve(cwd, configFile), configFileRequired: true }
       : {
@@ -39,6 +39,7 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
           ...commonOptions,
         },
   );
+  invariant(resolvedConfigFile != null, 'Failed to get resolved config file');
 
   const plugins = await flattenPluginOption(userConfig.plugins);
   // Pre-merge defaults so the `config` hook sees the fully-resolved config and mutations
@@ -47,6 +48,7 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
   const pluginConfig = await resolvePluginConfig(baseConfig, plugins);
   const resolvedConfig: ResolvedConfig = {
     ...pluginConfig,
+    configFile: resolvedConfigFile,
     plugins,
   };
 

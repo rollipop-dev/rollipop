@@ -2,7 +2,7 @@ import type { RawData } from 'ws';
 
 import type { DevServerContext } from '../../types';
 
-export interface DeviceInfo {
+export interface ClientInfo {
   id: number;
   connected: boolean;
   connectedAt: string;
@@ -11,29 +11,29 @@ export interface DeviceInfo {
   bundleEntry?: string;
 }
 
-export class DeviceDiagnostics {
-  private devices = new Map<number, DeviceInfo>();
+export class ClientDiagnostics {
+  private clients = new Map<number, ClientInfo>();
 
   constructor(context: DevServerContext) {
     context.eventBus.subscribe((event) => {
       switch (event.type) {
-        case 'device_connected':
-          this.devices.set(event.client.id, {
+        case 'client_connected':
+          this.clients.set(event.client.id, {
             id: event.client.id,
             connected: true,
             connectedAt: new Date().toISOString(),
           });
           break;
 
-        case 'device_message':
-          this.updateDeviceFromMessage(event.client.id, event.data);
+        case 'client_message':
+          this.updateClientFromMessage(event.client.id, event.data);
           break;
 
-        case 'device_disconnected': {
-          const device = this.devices.get(event.client.id);
-          if (device != null) {
-            this.devices.set(event.client.id, {
-              ...device,
+        case 'client_disconnected': {
+          const client = this.clients.get(event.client.id);
+          if (client != null) {
+            this.clients.set(event.client.id, {
+              ...client,
               connected: false,
               disconnectedAt: new Date().toISOString(),
             });
@@ -44,13 +44,13 @@ export class DeviceDiagnostics {
     });
   }
 
-  getDevices(): DeviceInfo[] {
-    return Array.from(this.devices.values());
+  getClients(): ClientInfo[] {
+    return Array.from(this.clients.values());
   }
 
-  private updateDeviceFromMessage(clientId: number, data: RawData) {
-    const device = this.devices.get(clientId);
-    if (device == null) {
+  private updateClientFromMessage(clientId: number, data: RawData) {
+    const client = this.clients.get(clientId);
+    if (client == null) {
       return;
     }
 
@@ -65,13 +65,13 @@ export class DeviceDiagnostics {
         return;
       }
 
-      this.devices.set(clientId, {
-        ...device,
+      this.clients.set(clientId, {
+        ...client,
         platform: message.platform,
         bundleEntry: message.bundleEntry,
       });
     } catch {
-      // ignore non-JSON device messages
+      // ignore non-JSON client messages
     }
   }
 }

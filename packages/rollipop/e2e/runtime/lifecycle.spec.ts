@@ -48,10 +48,10 @@ describe('runtime e2e: lifecycle', () => {
     }
   }, 180_000);
 
-  it('emits device_connected when an HMR client connects, and device_disconnected on close', async () => {
+  it('emits client_connected when an HMR client connects, and client_disconnected on close', async () => {
     const sse = await subscribeSSE(ts.baseUrl);
     try {
-      const connectedPromise = sse.waitFor('device_connected', undefined, 10_000);
+      const connectedPromise = sse.waitFor('client_connected', undefined, 10_000);
       const client = await createFakeClient({
         baseUrl: ts.baseUrl,
         platform: 'ios',
@@ -60,7 +60,7 @@ describe('runtime e2e: lifecycle', () => {
       expect(typeof connected.clientId).toBe('number');
 
       const disconnectedPromise = sse.waitFor(
-        'device_disconnected',
+        'client_disconnected',
         (e) => e.clientId === connected.clientId,
         10_000,
       );
