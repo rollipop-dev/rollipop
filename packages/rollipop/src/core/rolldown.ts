@@ -565,10 +565,10 @@ export function getOverrideOptionsForDevServer(buildOptions: ResolvedBuildOption
     transform: {
       jsx: {
         development: buildOptions.dev,
-        /**
-         * @see `rollipopReactRefreshWrapperPlugin`
-         */
-        refresh: false,
+        refresh: {
+          refreshReg: '$RefreshReg$',
+          refreshSig: '$RefreshSig$',
+        },
       },
     },
     experimental: {
