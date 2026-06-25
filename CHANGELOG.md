@@ -1,4 +1,37 @@
 
+## [1.0.0-alpha.25] - 2026-06-25
+
+### 🚀 Features
+
+- add rollipop dev runtime and bump `@rollipop/rolldown` to 1.0.19 (#121) by @leegeunhyeok
+- dashboard: implement dashboard and integrate with dev server (#120) by @leegeunhyeok
+- add built-in analyzer by @leegeunhyeok
+- dev-server: implement state APIs by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- symbolicate fallback (#118) by @leegeunhyeok
+
+### 🚜 Refactor
+
+- consolidate file storage by @leegeunhyeok
+
+### 📚 Documentation
+
+- fix navbar spacing by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump `@rollipop/rolldown` to 1.0.18 by @leegeunhyeok
+- add check pr title action (#119) by @leegeunhyeok
+- deps: bump concurrent-ruby from 1.3.3 to 1.3.7 in /examples/0.84 (#117) by @dependabot[bot]
+- deps: bump concurrent-ruby from 1.3.3 to 1.3.7 in /examples/0.72 (#116) by @dependabot[bot]
+- bump yarn to 4.17.0 by @leegeunhyeok
+- deps: bump `@rollipop/rolldown` to 1.0.17 by @leegeunhyeok
+- fmt package.json by @leegeunhyeok
+- run fmt:fix after change versions by @leegeunhyeok
+
+
 ## [1.0.0-alpha.24] - 2026-06-18
 
 ### 🚀 Features
