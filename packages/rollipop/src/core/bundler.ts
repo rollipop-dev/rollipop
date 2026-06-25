@@ -7,9 +7,9 @@ import { invariant, merge } from 'es-toolkit';
 
 import { Logo } from '../common/logo';
 import type { ResolvedConfig } from '../config/defaults';
+import { FileStorage } from '../storage/file-storage';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
 import { createId } from '../utils/id';
-import { FileStorage } from './fs/storage';
 import {
   getOverrideOptions,
   getOverrideOptionsForDevServer,

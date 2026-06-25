@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { getSharedDataPath } from '../core/fs/data';
+import { FileStorage } from '../storage/file-storage';
 
 /**
  * Resolve the build cache directory for the given project root. The cache
@@ -10,7 +10,7 @@ import { getSharedDataPath } from '../core/fs/data';
  * the on-disk layout — needs to know where to look.
  */
 export function getCacheDirectory(projectRoot: string): string {
-  return path.join(getSharedDataPath(projectRoot), 'cache');
+  return path.join(FileStorage.getPath(projectRoot), 'cache');
 }
 
 /**

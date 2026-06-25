@@ -1,4 +1,4 @@
-import type { FileStorage } from '../core/fs/storage';
+import type { FileStorage } from '../storage/file-storage';
 
 export function getBuildTotalModules(storage: FileStorage, id: string) {
   return storage.get().build[id]?.totalModules ?? 0;

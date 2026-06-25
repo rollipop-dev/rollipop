@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { staticPath as dashboardStaticPath } from '@rollipop/dashboard';
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
-import { SHARED_DATA_PATH } from '../../common/constants';
+import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
 import type { BundlerDevEngine } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
@@ -93,7 +93,7 @@ describe('createDevServer', () => {
   it('should serve analyzer report files through the dashboard route', async () => {
     const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'rollipop-analyze-report-'));
     const devServer = await createDevServer(createTestConfig(projectRoot), { port: 0 });
-    const reportPath = path.join(projectRoot, SHARED_DATA_PATH, 'analyze', 'ios-dev.html');
+    const reportPath = path.join(FileStorage.getPath(projectRoot), 'analyze', 'ios-dev.html');
     const reportHtml = '<!doctype html><html><body>Analyzer report</body></html>';
 
     try {

@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { merge } from 'es-toolkit';
 
-import { getSharedDataPath } from './fs/data';
+import { FileStorage } from '../storage/file-storage';
 
 export interface Settings {
   devtools?: {
@@ -12,7 +12,7 @@ export interface Settings {
 }
 
 export function getSettingsPath(basePath: string) {
-  return path.join(getSharedDataPath(basePath), 'settings.json');
+  return path.join(FileStorage.getPath(basePath), 'settings.json');
 }
 
 export function loadSettings(basePath: string) {

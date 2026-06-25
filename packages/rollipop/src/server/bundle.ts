@@ -7,8 +7,8 @@ import {
   type IndexedSourceMapConsumer,
 } from 'source-map';
 
-import { getSharedDataPath } from '../core/fs/data';
 import { logger } from '../logger';
+import { FileStorage } from '../storage/file-storage';
 
 type SourceMapConsumerType = BasicSourceMapConsumer | IndexedSourceMapConsumer;
 
@@ -26,7 +26,7 @@ export class FileSystemBundleStore implements BundleStore {
   private holder: { code: string; mtimeMs: number };
 
   constructor(projectRoot: string, id: string, code: string, sourceMap: string | undefined) {
-    const sharedDataPath = getSharedDataPath(projectRoot);
+    const sharedDataPath = FileStorage.getPath(projectRoot);
     const bundlesPath = path.join(sharedDataPath, 'bundles');
     const bundleFilePath = path.join(bundlesPath, `${id}.bundle`);
 

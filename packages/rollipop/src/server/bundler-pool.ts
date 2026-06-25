@@ -8,8 +8,8 @@ import { invariant } from 'es-toolkit';
 import { isDebugEnabled } from '../common/env';
 import type { ResolvedConfig } from '../config';
 import { Bundler } from '../core/bundler';
-import { ensureSharedDataPath } from '../core/fs/data';
 import type { BuildOptions, DevEngine } from '../core/types';
+import { FileStorage } from '../storage/file-storage';
 import type { ReportableEvent } from '../types';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
 import { getBaseBundleName } from '../utils/bundle';
@@ -217,7 +217,7 @@ export class BundlerDevEngine {
     });
 
     const code = isFullReload ? '// FullReload' : chunkCodes.join('\n\n');
-    const sharedDataPath = ensureSharedDataPath(this.config.root);
+    const sharedDataPath = FileStorage.getPath(this.config.root, { prepare: true });
     const chunkFilePath = path.join(sharedDataPath, `${this.id}-hmr-chunk.js`);
 
     fs.writeFileSync(chunkFilePath, code, { encoding: 'utf-8' });

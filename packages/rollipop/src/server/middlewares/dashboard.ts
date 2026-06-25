@@ -6,7 +6,7 @@ import { staticPath as dashboardStaticPath } from '@rollipop/dashboard';
 import type { FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
-import { SHARED_DATA_PATH } from '../../common/constants';
+import { FileStorage } from '../../storage/file-storage';
 import { logger } from '../logger';
 import type { DevServerContext } from '../types';
 
@@ -47,8 +47,7 @@ const plugin = fp<DashboardPluginOptions>(
         }
 
         const reportPath = path.join(
-          context.config.root,
-          SHARED_DATA_PATH,
+          FileStorage.getPath(context.config.root),
           ANALYZE_DIRECTORY,
           reportFile,
         );

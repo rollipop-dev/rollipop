@@ -1,7 +1,7 @@
 import type * as rolldown from '@rollipop/rolldown';
 import type { DevEngine as BaseDevEngine, DevOptions } from '@rollipop/rolldown/experimental';
 
-import type { FileStorage } from './fs/storage';
+import type { FileStorage } from '../storage/file-storage';
 
 export interface BuildOptions {
   /**

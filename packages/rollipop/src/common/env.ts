@@ -1,5 +1,4 @@
-import { DEBUG_KEY } from './constants';
-
+const DEBUG_KEY = 'rollipop';
 const TRUTHY_VALUES = ['yes', 'on', 'true', 'enabled'];
 const FALSY_VALUES = ['no', 'off', 'false', 'disabled'];
 
