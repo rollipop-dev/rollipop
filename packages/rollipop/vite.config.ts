@@ -106,6 +106,9 @@ export default defineConfig({
     'globalThis.__ROLLIPOP_VERSION__': JSON.stringify('0.0.0'),
   },
   test: {
+    alias: {
+      '@rollipop/dashboard': path.resolve(import.meta.dirname, 'testing/dashboard.ts'),
+    },
     setupFiles: ['./testing/setup-tests.ts'],
     globalSetup: ['./testing/global-setup.ts'],
     hookTimeout: 60_000,

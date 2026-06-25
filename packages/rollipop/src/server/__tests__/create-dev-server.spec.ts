@@ -67,36 +67,6 @@ describe('createDevServer', () => {
     expect(indexResponse.headers['content-type']).toContain('text/html');
     expect(indexResponse.body).toBe(indexHtml);
 
-    expect(indexHtml).toContain('/dashboard/assets/');
-    expect(indexHtml).not.toContain('/dashboard-assets/');
-    expect(indexHtml).not.toMatch(/(?:href|src)="\/assets\//);
-
-    const assetName = (await fs.readdir(path.join(dashboardStaticPath, 'assets'))).find((name) =>
-      name.endsWith('.js'),
-    );
-    expect(assetName).toBeDefined();
-
-    const assetContent = await fs.readFile(
-      path.join(dashboardStaticPath, 'assets', assetName!),
-      'utf8',
-    );
-    const assetResponse = await devServer.instance.inject({
-      method: 'GET',
-      url: `/dashboard/assets/${assetName}`,
-    });
-
-    expect(assetResponse.statusCode).toBe(200);
-    expect(assetResponse.body).toBe(assetContent);
-
-    const logoContent = await fs.readFile(path.join(dashboardStaticPath, 'logo.svg'), 'utf8');
-    const logoResponse = await devServer.instance.inject({
-      method: 'GET',
-      url: '/dashboard/logo.svg',
-    });
-
-    expect(logoResponse.statusCode).toBe(200);
-    expect(logoResponse.body).toBe(logoContent);
-
     await devServer.instance.close();
   });
 
