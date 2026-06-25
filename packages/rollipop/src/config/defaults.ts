@@ -10,7 +10,6 @@ import {
   DEFAULT_ENV_FILE,
   DEFAULT_ENV_PREFIX,
   DEFAULT_HMR_CLIENT_PATH,
-  DEFAULT_REACT_NATIVE_GLOBAL_IDENTIFIERS,
   DEFAULT_RESOLVER_ALIAS_FIELDS,
   DEFAULT_RESOLVER_CONDITION_NAMES,
   DEFAULT_RESOLVER_MAIN_FIELDS,
@@ -102,7 +101,6 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       hmrClientPath: DEFAULT_HMR_CLIENT_PATH as NonNullable<
         NonNullable<ReactNativeConfig>['hmrClientPath']
       >,
-      globalIdentifiers: DEFAULT_REACT_NATIVE_GLOBAL_IDENTIFIERS,
     },
     devMode: {
       hmr: true as NonNullable<DevModeConfig['hmr']>,

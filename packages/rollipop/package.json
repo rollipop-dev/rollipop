@@ -105,6 +105,7 @@
   "devDependencies": {
     "@types/babel__code-frame": "7.27.0",
     "@types/babel__core": "7.20.5",
+    "@types/react-refresh": "0.14.7",
     "magic-string": "0.30.21",
     "typescript": "catalog:",
     "vite-plus": "catalog:"

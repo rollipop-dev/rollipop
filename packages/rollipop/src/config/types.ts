@@ -446,12 +446,6 @@ export interface ReactNativeConfig {
    * Defaults to: `react-native/Libraries/Utilities/HMRClient.js`
    */
   hmrClientPath?: string | ((root: string) => MaybePromise<string>);
-  /**
-   * Reserved global identifiers of React Native.
-   *
-   * Defaults to: Global identifier list of React Native 0.83
-   */
-  globalIdentifiers?: string[];
 }
 
 export interface CodegenConfig {

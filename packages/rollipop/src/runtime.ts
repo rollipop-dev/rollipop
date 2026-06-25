@@ -1,9 +1,10 @@
 import type { HMRCustomHandler } from './types/hmr';
+import type { RollipopDevRuntime } from './types/runtime';
 
 declare var __DEV__: boolean;
 
 declare global {
-  var __ROLLIPOP_CUSTOM_HMR_HANDLER__: HMRCustomHandler | undefined;
+  var __rollipop_runtime__: RollipopDevRuntime | undefined;
 }
 
 /**
@@ -12,10 +13,10 @@ declare global {
  * @param handler - The custom HMR handler to set.
  */
 export function setCustomHMRHandler(handler: HMRCustomHandler) {
-  if (__DEV__) {
-    if (globalThis.__ROLLIPOP_CUSTOM_HMR_HANDLER__ != null) {
+  if (__DEV__ && globalThis.__rollipop_runtime__ != null) {
+    if (globalThis.__rollipop_runtime__.customHMRHandler != null) {
       console.warn('Custom HMR handler already set. replacing existing handler.');
     }
-    globalThis.__ROLLIPOP_CUSTOM_HMR_HANDLER__ = handler;
+    globalThis.__rollipop_runtime__.customHMRHandler = handler;
   }
 }

@@ -119,9 +119,6 @@ export async function resolveRolldownOptions(
     ...rolldownOptimization
   } = config.optimization;
 
-  // React Native specific options
-  const { globalIdentifiers: rolldownGlobalIdentifiers } = config.reactNative;
-
   // Sourcemap specific options
   const {
     sourcemap: rolldownSourcemap,
@@ -256,7 +253,6 @@ export async function resolveRolldownOptions(
       rolldownSourcemapPathTransform ?? createProjectRootSourcemapPathTransform(config.root),
     codeSplitting: false,
     // `@rollipop/rolldown` specific options
-    globalIdentifiers: rolldownGlobalIdentifiers,
     persistentCache: cache,
   };
 
@@ -568,7 +564,10 @@ export function getOverrideOptionsForDevServer(buildOptions: ResolvedBuildOption
         /**
          * @see `rollipopReactRefreshWrapperPlugin`
          */
-        refresh: false,
+        refresh: {
+          refreshReg: '$RefreshReg$',
+          refreshSig: '$RefreshSig$',
+        },
       },
     },
     experimental: {

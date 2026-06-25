@@ -88,7 +88,6 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       codegen: { filter: { code: /(?!)/ } },
       assetRegistryPath: '/dummy-asset-registry.js',
       hmrClientPath: path.resolve(FIXTURES_DIR, '_mock', 'hmr-client.js'),
-      globalIdentifiers: [],
       ...options.reactNative,
     },
     analyzer: {
