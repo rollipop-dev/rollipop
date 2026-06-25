@@ -2,18 +2,17 @@
   "title": "Features",
   "pages": [
     "dev-server",
+    "dashboard",
     "devtools",
     "env",
-    "flow",
     "svg",
-    "dashboard",
     "analyze",
-    "reanimated-worklets",
-    "module-federation",
     "reporter",
     "sse",
     "mcp",
     "custom-command",
+    "reanimated-worklets",
+    "module-federation",
     "experimental"
   ],
   "defaultOpen": true
