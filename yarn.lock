@@ -21165,9 +21165,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rolldown-analyzer@npm:0.2.1":
-  version: 0.2.1
-  resolution: "rolldown-analyzer@npm:0.2.1"
+"rolldown-analyzer@npm:0.3.0":
+  version: 0.3.0
+  resolution: "rolldown-analyzer@npm:0.3.0"
   dependencies:
     commander: "npm:^14.0.3"
     diff: "npm:^8.0.3"
@@ -21175,7 +21175,7 @@ __metadata:
     pathe: "npm:^2.0.3"
   bin:
     rolldown-analyzer: bin/cli.js
-  checksum: 10c0/ee65986e49ef4024e7269d01d15fbd6a3ded64590f93bb4971bb6aed9aa7b76f2216604b7e37a60e758b7d7a0c0eecc2f8cd12f700d5427d0037fb1eaad18d2d
+  checksum: 10c0/277186f044c36558477efc37969548cbbb665030a3d1bf475bc3096e8aad60d1c44f21fdcb35597962aa29ef980c8a5cdb360627dd61f46eb58fd6637c0d35e7
   languageName: node
   linkType: hard
 
@@ -21351,7 +21351,7 @@ __metadata:
     mime: "npm:4.1.0"
     mitt: "npm:3.0.1"
     open: "npm:11.0.0"
-    rolldown-analyzer: "npm:0.2.1"
+    rolldown-analyzer: "npm:0.3.0"
     source-map: "npm:0.7.6"
     strip-ansi: "npm:7.2.0"
     typescript: "catalog:"
