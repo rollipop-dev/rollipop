@@ -1,6 +1,7 @@
 {
   "name": "@rollipop/dashboard",
-  "version": "0.0.0",
+  "version": "1.0.0-alpha.26",
+  "stableVersion": "0.0.0",
   "homepage": "https://github.com/rollipop-dev/rollipop#readme",
   "bugs": {
     "url": "https://github.com/rollipop-dev/rollipop/issues"
