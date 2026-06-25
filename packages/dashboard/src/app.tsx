@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { HashRouter, useLocation, useNavigate } from 'react-router';
+import { BrowserRouter, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
 import { EmptyState } from './components/dashboard/empty-state';
@@ -62,6 +62,7 @@ type DashboardPagePath =
 const DASHBOARD_API_ERROR_TOAST_ID = 'dashboard-api-error';
 const MIN_TRIGGER_BUILD_BUSY_MS = 1000;
 const DASHBOARD_REFRESH_DEBOUNCE_MS = 1000;
+const DASHBOARD_BASENAME = import.meta.env.BASE_URL.replace(/\/+$/, '');
 
 interface RefreshDashboardDataOptions {
   notify?: boolean;
@@ -476,7 +477,7 @@ export function App() {
   };
 
   return (
-    <HashRouter>
+    <BrowserRouter basename={DASHBOARD_BASENAME}>
       <div className="min-h-dvh bg-fd-background text-fd-foreground">
         <Header
           theme={theme}
@@ -509,7 +510,7 @@ export function App() {
         </div>
         <Toaster position="bottom-right" theme={theme} />
       </div>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 

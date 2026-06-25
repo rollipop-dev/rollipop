@@ -67,6 +67,18 @@ describe('createDevServer', () => {
     expect(indexResponse.headers['content-type']).toContain('text/html');
     expect(indexResponse.body).toBe(indexHtml);
 
+    const routeResponse = await devServer.instance.inject({
+      method: 'GET',
+      url: '/dashboard/instances?bundlerId=ios-dev',
+      headers: {
+        accept: 'text/html',
+      },
+    });
+
+    expect(routeResponse.statusCode).toBe(200);
+    expect(routeResponse.headers['content-type']).toContain('text/html');
+    expect(routeResponse.body).toBe(indexHtml);
+
     await devServer.instance.close();
   });
 
@@ -77,7 +89,7 @@ describe('createDevServer', () => {
     const notFoundHtml = await fs.readFile(path.join(dashboardStaticPath, '404.html'), 'utf8');
     const response = await devServer.instance.inject({
       method: 'GET',
-      url: '/dashboard/missing-dashboard-page',
+      url: '/missing-dashboard-page',
       headers: {
         accept: 'text/html',
       },
@@ -116,6 +128,16 @@ describe('createDevServer', () => {
       });
 
       expect(missingResponse.statusCode).toBe(404);
+
+      const missingHtmlResponse = await devServer.instance.inject({
+        method: 'GET',
+        url: '/dashboard/analyze-report/missing.html',
+        headers: {
+          accept: 'text/html',
+        },
+      });
+
+      expect(missingHtmlResponse.statusCode).toBe(404);
     } finally {
       await devServer.instance.close();
       await fs.rm(projectRoot, { recursive: true, force: true });

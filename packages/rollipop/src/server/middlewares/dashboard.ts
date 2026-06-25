@@ -30,47 +30,59 @@ const plugin = fp<DashboardPluginOptions>(
       wildcard: false,
     });
 
-    fastify.get(DASHBOARD_PATH, (_request, reply) => reply.sendFile(INDEX_FILE));
-
-    fastify.get<{ Params: { reportFile: string } }>(
-      `${DASHBOARD_PATH}/analyze-report/:reportFile`,
-      async (request, reply) => {
-        const { reportFile } = request.params;
-
-        if (!reportFile.endsWith('.html')) {
-          return reply.status(400).send({
-            error: {
-              code: 'INVALID_ANALYZE_REPORT_ID',
-              message: 'Invalid analyze report id.',
-            },
-          });
+    // Page routes
+    fastify
+      .get(DASHBOARD_PATH, (_request, reply) => reply.sendFile(INDEX_FILE))
+      .get(`${DASHBOARD_PATH}/*`, (request, reply) => {
+        if (shouldServeNotFoundPage(request)) {
+          return reply.sendFile(INDEX_FILE);
         }
 
-        const reportPath = path.join(
-          FileStorage.getPath(context.config.root),
-          ANALYZE_DIRECTORY,
-          reportFile,
-        );
+        return reply.status(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Not Found',
+        });
+      })
+      .get<{ Params: { reportFile: string } }>(
+        `${DASHBOARD_PATH}/analyze-report/:reportFile`,
+        async (request, reply) => {
+          const { reportFile } = request.params;
 
-        try {
-          await fs.access(reportPath);
-          const report = await fs.readFile(reportPath);
-
-          return reply.type('text/html; charset=utf-8').send(report);
-        } catch (error) {
-          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-            return reply.status(404).send({
+          if (!reportFile.endsWith('.html')) {
+            return reply.status(400).send({
               error: {
-                code: 'ANALYZE_REPORT_NOT_FOUND',
-                message: `Analyze report not found: ${reportFile}`,
+                code: 'INVALID_ANALYZE_REPORT_ID',
+                message: 'Invalid analyze report id.',
               },
             });
           }
 
-          throw error;
-        }
-      },
-    );
+          const reportPath = path.join(
+            FileStorage.getPath(context.config.root),
+            ANALYZE_DIRECTORY,
+            reportFile,
+          );
+
+          try {
+            await fs.access(reportPath);
+            const report = await fs.readFile(reportPath);
+
+            return reply.type('text/html; charset=utf-8').send(report);
+          } catch (error) {
+            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+              return reply.status(404).send({
+                error: {
+                  code: 'ANALYZE_REPORT_NOT_FOUND',
+                  message: `Analyze report not found: ${reportFile}`,
+                },
+              });
+            }
+
+            throw error;
+          }
+        },
+      );
 
     fastify.addHook('onListen', () => {
       const dashboardPath = context.serverBaseUrl + DASHBOARD_PATH;
