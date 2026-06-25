@@ -1,4 +1,13 @@
 
+## [1.0.0-alpha.26] - 2026-06-25
+
+### ⚙️ Miscellaneous Tasks
+
+- remove rolldown file by @leegeunhyeok
+- skip title checking on release PR by @leegeunhyeok
+- dashboard: remove private field by @leegeunhyeok
+
+
 ## [1.0.0-alpha.25] - 2026-06-25
 
 ### 🚀 Features
