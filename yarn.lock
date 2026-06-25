@@ -8613,68 +8613,68 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@rollipop/rolldown-binding-darwin-arm64@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-darwin-arm64@npm:1.0.18"
+"@rollipop/rolldown-binding-darwin-arm64@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-darwin-arm64@npm:1.0.19"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-darwin-x64@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-darwin-x64@npm:1.0.18"
+"@rollipop/rolldown-binding-darwin-x64@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-darwin-x64@npm:1.0.19"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.0.18"
+"@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.0.19"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-arm64-musl@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-linux-arm64-musl@npm:1.0.18"
+"@rollipop/rolldown-binding-linux-arm64-musl@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-linux-arm64-musl@npm:1.0.19"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-x64-gnu@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-linux-x64-gnu@npm:1.0.18"
+"@rollipop/rolldown-binding-linux-x64-gnu@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-linux-x64-gnu@npm:1.0.19"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-x64-musl@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-linux-x64-musl@npm:1.0.18"
+"@rollipop/rolldown-binding-linux-x64-musl@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-linux-x64-musl@npm:1.0.19"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-win32-x64-msvc@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown-binding-win32-x64-msvc@npm:1.0.18"
+"@rollipop/rolldown-binding-win32-x64-msvc@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown-binding-win32-x64-msvc@npm:1.0.19"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown@npm:1.0.18":
-  version: 1.0.18
-  resolution: "@rollipop/rolldown@npm:1.0.18"
+"@rollipop/rolldown@npm:1.0.19":
+  version: 1.0.19
+  resolution: "@rollipop/rolldown@npm:1.0.19"
   dependencies:
     "@oxc-project/types": "npm:=0.137.0"
     "@rolldown/pluginutils": "npm:^1.0.0"
-    "@rollipop/rolldown-binding-darwin-arm64": "npm:1.0.18"
-    "@rollipop/rolldown-binding-darwin-x64": "npm:1.0.18"
-    "@rollipop/rolldown-binding-linux-arm64-gnu": "npm:1.0.18"
-    "@rollipop/rolldown-binding-linux-arm64-musl": "npm:1.0.18"
-    "@rollipop/rolldown-binding-linux-x64-gnu": "npm:1.0.18"
-    "@rollipop/rolldown-binding-linux-x64-musl": "npm:1.0.18"
-    "@rollipop/rolldown-binding-win32-x64-msvc": "npm:1.0.18"
+    "@rollipop/rolldown-binding-darwin-arm64": "npm:1.0.19"
+    "@rollipop/rolldown-binding-darwin-x64": "npm:1.0.19"
+    "@rollipop/rolldown-binding-linux-arm64-gnu": "npm:1.0.19"
+    "@rollipop/rolldown-binding-linux-arm64-musl": "npm:1.0.19"
+    "@rollipop/rolldown-binding-linux-x64-gnu": "npm:1.0.19"
+    "@rollipop/rolldown-binding-linux-x64-musl": "npm:1.0.19"
+    "@rollipop/rolldown-binding-win32-x64-msvc": "npm:1.0.19"
   dependenciesMeta:
     "@rollipop/rolldown-binding-darwin-arm64":
       optional: true
@@ -8692,7 +8692,7 @@ __metadata:
       optional: true
   bin:
     rolldown: ./bin/cli.mjs
-  checksum: 10c0/8794e6ca19b5d024fff0ea4368a28933ce6bcd49667f9cf4a3974c0173b8ebd27d66bc1abe1f1b2e54cfd2f5c06e2970ae09ca5f2863b27437d6032f57bb844a
+  checksum: 10c0/1b2f51f4ace09024f32d4434991729898d46674f618fdef942042657b992919f3afb4d344a1243a77386497323ddb85f8dd5be9f82bfb9dbe49ca033c8a20889
   languageName: node
   linkType: hard
 
@@ -9646,7 +9646,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/babel__core@npm:7.20.5, @types/babel__core@npm:^7.1.14":
+"@types/babel__core@npm:*, @types/babel__core@npm:7.20.5, @types/babel__core@npm:^7.1.14":
   version: 7.20.5
   resolution: "@types/babel__core@npm:7.20.5"
   dependencies:
@@ -10122,6 +10122,16 @@ __metadata:
   peerDependencies:
     "@types/react": ^19.2.0
   checksum: 10c0/b486ebe0f4e2fb35e2e108df1d8fc0927ca5d6002d5771e8a739de11239fe62d0e207c50886185253c99eb9dedfeeb956ea7429e5ba17f6693c7acb4c02f8cd1
+  languageName: node
+  linkType: hard
+
+"@types/react-refresh@npm:0.14.7":
+  version: 0.14.7
+  resolution: "@types/react-refresh@npm:0.14.7"
+  dependencies:
+    "@types/babel__core": "npm:*"
+    csstype: "npm:^3.2.2"
+  checksum: 10c0/f96088ecfcb12f07aa925a3f485ec3f573bdd2586980315d582fedef8ef16dc3f3aa141b26455364f86e9df5f6e50f156aa99d887f36ae089abdd2c5c6954048
   languageName: node
   linkType: hard
 
@@ -21329,6 +21339,7 @@ __metadata:
     "@swc/helpers": "npm:0.5.23"
     "@types/babel__code-frame": "npm:7.27.0"
     "@types/babel__core": "npm:7.20.5"
+    "@types/react-refresh": "npm:0.14.7"
     "@types/ws": "npm:8.18.1"
     ajv: "npm:8.20.0"
     arktype: "npm:2.2.0"

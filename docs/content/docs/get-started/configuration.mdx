@@ -498,23 +498,6 @@ export default defineConfig({
 
 Path to the HMR client module used at runtime. Resolved the same way as `assetRegistryPath`. Override this when shipping a custom HMR client (e.g. for older React Native versions — see the `examples/0.72` setup for a real-world case).
 
-### reactNative.globalIdentifiers
-
-- **Type:** `string[]`
-- **Default:** Global identifier list for React Native 0.83 (e.g. `global`, `Promise`, `XMLHttpRequest`, `setTimeout`, `Performance`, …)
-
-Reserved global identifiers. These names are treated as host-provided globals during bundling and are not captured as module-local references.
-
-Use this when targeting a React Native version whose runtime exposes a different set of globals.
-
-```ts
-export default defineConfig({
-  reactNative: {
-    globalIdentifiers: ['global', 'Promise', 'XMLHttpRequest' /* ... */],
-  },
-});
-```
-
 ## plugins
 
 - **Type:** `Plugin[]`

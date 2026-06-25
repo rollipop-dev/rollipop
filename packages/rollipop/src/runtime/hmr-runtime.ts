@@ -1,26 +1,25 @@
 import mitt from 'mitt';
 
 import type {
-  DevRuntime as DefaultDevRuntime,
-  DevRuntimeMessenger,
   HMRClientMessage,
-  HMRCustomHandler,
   HMRCustomMessage,
   HMRServerMessage,
   HMRContext,
 } from '../types/hmr';
-import { enqueueUpdate, isReactRefreshBoundary } from './react-refresh-utils';
+import type {
+  DevRuntime as DefaultDevRuntime,
+  DevRuntimeMessenger,
+  RollipopDevRuntime,
+} from '../types/runtime';
+import { lazyReactRefresh } from './react-refresh-utils';
 
 declare global {
-  var __rolldown_runtime__: ReactNativeDevRuntime;
+  var __rolldown_runtime__: ReactNativeDevRuntime | undefined;
+  var __rollipop_runtime__: RollipopDevRuntime | undefined;
+  // React native specific globals.
   var __turboModuleProxy: (moduleName: string) => any;
   var globalEvalWithSourceUrl: (code: string, sourceURL?: string) => void;
   var nativeModuleProxy: Record<string, any>;
-  var __ReactRefresh: any;
-}
-
-declare global {
-  var __ROLLIPOP_CUSTOM_HMR_HANDLER__: HMRCustomHandler | undefined;
 }
 
 // DO NOT EDIT THIS CLASS NAME (`DevRuntime`)
@@ -36,17 +35,6 @@ class ModuleHotContext implements HMRContext {
     private moduleId: string,
     private socketHolder: SocketHolder,
   ) {}
-
-  get refresh() {
-    return globalThis.__ReactRefresh;
-  }
-
-  get refreshUtils() {
-    return {
-      isReactRefreshBoundary,
-      enqueueUpdate,
-    };
-  }
 
   accept(...args: any[]) {
     if (args.length === 1) {
@@ -212,7 +200,7 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
       if (isCustomHMRMessage(message)) {
         debug(`[HMR]: Custom HMR message received: ${message.type}`);
         this.socketHolder.emit(message.type, message.payload);
-        globalThis.__ROLLIPOP_CUSTOM_HMR_HANDLER__?.(socket, message);
+        globalThis.__rollipop_runtime__?.customHMRHandler?.(socket, message);
         return;
       }
 
@@ -267,5 +255,9 @@ function isCustomHMRMessage(message: unknown): message is HMRCustomMessage {
 }
 
 globalThis.__rolldown_runtime__ ??= new ReactNativeDevRuntime();
+globalThis.__rollipop_runtime__ ??= {
+  reactRefresh: lazyReactRefresh,
+  customHMRHandler: undefined,
+} satisfies RollipopDevRuntime;
 
 export type { DevRuntime };
