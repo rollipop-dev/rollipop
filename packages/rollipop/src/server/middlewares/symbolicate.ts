@@ -5,8 +5,9 @@ import { asConst, type FromSchema } from 'json-schema-to-ts';
 import { isDebugEnabled } from '../../common/env';
 import { getBaseBundleName } from '../../utils/bundle';
 import { parseUrl, type Query } from '../../utils/url';
+import type { BundleStore } from '../bundle';
 import type { StackFrameInput } from '../symbolicate';
-import { symbolicate, type SymbolicateResult } from '../symbolicate';
+import { symbolicateWithBundleResolver, type SymbolicateResult } from '../symbolicate';
 import type { DevServerContext } from '../types';
 
 const bodySchema = asConst({
@@ -48,20 +49,15 @@ const plugin = fp<SymbolicatePluginOptions>(
       async handler(request, reply) {
         const { stack } = request.body as SymbolicateRequestBody;
 
-        const bundleUrl = findBundleUrl(stack);
-        if (bundleUrl == null) {
+        const bundleStores = getBundleStoresByFrameUrl(stack, context);
+        if (bundleStores.size === 0) {
           await reply.header('Content-Type', 'application/json').send(createFallbackResult(stack));
           return;
         }
 
-        const { pathname, query } = bundleUrl;
-        const platform = query.platform as string;
-        const dev =
-          query.dev == null ? context.config.mode === 'development' : query.dev === 'true';
-        const bundleName = getBaseBundleName(pathname);
-        const bundler = context.bundlerPool.get(bundleName, { platform, dev });
-        const bundle = await bundler.getBundle();
-        const symbolicateResult = await symbolicate(bundle, stack);
+        const symbolicateResult = await symbolicateWithBundleResolver(stack, async (frame) =>
+          frame.file == null ? undefined : await bundleStores.get(frame.file),
+        );
 
         if (isDebugEnabled()) {
           printSymbolicateResult(stack, symbolicateResult);
@@ -74,19 +70,32 @@ const plugin = fp<SymbolicatePluginOptions>(
   { name: 'symbolicate' },
 );
 
-function findBundleUrl(stack: StackFrameInput[]): ParsedBundleUrl | null {
+function getBundleStoresByFrameUrl(
+  stack: StackFrameInput[],
+  context: DevServerContext,
+): Map<string, Promise<BundleStore>> {
+  const bundleStores = new Map<string, Promise<BundleStore>>();
+
   for (const frame of stack) {
-    if (!frame.file?.startsWith('http')) {
+    const file = frame.file;
+    if (!file?.startsWith('http') || bundleStores.has(file)) {
       continue;
     }
 
-    const parsed = parseStackFrameFile(frame.file);
-    if (parsed?.query.platform) {
-      return parsed;
+    const parsed = parseStackFrameFile(file);
+    if (parsed?.query.platform == null) {
+      continue;
     }
+
+    const { pathname, query } = parsed;
+    const platform = query.platform;
+    const dev = query.dev == null ? context.config.mode === 'development' : query.dev === 'true';
+    const bundleName = getBaseBundleName(pathname);
+    const bundler = context.bundlerPool.get(bundleName, { platform, dev });
+    bundleStores.set(file, bundler.getBundle());
   }
 
-  return null;
+  return bundleStores;
 }
 
 function parseStackFrameFile(file: string): ParsedBundleUrl | null {

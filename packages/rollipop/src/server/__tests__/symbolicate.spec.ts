@@ -60,7 +60,7 @@ describe('symbolicate', () => {
     });
   });
 
-  it('should filter out non-http frames', async () => {
+  it('should preserve non-http frames', async () => {
     const consumer = createMockSourceMapConsumer(new Map());
     const bundleStore = createMockBundleStore(consumer);
 
@@ -71,7 +71,46 @@ describe('symbolicate', () => {
 
     const result = await symbolicate(bundleStore, stack);
 
-    expect(result.stack).toHaveLength(1);
+    expect(result.stack).toHaveLength(2);
+    expect(result.stack[0]).toMatchObject({
+      file: '/local/path/file.js',
+      lineNumber: 1,
+      column: 0,
+    });
+    expect(result.stack[1]).toMatchObject({
+      file: 'http://localhost:8081/index.bundle',
+      lineNumber: 1,
+      column: 0,
+    });
+  });
+
+  it('should preserve zero-valued original positions', async () => {
+    const mappings = new Map([
+      [
+        '10:20',
+        {
+          source: 'src/App.tsx',
+          line: 1,
+          column: 0,
+          name: null,
+        },
+      ],
+    ]);
+
+    const consumer = createMockSourceMapConsumer(mappings);
+    const bundleStore = createMockBundleStore(consumer);
+
+    const stack: StackFrameInput[] = [
+      { file: 'http://localhost:8081/index.bundle', lineNumber: 10, column: 20 },
+    ];
+
+    const result = await symbolicate(bundleStore, stack);
+
+    expect(result.stack[0]).toMatchObject({
+      file: 'src/App.tsx',
+      lineNumber: 1,
+      column: 0,
+    });
   });
 
   it('should collapse internal React Native frames', async () => {

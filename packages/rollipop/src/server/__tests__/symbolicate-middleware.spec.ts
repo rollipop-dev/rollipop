@@ -72,4 +72,36 @@ describe('symbolicate middleware', () => {
 
     await app.close();
   });
+
+  it('prepares every bundle URL represented in the stack', async () => {
+    const { app, bundlerPool } = await createServer('development');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/symbolicate',
+      payload: {
+        stack: [
+          {
+            file: 'http://localhost:8081/index.bundle?platform=ios&dev=true',
+            lineNumber: 1,
+            column: 2,
+          },
+          {
+            file: 'http://localhost:8081/secondary.bundle?platform=android&dev=false',
+            lineNumber: 2,
+            column: 4,
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(bundlerPool.get).toHaveBeenCalledWith('index', { platform: 'ios', dev: true });
+    expect(bundlerPool.get).toHaveBeenCalledWith('secondary', {
+      platform: 'android',
+      dev: false,
+    });
+
+    await app.close();
+  });
 });
