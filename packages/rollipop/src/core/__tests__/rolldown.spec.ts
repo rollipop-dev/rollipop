@@ -28,7 +28,77 @@ function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOp
   return plugin!;
 }
 
+async function resolveTestRolldownOptions(
+  config: ReturnType<typeof createTestConfig>,
+  contextId: string,
+) {
+  config.devMode.hmr = false;
+  config.reactNative.assetRegistryPath = path.join(config.root, 'package.json');
+
+  return resolveRolldownOptions(
+    {
+      id: contextId,
+      root: config.root,
+      buildType: 'build',
+      storage: {
+        get: () => ({ build: {} }),
+        set: () => {},
+      } as unknown as BundlerContext['storage'],
+      state: { revision: 0, latestBuildStartTime: 0 },
+    },
+    config,
+    resolveBuildOptions(config, { platform: 'ios', dev: true }),
+  );
+}
+
 describe('resolveRolldownOptions', () => {
+  it('keeps react compiler disabled by default', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const options = await resolveTestRolldownOptions(
+      createTestConfig(process.cwd()),
+      'test-bundler-react-compiler-disabled',
+    );
+
+    expect(options.input?.transform?.reactCompiler).toBeUndefined();
+  });
+
+  it('enables react compiler with default exclude when configured with an empty object', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const config = createTestConfig(process.cwd());
+    config.transformer.reactCompiler = {};
+
+    const options = await resolveTestRolldownOptions(
+      config,
+      'test-bundler-react-compiler-empty-object',
+    );
+
+    expect(options.input?.transform?.reactCompiler).toEqual({
+      exclude: [/node_modules/],
+    });
+  });
+
+  it('uses user react compiler exclude patterns instead of the default node_modules rule', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const config = createTestConfig(process.cwd());
+    config.transformer.reactCompiler = {
+      exclude: [/vendor/],
+      target: '18',
+    };
+
+    const options = await resolveTestRolldownOptions(
+      config,
+      'test-bundler-react-compiler-custom-exclude',
+    );
+
+    expect(options.input?.transform?.reactCompiler).toEqual({
+      exclude: [/vendor/],
+      target: '18',
+    });
+  });
+
   it('transforms only polyfills that opt into Rollipop transform', async () => {
     resolveRolldownOptions.cache.clear();
 

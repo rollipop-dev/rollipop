@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '../components/AppButton';
@@ -38,15 +38,12 @@ export function DetailsScreen() {
   const [rows, setRows] = useState<RuntimeCheckRow[]>(toIdleRows);
   const [running, setRunning] = useState(false);
 
-  const summary = useMemo(() => {
-    const reports = rows.filter((row): row is RuntimeCheckReport => {
-      return row.status === 'passed' || row.status === 'failed';
-    });
+  const reports = rows.filter((row): row is RuntimeCheckReport => {
+    return row.status === 'passed' || row.status === 'failed';
+  });
+  const summary = summarizeReports(reports);
 
-    return summarizeReports(reports);
-  }, [rows]);
-
-  const handleRunAll = useCallback(async () => {
+  async function handleRunAll() {
     setRunning(true);
     setRows((currentRows) =>
       currentRows.map((row) => ({
@@ -60,7 +57,7 @@ export function DetailsScreen() {
 
     setRows(reports.map(toReportRow));
     setRunning(false);
-  }, []);
+  }
 
   const summaryText =
     summary.total === 0

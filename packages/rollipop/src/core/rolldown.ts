@@ -163,7 +163,10 @@ export async function resolveRolldownOptions(
         mode: 'Runtime',
       },
     } satisfies TransformOptions,
-    rolldownTransform,
+    {
+      ...rolldownTransform,
+      reactCompiler: resolveReactCompilerTransformOptions(rolldownTransform.reactCompiler),
+    },
   );
 
   const entryPluginOptions = resolveEntryPluginOptions(config);
@@ -337,6 +340,19 @@ function resolveWorkletsConfig(
     },
     worklets,
   );
+}
+
+function resolveReactCompilerTransformOptions(
+  reactCompiler: TransformOptions['reactCompiler'],
+): TransformOptions['reactCompiler'] {
+  if (reactCompiler == null) {
+    return undefined;
+  }
+
+  return {
+    ...reactCompiler,
+    exclude: reactCompiler.exclude ?? [/node_modules/],
+  };
 }
 
 function resolveBabelPluginOptions(
