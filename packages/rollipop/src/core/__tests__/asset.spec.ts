@@ -28,9 +28,9 @@ describe('resolveAssetPath', () => {
       'icon.ios.svg': svg(11, 11),
     });
 
-    expect(
-      resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false }),
-    ).toBe(path.join(dir, 'icon.ios.svg'));
+    expect(resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false })).toBe(
+      path.join(dir, 'icon.ios.svg'),
+    );
   });
 
   it('falls back to native assets before generic assets when enabled', async () => {
