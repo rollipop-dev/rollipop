@@ -8,6 +8,7 @@ import type { Plugin, PluginConfig, ResolvedPluginConfig } from '../core/plugins
 import { getDefaultConfig, type ResolvedConfig } from './defaults';
 import { DefineConfigContext } from './define-config';
 import { mergeConfig } from './merge-config';
+import { printConfigNotice } from './notice';
 import type { Config, PluginOption } from './types';
 
 const CONFIG_FILE_NAME = 'rollipop';
@@ -57,6 +58,7 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
   }
 
   await invokeConfigResolved(resolvedConfig, plugins);
+  printConfigNotice(resolvedConfig);
 
   return resolvedConfig;
 }

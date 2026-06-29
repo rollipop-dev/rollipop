@@ -11,6 +11,7 @@
     "sse",
     "mcp",
     "custom-command",
+    "react-compiler",
     "reanimated-worklets",
     "module-federation",
     "experimental"

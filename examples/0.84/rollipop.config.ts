@@ -14,6 +14,9 @@ export default defineConfig({
     enabled: true,
     autoOpen: true,
   },
+  transformer: {
+    reactCompiler: {},
+  },
   plugins: [
     svg(),
     myPlugin(),
