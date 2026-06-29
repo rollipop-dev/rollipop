@@ -1,304 +1,257 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
-import { describe, it, expect, vitest, beforeAll } from 'vite-plus/test';
+import { afterEach, describe, expect, it } from 'vite-plus/test';
 
-import { resolveAssetPath, resolveScaledAssets } from '../assets';
+import { md5 } from '../../utils/hash';
+import {
+  copyAssetsToDestination,
+  filterPlatformAssetScales,
+  generateAssetRegistryCode,
+  resolveAssetPath,
+  resolveScaledAssets,
+  type AssetData,
+} from '../assets';
 
-vitest.mock('image-size', () => {
-  return {
-    imageSize: vitest.fn().mockImplementation(() => {
-      return {
-        width: 100,
-        height: 100,
-      };
-    }),
-  };
+const tempRoots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(tempRoots.map((root) => fs.rm(root, { recursive: true, force: true })));
+  tempRoots.length = 0;
 });
 
 describe('resolveAssetPath', () => {
-  describe('when scale is 1', () => {
-    describe('when exact asset path is exist', () => {
-      it('should return the exact asset path', () => {
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path === assetPath) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        const path = resolveAssetPath(
-          assetPath,
-          { platform: 'ios', preferNativePlatform: true },
-          1,
-        );
-        expect(path).toBe(assetPath);
-      });
+  it('prefers platform assets over generic assets', async () => {
+    const { dir, assetPath } = await createAssetFixture({
+      'icon.svg': svg(10, 10),
+      'icon.ios.svg': svg(11, 11),
     });
 
-    describe('when exact asset path is not exist', () => {
-      it('should return the suffixed asset path (platform suffixed)', () => {
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path.toString().includes('@1x')) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        const path = resolveAssetPath(
-          assetPath,
-          { platform: 'ios', preferNativePlatform: false },
-          1,
-        );
-        expect(path).toBe('back-icon@1x.ios.png');
-      });
-
-      it('should return the suffixed asset path (prefer native platform)', () => {
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path.toString().includes('@1x') && path.toString().includes('native')) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        const path = resolveAssetPath(
-          assetPath,
-          { platform: 'ios', preferNativePlatform: true },
-          1,
-        );
-        expect(path).toBe('back-icon@1x.native.png');
-      });
-
-      it('should return the suffixed asset path', () => {
-        const platform = 'ios';
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path.toString().includes('@1x') && !path.toString().includes(platform)) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        const path = resolveAssetPath(assetPath, { platform, preferNativePlatform: false }, 1);
-        expect(path).toBe('back-icon@1x.png');
-      });
-    });
+    expect(
+      resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false }),
+    ).toBe(path.join(dir, 'icon.ios.svg'));
   });
 
-  describe('when scale is not 1', () => {
-    describe('when exact asset path is exist', () => {
-      it('should throw an error if the scaled asset is not exist', () => {
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path === assetPath) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        expect(() =>
-          resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: true }, 2),
-        ).toThrowError();
-      });
+  it('falls back to native assets before generic assets when enabled', async () => {
+    const { dir, assetPath } = await createAssetFixture({
+      'icon.svg': svg(10, 10),
+      'icon.native.svg': svg(11, 11),
     });
 
-    describe('when scaled asset is exist', () => {
-      it('should return the scaled asset path (platform suffixed)', () => {
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path.toString().includes('@2x')) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
+    expect(resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: true })).toBe(
+      path.join(dir, 'icon.native.svg'),
+    );
+  });
 
-        const path = resolveAssetPath(
-          assetPath,
-          { platform: 'ios', preferNativePlatform: false },
-          2,
-        );
-        expect(path).toBe('back-icon@2x.ios.png');
-      });
-
-      it('should return the scaled asset path (prefer native platform)', () => {
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path.toString().includes('@2x') && path.toString().includes('native')) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        const path = resolveAssetPath(
-          assetPath,
-          { platform: 'ios', preferNativePlatform: true },
-          2,
-        );
-        expect(path).toBe('back-icon@2x.native.png');
-      });
-
-      it('should return the suffixed asset path', () => {
-        const platform = 'ios';
-        const assetPath = 'back-icon.png';
-        vitest.spyOn(fs, 'statSync').mockImplementation((path) => {
-          if (path.toString().includes('@2x') && !path.toString().includes(platform)) {
-            return {} as fs.Stats;
-          }
-          throw new Error();
-        });
-
-        const path = resolveAssetPath(assetPath, { platform, preferNativePlatform: false }, 2);
-        expect(path).toBe('back-icon@2x.png');
-      });
+  it('ignores native assets when native platform preference is disabled', async () => {
+    const { dir, assetPath } = await createAssetFixture({
+      'icon.svg': svg(10, 10),
+      'icon.native.svg': svg(11, 11),
     });
+
+    expect(resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false })).toBe(
+      path.join(dir, 'icon.svg'),
+    );
+  });
+
+  it('selects the closest larger scale from the requested asset path', async () => {
+    const { dir, assetPath } = await createAssetFixture(
+      {
+        'icon@1x.svg': svg(10, 10),
+        'icon@2x.svg': svg(20, 20),
+        'icon@4x.svg': svg(40, 40),
+      },
+      'icon@3x.svg',
+    );
+
+    expect(resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false })).toBe(
+      path.join(dir, 'icon@4x.svg'),
+    );
+  });
+
+  it('falls back to the largest scale when the requested scale is larger than every asset', async () => {
+    const { dir, assetPath } = await createAssetFixture(
+      {
+        'icon@1x.svg': svg(10, 10),
+        'icon@2x.svg': svg(20, 20),
+      },
+      'icon@3x.svg',
+    );
+
+    expect(resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false })).toBe(
+      path.join(dir, 'icon@2x.svg'),
+    );
+  });
+
+  it('serves platform-specific scaled assets for scaled requests', async () => {
+    const { dir, assetPath } = await createAssetFixture(
+      {
+        'icon@2x.svg': svg(20, 20),
+        'icon@2x.ios.svg': svg(22, 22),
+      },
+      'icon@2x.svg',
+    );
+
+    expect(resolveAssetPath(assetPath, { platform: 'ios', preferNativePlatform: false })).toBe(
+      path.join(dir, 'icon@2x.ios.svg'),
+    );
   });
 });
 
 describe('resolveScaledAssets', () => {
-  beforeAll(() => {
-    vitest.spyOn(fs, 'readFileSync').mockImplementation(() => Buffer.from(''));
+  it('returns asset metadata from actual platform image variants', async () => {
+    const ios2x = svg(40, 20);
+    const ios4x = svg(80, 40);
+    const { dir, root, assetPath } = await createAssetFixture({
+      'icon.svg': svg(10, 5),
+      'icon@2x.ios.svg': ios2x,
+      'icon@4x.ios.svg': ios4x,
+    });
+
+    const asset = await resolveScaledAssets({
+      projectRoot: root,
+      assetPath,
+      platform: 'ios',
+      preferNativePlatform: false,
+    });
+
+    expect(asset).toEqual(
+      expect.objectContaining({
+        __packager_asset: true,
+        fileSystemLocation: dir,
+        files: [path.join(dir, 'icon@2x.ios.svg'), path.join(dir, 'icon@4x.ios.svg')],
+        hash: md5(Buffer.concat([Buffer.from(ios2x), Buffer.from(ios4x)])),
+        height: 10,
+        httpServerLocation: '/assets/imgs',
+        name: 'icon',
+        scales: [2, 4],
+        type: 'svg',
+        width: 20,
+      }),
+    );
   });
 
-  describe('when scaled assets with platform suffix are exist', () => {
-    beforeAll(() => {
-      vitest
-        .spyOn(fs, 'readdirSync')
-        .mockImplementation(
-          () =>
-            [
-              'back-icon.png',
-              'back-icon@1x.png',
-              'back-icon@2x.png',
-              'back-icon@3x.png',
-              'back-icon@1x.ios.png',
-              'back-icon@2x.ios.png',
-              'back-icon@3x.ios.png',
-            ] as unknown as ReturnType<typeof fs.readdirSync>,
-        );
+  it('returns non-image assets without dimensions', async () => {
+    const { root, assetPath } = await createAssetFixture(
+      {
+        'FontAwesome.ttf': 'font-data',
+      },
+      'FontAwesome.ttf',
+    );
+
+    const asset = await resolveScaledAssets({
+      projectRoot: root,
+      assetPath,
+      platform: 'ios',
+      preferNativePlatform: false,
     });
 
-    it('should return the scaled assets with platform suffix', async () => {
-      const assets = await resolveScaledAssets({
-        projectRoot: '/root',
-        assetPath: 'back-icon.png',
-        platform: 'ios',
-        preferNativePlatform: true,
-      });
-
-      expect(assets).toEqual(
-        expect.objectContaining({
-          files: ['back-icon@1x.ios.png', 'back-icon@2x.ios.png', 'back-icon@3x.ios.png'],
-          scales: [1, 2, 3],
-        }),
-      );
-    });
-  });
-
-  describe('when scaled assets with native suffix are exist', () => {
-    beforeAll(() => {
-      vitest
-        .spyOn(fs, 'readdirSync')
-        .mockImplementation(
-          () =>
-            [
-              'back-icon.png',
-              'back-icon@1x.png',
-              'back-icon@2x.png',
-              'back-icon@3x.png',
-              'back-icon@1x.native.png',
-              'back-icon@2x.native.png',
-              'back-icon@3x.native.png',
-            ] as unknown as ReturnType<typeof fs.readdirSync>,
-        );
-    });
-
-    it('should return the scaled assets with native suffix (prefer native platform)', async () => {
-      const assets = await resolveScaledAssets({
-        projectRoot: '/root',
-        assetPath: 'back-icon.png',
-        platform: 'ios',
-        preferNativePlatform: true,
-      });
-
-      expect(assets).toEqual(
-        expect.objectContaining({
-          files: ['back-icon@1x.native.png', 'back-icon@2x.native.png', 'back-icon@3x.native.png'],
-          scales: [1, 2, 3],
-        }),
-      );
-    });
-
-    it('should return the scaled assets without suffix', async () => {
-      const assets = await resolveScaledAssets({
-        projectRoot: '/root',
-        assetPath: 'back-icon.png',
-        platform: 'ios',
-        preferNativePlatform: false,
-      });
-
-      expect(assets).toEqual(
-        expect.objectContaining({
-          files: ['back-icon@1x.png', 'back-icon@2x.png', 'back-icon@3x.png'],
-          scales: [1, 2, 3],
-        }),
-      );
-    });
-  });
-
-  describe('when plain assets are exist', () => {
-    beforeAll(() => {
-      vitest
-        .spyOn(fs, 'readdirSync')
-        .mockImplementation(
-          () => ['back-icon.png'] as unknown as ReturnType<typeof fs.readdirSync>,
-        );
-    });
-
-    it('should return the plain asset', async () => {
-      const assets = await resolveScaledAssets({
-        projectRoot: '/root',
-        assetPath: 'back-icon.png',
-        platform: 'ios',
-        preferNativePlatform: false,
-      });
-
-      expect(assets).toEqual(
-        expect.objectContaining({
-          files: ['back-icon.png'],
-          scales: [1],
-        }),
-      );
-    });
-  });
-
-  describe('when non-image assets are exist', () => {
-    beforeAll(() => {
-      vitest
-        .spyOn(fs, 'readdirSync')
-        .mockImplementation(
-          () => ['FontAwesome.ttf'] as unknown as ReturnType<typeof fs.readdirSync>,
-        );
-    });
-
-    it('should return the asset without image dimensions', async () => {
-      const assets = await resolveScaledAssets({
-        projectRoot: '/root',
-        assetPath: 'FontAwesome.ttf',
-        platform: 'ios',
-        preferNativePlatform: false,
-      });
-
-      expect(assets).toEqual(
-        expect.objectContaining({
-          files: ['FontAwesome.ttf'],
-          scales: [1],
-          type: 'ttf',
-          width: undefined,
-          height: undefined,
-        }),
-      );
-    });
+    expect(asset).toEqual(
+      expect.objectContaining({
+        files: [assetPath],
+        height: undefined,
+        scales: [1],
+        type: 'ttf',
+        width: undefined,
+      }),
+    );
   });
 });
+
+describe('filterPlatformAssetScales', () => {
+  it('keeps only iOS-supported scales when possible', () => {
+    expect(filterPlatformAssetScales('ios', [1, 1.5, 2, 3, 4])).toEqual([1, 2, 3]);
+  });
+
+  it('keeps the closest larger scale for iOS when no scale is allowlisted', () => {
+    expect(filterPlatformAssetScales('ios', [0.5, 4, 100])).toEqual([4]);
+    expect(filterPlatformAssetScales('ios', [0.5])).toEqual([0.5]);
+  });
+
+  it('keeps every scale for non-iOS platforms', () => {
+    expect(filterPlatformAssetScales('android', [1, 1.5, 2, 3.7])).toEqual([1, 1.5, 2, 3.7]);
+  });
+});
+
+describe('copyAssetsToDestination', () => {
+  it('copies only filtered iOS scales from resolved asset files', async () => {
+    const { root, assetPath } = await createAssetFixture({
+      'icon@0.5x.svg': svg(5, 5),
+      'icon@4x.svg': svg(40, 40),
+      'icon@100x.svg': svg(1000, 1000),
+    });
+    const assetsDir = await createTempRoot('rollipop-assets-dest-');
+    const asset = await resolveScaledAssets({
+      projectRoot: root,
+      assetPath,
+      platform: 'ios',
+      preferNativePlatform: false,
+    });
+
+    await copyAssetsToDestination({
+      assets: [asset],
+      assetsDir,
+      platform: 'ios',
+      preferNativePlatform: false,
+    });
+
+    await expect(fs.access(path.join(assetsDir, 'assets/imgs/icon@4x.svg'))).resolves.toBe(
+      undefined,
+    );
+    await expect(fs.access(path.join(assetsDir, 'assets/imgs/icon@0.5x.svg'))).rejects.toThrow();
+    await expect(fs.access(path.join(assetsDir, 'assets/imgs/icon@100x.svg'))).rejects.toThrow();
+  });
+});
+
+describe('generateAssetRegistryCode', () => {
+  it('filters file-system-only metadata from the registered asset', () => {
+    const asset: AssetData = {
+      __packager_asset: true,
+      fileSystemLocation: '/root/imgs',
+      files: ['/root/imgs/icon.svg'],
+      hash: 'hash',
+      height: 10,
+      httpServerLocation: '/assets/imgs',
+      id: '/root/imgs/icon.svg',
+      name: 'icon',
+      scales: [1],
+      type: 'svg',
+      width: 10,
+    };
+
+    const code = generateAssetRegistryCode('AssetRegistry', asset);
+
+    expect(code).toContain("require('AssetRegistry').registerAsset");
+    expect(code).toContain('"httpServerLocation":"/assets/imgs"');
+    expect(code).not.toContain('fileSystemLocation');
+    expect(code).not.toContain('files');
+    expect(code).not.toContain('"id"');
+  });
+});
+
+async function createAssetFixture(files: Record<string, string>, requestFile = 'icon.svg') {
+  const root = await createTempRoot('rollipop-assets-');
+  const dir = path.join(root, 'imgs');
+  await fs.mkdir(dir, { recursive: true });
+
+  await Promise.all(
+    Object.entries(files).map(([file, content]) => fs.writeFile(path.join(dir, file), content)),
+  );
+
+  return {
+    dir,
+    root,
+    assetPath: path.join(dir, requestFile),
+  };
+}
+
+async function createTempRoot(prefix: string) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  tempRoots.push(root);
+  return root;
+}
+
+function svg(width: number, height: number) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"></svg>`;
+}

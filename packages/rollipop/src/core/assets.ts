@@ -55,9 +55,11 @@ export interface AssetData extends AssetDataWithoutFiles {
   files: string[];
 }
 
-export type AssetScale = 0.75 | 1 | 1.5 | 2 | 3;
+export type AssetScale = number;
 
 const SCALE_PATTERN = '@(\\d+\\.?\\d*)x';
+const ASSET_BASE_NAME_PATTERN = /(.+?)(@([\d.]+)x)?$/;
+const PLATFORM_FILE_PATH_PATTERN = /^(.+?)(\.([^.]+))?\.([^.]+)$/;
 const IMAGE_ASSET_TYPES = new Set(IMAGE_EXTENSIONS);
 
 /**
@@ -82,6 +84,19 @@ const ANDROID_ASSET_QUALIFIER: Record<number, string> = {
   4: 'xxxhdpi',
 } as const;
 
+interface ParsedAssetPath {
+  assetName: string;
+  name: string;
+  platform?: string;
+  resolution: number;
+  type: string;
+}
+
+interface AssetRecord {
+  files: string[];
+  scales: AssetScale[];
+}
+
 interface ResolveScaledAssetsOptions {
   projectRoot: string;
   assetPath: string;
@@ -92,61 +107,158 @@ interface ResolveScaledAssetsOptions {
 export async function resolveScaledAssets(options: ResolveScaledAssetsOptions): Promise<AssetData> {
   const { projectRoot, assetPath, platform, preferNativePlatform } = options;
   const context = { platform, preferNativePlatform };
-  const extension = path.extname(assetPath);
-  const type = extension.substring(1);
+  const { name, type } = parseAssetPath(path.basename(assetPath), context);
   const relativePath = path.relative(projectRoot, assetPath);
-  const dirname = path.dirname(assetPath);
-  const files = fs.readdirSync(dirname);
-  const stripedBasename = stripSuffix(assetPath, context);
-  const suffixPattern = platformSuffixPattern(context);
-  const assetRegExp = new RegExp(
-    `${stripedBasename}(${SCALE_PATTERN})?(?:${suffixPattern})?${extension}$`,
-  );
-  const scaledAssets: Partial<Record<AssetScale, string>> = {};
-
-  for (const file of files.sort(
-    (a, b) => getAssetPriority(b, context) - getAssetPriority(a, context),
-  )) {
-    const match = assetRegExp.exec(file);
-    if (match) {
-      const [, , scale = '1'] = match;
-      if (scaledAssets[scale as unknown as AssetScale]) continue;
-      scaledAssets[scale as unknown as AssetScale] = file;
-    }
-  }
-
-  if (!(Object.keys(scaledAssets).length && scaledAssets[1])) {
-    throw new Error(`cannot resolve base asset of ${assetPath}`);
-  }
-
-  const imageData = fs.readFileSync(assetPath);
-  const dimensions = IMAGE_ASSET_TYPES.has(type) ? imageSize(imageData) : undefined;
-
-  const filteredScaledAssets = Object.entries(scaledAssets)
-    .map(([scale, file]) => ({ scale: parseFloat(scale) as AssetScale, file }))
-    .filter(({ scale }) => ALLOW_SCALES[platform]?.includes(scale) ?? true)
-    .reduce(
-      (acc, { scale, file }) => {
-        acc.files.push(file);
-        acc.scales.push(scale);
-        return acc;
-      },
-      { scales: [], files: [] } as { scales: AssetScale[]; files: string[] },
-    );
+  const { files, scales } = getAbsoluteAssetRecord(assetPath, context);
+  const fileData = await Promise.all(files.map((file) => fs.promises.readFile(file)));
+  const hash = md5(Buffer.concat(fileData));
+  const firstScale = scales[0] ?? 1;
+  const dimensions = IMAGE_ASSET_TYPES.has(type) ? imageSize(fileData[0]) : undefined;
 
   return {
     __packager_asset: true,
     id: assetPath,
-    name: stripedBasename.replace(extension, ''),
+    name,
     type,
-    width: dimensions?.width,
-    height: dimensions?.height,
-    files: filteredScaledAssets.files,
-    scales: filteredScaledAssets.scales,
+    width: dimensions?.width == null ? undefined : dimensions.width / firstScale,
+    height: dimensions?.height == null ? undefined : dimensions.height / firstScale,
+    files,
+    scales,
     fileSystemLocation: path.dirname(assetPath),
-    httpServerLocation: path.join(DEV_SERVER_ASSET_PATH, path.dirname(relativePath)),
-    hash: md5(imageData),
+    httpServerLocation: getHttpServerLocation(relativePath),
+    hash,
   };
+}
+
+function getHttpServerLocation(relativePath: string): string {
+  const dirname = path.dirname(relativePath);
+  const serverLocation = relativePath.startsWith('..')
+    ? `/${DEV_SERVER_ASSET_PATH}/${dirname}`
+    : path.join('/', DEV_SERVER_ASSET_PATH, dirname);
+
+  return normalizePathSeparatorsToPosix(serverLocation);
+}
+
+function normalizePathSeparatorsToPosix(filePath: string): string {
+  return filePath.replace(/\\/g, '/');
+}
+
+function getAssetPlatforms(context: AssetContext): string[] {
+  return [context.platform, context.preferNativePlatform ? 'native' : null].filter(isNotNil);
+}
+
+function parseBaseName(baseName: string) {
+  const match = ASSET_BASE_NAME_PATTERN.exec(baseName);
+  if (match == null) {
+    throw new Error(`invalid asset name: ${baseName}`);
+  }
+
+  const [, rootName, , resolution] = match;
+  if (resolution != null) {
+    const parsedResolution = Number.parseFloat(resolution);
+    if (!Number.isNaN(parsedResolution)) {
+      return { resolution: parsedResolution, rootName };
+    }
+  }
+
+  return { resolution: 1, rootName };
+}
+
+function tryParseAssetPath(filePath: string, context: AssetContext): ParsedAssetPath | null {
+  const dirname = path.dirname(filePath);
+  const fileName = path.basename(filePath);
+  const match = PLATFORM_FILE_PATH_PATTERN.exec(fileName);
+
+  if (match == null) {
+    return null;
+  }
+
+  const [, baseName, , platformCandidate, extension] = match;
+  const platforms = new Set(getAssetPlatforms(context));
+  const platform =
+    platformCandidate != null && platforms.has(platformCandidate) ? platformCandidate : undefined;
+  const { resolution, rootName } = parseBaseName(
+    platform == null && platformCandidate != null ? `${baseName}.${platformCandidate}` : baseName,
+  );
+
+  return {
+    assetName: path.join(dirname, `${rootName}.${extension}`),
+    name: rootName,
+    platform,
+    resolution,
+    type: extension,
+  };
+}
+
+function parseAssetPath(filePath: string, context: AssetContext): ParsedAssetPath {
+  const assetPath = tryParseAssetPath(filePath, context);
+  if (assetPath == null) {
+    throw new Error(`invalid asset file path: ${filePath}`);
+  }
+
+  return assetPath;
+}
+
+function getAssetKey(assetName: string, platform?: string) {
+  return platform == null ? assetName : `${assetName} : ${platform}`;
+}
+
+function buildAssetMap(
+  dirname: string,
+  files: string[],
+  context: AssetContext,
+): Map<string, AssetRecord> {
+  const assetMap = new Map<string, AssetRecord>();
+
+  for (const file of files) {
+    const asset = tryParseAssetPath(file, context);
+    if (asset == null) {
+      continue;
+    }
+
+    const assetKey = getAssetKey(asset.assetName, asset.platform);
+    let record = assetMap.get(assetKey);
+    if (record == null) {
+      record = { files: [], scales: [] };
+      assetMap.set(assetKey, record);
+    }
+
+    let insertIndex = 0;
+    while (insertIndex < record.scales.length && asset.resolution >= record.scales[insertIndex]) {
+      insertIndex += 1;
+    }
+
+    record.scales.splice(insertIndex, 0, asset.resolution);
+    record.files.splice(insertIndex, 0, path.join(dirname, file));
+  }
+
+  return assetMap;
+}
+
+function getAbsoluteAssetRecord(assetPath: string, context: AssetContext): AssetRecord {
+  const dirname = path.dirname(assetPath);
+  const files = fs.readdirSync(dirname) as string[];
+  const asset = parseAssetPath(path.basename(assetPath), context);
+  const assetMap = buildAssetMap(dirname, files, context);
+
+  const platformRecord = assetMap.get(getAssetKey(asset.assetName, context.platform));
+  if (platformRecord != null) {
+    return platformRecord;
+  }
+
+  if (context.preferNativePlatform) {
+    const nativeRecord = assetMap.get(getAssetKey(asset.assetName, 'native'));
+    if (nativeRecord != null) {
+      return nativeRecord;
+    }
+  }
+
+  const defaultRecord = assetMap.get(asset.assetName);
+  if (defaultRecord != null) {
+    return defaultRecord;
+  }
+
+  throw new Error(`Asset not found: ${assetPath} for platform: ${context.platform}`);
 }
 
 export function platformSuffixPattern(context: AssetContext) {
@@ -231,40 +343,23 @@ export function getSuffixedPath(
   return path.join(dirname, suffixedBasename);
 }
 
-export function resolveAssetPath(assetPath: string, context: AssetContext, scale: AssetScale) {
-  const suffixedPaths = [
-    getSuffixedPath(assetPath, context, { scale, platform: context.platform }),
-    context.preferNativePlatform
-      ? getSuffixedPath(assetPath, context, { scale, platform: 'native' })
-      : null,
-    getSuffixedPath(assetPath, context, { scale }),
-  ].filter(isNotNil);
+export function resolveAssetPath(
+  assetPath: string,
+  context: AssetContext,
+  scale?: AssetScale,
+): string {
+  const requestedScale = scale ?? parseAssetPath(path.basename(assetPath), context).resolution;
+  const record = getAbsoluteAssetRecord(assetPath, context);
 
-  /**
-   * When scale is 1, filename can be suffixed or non-suffixed(`image.png`).
-   *
-   * - Suffixed
-   *   - `filename.<platform>@<scale>x.ext`
-   *   - `filename.<platform>.ext`
-   *   - `filename@<scale>x.ext`
-   * - Non suffixed
-   *   - `filename.ext`
-   *
-   * 1. Resolve non-suffixed asset first.
-   * 2. If file is not exist, resolve suffixed path.
-   */
-  if (scale === 1) {
-    try {
-      fs.statSync(assetPath);
-      return assetPath;
-    } catch {}
+  for (let index = 0; index < record.scales.length; index += 1) {
+    if (record.scales[index] >= requestedScale) {
+      return record.files[index];
+    }
   }
 
-  for (const suffixedPath of suffixedPaths) {
-    try {
-      fs.statSync(suffixedPath);
-      return suffixedPath;
-    } catch {}
+  const fallback = record.files.at(-1);
+  if (fallback != null) {
+    return fallback;
   }
 
   throw new Error(`cannot resolve asset path for ${assetPath}`);
@@ -281,8 +376,7 @@ interface CopyAssetsToDestinationOptions {
  * @see https://github.com/facebook/react-native/blob/0.83-stable/packages/community-cli-plugin/src/commands/bundle/assetPathUtils.js
  */
 export async function copyAssetsToDestination(options: CopyAssetsToDestinationOptions) {
-  const { assets, platform, assetsDir, preferNativePlatform } = options;
-  const context = { platform, preferNativePlatform };
+  const { assets, platform, assetsDir } = options;
 
   const mkdirWithAssertPath = (targetPath: string) => {
     const dirname = path.dirname(targetPath);
@@ -291,16 +385,21 @@ export async function copyAssetsToDestination(options: CopyAssetsToDestinationOp
 
   return Promise.all(
     assets.map((asset): Promise<void> => {
+      const validScales = new Set(filterPlatformAssetScales(platform, asset.scales));
       return Promise.all(
-        asset.scales.map(async (scale) => {
+        asset.scales.map(async (scale, index) => {
+          if (!validScales.has(scale)) {
+            return;
+          }
+
           if (platform !== 'android') {
-            const from = resolveAssetPath(asset.id, context, scale);
+            const from = asset.files[index];
             const to = path.join(assetsDir, getIosAssetDestinationPath(asset, scale));
             mkdirWithAssertPath(to);
             return fs.copyFileSync(from, to);
           }
 
-          const from = resolveAssetPath(asset.id, context, scale);
+          const from = asset.files[index];
           const to = path.join(assetsDir, getAndroidAssetDestinationPath(asset, scale));
           mkdirWithAssertPath(to);
           fs.copyFileSync(from, to);
@@ -308,6 +407,25 @@ export async function copyAssetsToDestination(options: CopyAssetsToDestinationOp
       ).then(() => void 0);
     }),
   ).then(() => void 0);
+}
+
+export function filterPlatformAssetScales(
+  platform: string,
+  scales: readonly AssetScale[],
+): AssetScale[] {
+  const allowlist = ALLOW_SCALES[platform];
+  if (allowlist == null) {
+    return [...scales];
+  }
+
+  const filteredScales = scales.filter((scale) => allowlist.includes(scale));
+  if (filteredScales.length > 0 || scales.length === 0) {
+    return filteredScales;
+  }
+
+  const maxAllowedScale = allowlist[allowlist.length - 1];
+  const largerScale = scales.find((scale) => scale > maxAllowedScale);
+  return [largerScale ?? scales[scales.length - 1]];
 }
 
 /**
@@ -355,5 +473,11 @@ function isDrawable(type: string) {
 }
 
 export function generateAssetRegistryCode(assetRegistryPath: string, asset: AssetData) {
-  return `module.exports = require('${assetRegistryPath}').registerAsset(${JSON.stringify(asset)});`;
+  const {
+    files: _files,
+    fileSystemLocation: _fileSystemLocation,
+    id: _id,
+    ...registryAsset
+  } = asset;
+  return `module.exports = require('${assetRegistryPath}').registerAsset(${JSON.stringify(registryAsset)});`;
 }
