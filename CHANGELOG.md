@@ -1,4 +1,31 @@
 
+## [1.0.0-alpha.27] - 2026-06-29
+
+### 🚀 Features
+
+- react compiler (#127) by @leegeunhyeok
+- update 0.84 example app (#126) by @leegeunhyeok
+- dashboard: migrate to `BrowserRouter` by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- improve asset resolution (#125) by @leegeunhyeok
+- improve symbolication compatibility (#124) by @leegeunhyeok
+
+### 📚 Documentation
+
+- update features by @leegeunhyeok
+- add dashboard by @leegeunhyeok
+
+### ⚡ Performance
+
+- reduce dev server event overhead by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- fmt by @leegeunhyeok
+
+
 ## [1.0.0-alpha.26] - 2026-06-25
 
 ### ⚙️ Miscellaneous Tasks
