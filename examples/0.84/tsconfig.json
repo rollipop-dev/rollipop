@@ -3,6 +3,13 @@
   "compilerOptions": {
     "types": ["jest", "rollipop/client"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "__tests__/**/*.ts",
+    "__tests__/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
   "exclude": ["**/node_modules"]
 }

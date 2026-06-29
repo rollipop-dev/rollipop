@@ -15,7 +15,9 @@ import { App } from '../App';
 describe('rollipop/jest-preset — RN integration', () => {
   it('renders correctly', async () => {
     const instance = render(<App />);
+    expect(instance.getByText('Rollipop')).toBeTruthy();
     expect(instance.getByText('Modern build toolkit for React Native')).toBeTruthy();
+    expect(instance.getByText('Get Started')).toBeTruthy();
   });
 
   it('exposes Platform.OS and Platform.constants via jest-preset NativeModules', () => {
