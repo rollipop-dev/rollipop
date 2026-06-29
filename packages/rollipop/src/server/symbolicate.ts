@@ -31,6 +31,10 @@ export interface SymbolicateResult {
   codeFrame: CodeFrame | null;
 }
 
+type BundleStoreResolver = (
+  frame: StackFrameInput,
+) => BundleStore | undefined | Promise<BundleStore | undefined>;
+
 /**
  * @see https://github.com/facebook/react-native/blob/0.83-stable/packages/metro-config/src/index.flow.js#L17
  */
@@ -65,15 +69,37 @@ export async function symbolicate(
   bundleStore: BundleStore,
   stack: StackFrameInput[],
 ): Promise<SymbolicateResult> {
-  const sourceMapConsumer = await bundleStore.sourceMapConsumer;
-  const symbolicatedStack = stack
-    .filter((frame) => frame.file?.startsWith('http'))
-    .map((frame) => (sourceMapConsumer ? originalPositionFor(sourceMapConsumer, frame) : frame))
-    .map((frame) => collapseFrame(frame));
+  return symbolicateWithBundleResolver(stack, (frame) =>
+    frame.file?.startsWith('http') ? bundleStore : undefined,
+  );
+}
 
+export async function symbolicateWithBundleResolver(
+  stack: StackFrameInput[],
+  resolveBundleStore: BundleStoreResolver,
+): Promise<SymbolicateResult> {
+  const symbolicatedStack = await Promise.all(
+    stack.map(async (frame) => {
+      const bundleStore = frame.file?.startsWith('http')
+        ? await resolveBundleStore(frame)
+        : undefined;
+      const sourceMapConsumer = await bundleStore?.sourceMapConsumer;
+      const symbolicatedFrame = sourceMapConsumer
+        ? originalPositionFor(sourceMapConsumer, frame)
+        : frame;
+
+      return {
+        bundleStore,
+        frame: collapseFrame(symbolicatedFrame),
+        sourceMapConsumer,
+      };
+    }),
+  );
+
+  const stackFrames = symbolicatedStack.map(({ frame }) => frame);
   return {
-    stack: symbolicatedStack,
-    codeFrame: getCodeFrame(symbolicatedStack, bundleStore, sourceMapConsumer),
+    stack: stackFrames,
+    codeFrame: getCodeFrame(symbolicatedStack),
   };
 }
 
@@ -91,7 +117,7 @@ function originalPositionFor(sourceMapConsumer: SourceMapConsumer, frame: StackF
     const targetKey = convertFrameKey(key as keyof typeof originalPosition);
     return {
       ...frame,
-      ...(value ? { [targetKey]: value } : null),
+      ...(value != null ? { [targetKey]: value } : null),
     };
   }, frame);
 }
@@ -118,38 +144,62 @@ function convertFrameKey(key: keyof NullableMappedPosition): keyof StackFrameInp
   return key;
 }
 
-function getCodeFrame(
-  frames: StackFrameInput[],
-  bundleStore: BundleStore,
-  sourceMapConsumer?: SourceMapConsumer,
-): CodeFrame | null {
-  const frame = frames.find((frame) => {
-    return frame.lineNumber != null && frame.column != null && !isCollapsed(frame);
-  });
+interface SymbolicatedStackFrame {
+  bundleStore?: BundleStore;
+  frame: StackFrameOutput;
+  sourceMapConsumer?: SourceMapConsumer;
+}
 
-  if (frame?.file == null || frame.column == null || frame.lineNumber == null) {
-    return null;
+function getCodeFrame(frames: SymbolicatedStackFrame[]): CodeFrame | null {
+  for (const match of frames) {
+    const frame = match.frame;
+
+    if (frame.file == null || frame.column == null || frame.lineNumber == null) {
+      continue;
+    }
+
+    if (isCollapsed(frame)) {
+      continue;
+    }
+
+    const codeFrame = createCodeFrame(match);
+    if (codeFrame != null) {
+      return codeFrame;
+    }
   }
 
+  return null;
+}
+
+function createCodeFrame({
+  bundleStore,
+  frame,
+  sourceMapConsumer,
+}: SymbolicatedStackFrame): CodeFrame | null {
   try {
     const { lineNumber, column, file } = frame;
-    const unresolved = file.startsWith('http');
+    if (file == null || lineNumber == null || column == null) {
+      return null;
+    }
+
+    const unresolved = file?.startsWith('http') ?? false;
     const source =
       sourceMapConsumer == null || unresolved
-        ? bundleStore.code
-        : sourceMapConsumer.sourceContentFor(frame.file);
-    const fileName = unresolved ? (parseUrl(file).pathname ?? 'unknown') : file;
-    let content = '';
+        ? bundleStore?.code
+        : sourceMapConsumer.sourceContentFor(file, true);
 
-    if (source) {
-      content = codeFrameColumns(
-        source,
-        {
-          start: { column, line: lineNumber },
-        },
-        { highlightCode: true },
-      );
+    if (!source) {
+      return null;
     }
+
+    const fileName = unresolved ? (parseUrl(file).pathname ?? 'unknown') : file;
+    const content = codeFrameColumns(
+      source,
+      {
+        start: { column: column + 1, line: lineNumber },
+      },
+      { highlightCode: true },
+    );
 
     return {
       content,
