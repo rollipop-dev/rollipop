@@ -1,0 +1,73 @@
+---
+title: React Compiler
+---
+
+Rollipop can enable rolldown's native React Compiler transform for React and React Native application code. The transform runs in the bundler pipeline, so you can remove manual memoization such as `useMemo`, `useCallback`, and `React.memo` when the compiler can safely optimize the component.
+
+<Callout type="warn">
+  React Compiler changes generated application code. Enable it after validating your app locally,
+  and keep any manual memoization that exists for semantic behavior rather than render performance.
+</Callout>
+
+## Setup
+
+React Compiler is disabled by default. Pass an empty object to opt in with Rollipop's defaults:
+
+```ts title="rollipop.config.ts"
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  transformer: {
+    reactCompiler: {},
+  },
+});
+```
+
+With the empty object form, Rollipop skips files whose module id matches `/node_modules/`.
+
+## Configuration
+
+`transformer.reactCompiler` accepts rolldown's React Compiler options.
+
+| Property          | Type                                           | Description                                                               |
+| ----------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
+| `include`         | `Array<string \| RegExp>`                      | File patterns to compile. Empty means all files that enter the transform. |
+| `exclude`         | `Array<string \| RegExp>`                      | File patterns to skip. Overrides Rollipop's default exclude list.         |
+| `compilationMode` | `'infer' \| 'syntax' \| 'annotation' \| 'all'` | Which functions to compile.                                               |
+| `panicThreshold`  | `'none' \| 'critical_errors' \| 'all_errors'`  | How strictly compilation failures should be reported.                     |
+| `target`          | `'17' \| '18' \| '19'`                         | React runtime version target.                                             |
+| `noEmit`          | `boolean`                                      | Report diagnostics without emitting transformed code.                     |
+
+### Excluding dependencies
+
+If you omit `exclude`, Rollipop uses `/node_modules/` by default:
+
+```ts title="rollipop.config.ts"
+export default defineConfig({
+  transformer: {
+    reactCompiler: {},
+  },
+});
+```
+
+If you provide `exclude`, your value replaces that default. Include `/node_modules/` yourself if you still want dependency code skipped:
+
+```ts title="rollipop.config.ts"
+export default defineConfig({
+  transformer: {
+    reactCompiler: {
+      exclude: [/node_modules/, /vendor/],
+    },
+  },
+});
+```
+
+## Manual Memoization
+
+After enabling React Compiler, remove memoization that exists only to avoid re-renders:
+
+- `useMemo` for derived values that can be recomputed safely
+- `useCallback` for event handlers and callbacks passed to children
+- `React.memo` around components that do not need a custom equality check
+
+Keep memoization when it is part of observable behavior, protects expensive non-render work, or relies on a custom comparison that the compiler cannot infer.
