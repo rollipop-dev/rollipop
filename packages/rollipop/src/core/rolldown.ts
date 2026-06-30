@@ -28,6 +28,7 @@ import { transformWithRollipop } from '../utils/transform';
 import { loadEnv } from './env';
 import {
   type AnalyzePluginOptions,
+  type AliasPluginOptions,
   type BabelPluginOptions,
   type DevServerPluginOptions,
   type EntryPluginOptions,
@@ -35,6 +36,7 @@ import {
   type ReactNativePluginOptions,
   type ReporterPluginOptions,
   type SwcPluginOptions,
+  alias,
   analyze,
   babel,
   devServer,
@@ -132,6 +134,7 @@ export async function resolveRolldownOptions(
 
   // User Plugins
   const userPlugins = config.plugins;
+  const { rolldownAlias, aliasPluginOptions } = resolveAliasPluginOptions(config);
 
   const mergedResolveOptions = merge(
     {
@@ -142,7 +145,10 @@ export async function resolveRolldownOptions(
         preferNativePlatform,
       }),
     } satisfies rolldown.InputOptions['resolve'],
-    rolldownResolve,
+    {
+      ...rolldownResolve,
+      alias: rolldownAlias,
+    },
   );
 
   const mergedTransformOptions = merge(
@@ -204,6 +210,7 @@ export async function resolveRolldownOptions(
     plugins: withTransformBoundary(context, [
       entry(entryPluginOptions),
       importGlob(importGlobPluginOptions),
+      alias(aliasPluginOptions),
       reactNative(reactNativePluginOptions),
       babel(babelPluginOptions),
       swc(swcPluginOptions),
@@ -289,6 +296,19 @@ function resolveImportGlobPluginOptions(config: ResolvedConfig): ImportGlobPlugi
     sourcemap: config.mode === 'development',
     restoreQueryExtension: false,
   };
+}
+
+function resolveAliasPluginOptions(config: ResolvedConfig): {
+  rolldownAlias: NonNullable<rolldown.InputOptions['resolve']>['alias'];
+  aliasPluginOptions: AliasPluginOptions;
+} {
+  const { alias } = config.resolver;
+
+  if (Array.isArray(alias)) {
+    return { rolldownAlias: undefined, aliasPluginOptions: { entries: alias } };
+  }
+
+  return { rolldownAlias: alias, aliasPluginOptions: { entries: [] } };
 }
 
 async function resolveReactNativePluginOptions(

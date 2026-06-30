@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 
+import type { Plugin } from '../src/core/plugins/types';
 import { build, fixturePath } from './helpers';
 
 describe('resolver', () => {
@@ -53,7 +54,7 @@ describe('resolver', () => {
   });
 
   describe('alias', () => {
-    it('resolves aliased module paths', async () => {
+    it('resolves object aliased module paths', async () => {
       const chunk = await build('resolver/alias', {
         resolver: {
           alias: {
@@ -64,6 +65,54 @@ describe('resolver', () => {
 
       expect(chunk.code).toContain('hello');
       expect(chunk.code).not.toContain('@src');
+    });
+
+    it('resolves array aliased module paths', async () => {
+      const chunk = await build('resolver/alias', {
+        resolver: {
+          alias: [
+            {
+              find: '@src',
+              replacement: path.join(fixturePath('resolver/alias'), 'src'),
+            },
+          ],
+        },
+      });
+
+      expect(chunk.code).toContain('hello');
+      expect(chunk.code).not.toContain('@src');
+    });
+
+    it('resolves array alias replacements through plugin resolveId hooks', async () => {
+      const VIRTUAL_ID = '\0test:aliased-config';
+      const plugin: Plugin = {
+        name: 'test:aliased-config',
+        resolveId(source) {
+          if (source === 'virtual:aliased-config') {
+            return VIRTUAL_ID;
+          }
+        },
+        load(id) {
+          if (id === VIRTUAL_ID) {
+            return 'export const message = "resolved by plugin";';
+          }
+        },
+      };
+
+      const chunk = await build('resolver/alias-plugin', {
+        resolver: {
+          alias: [
+            {
+              find: '@config',
+              replacement: 'virtual:aliased-config',
+            },
+          ],
+        },
+        plugins: [plugin],
+      });
+
+      expect(chunk.code).toContain('resolved by plugin');
+      expect(chunk.code).not.toContain('@config');
     });
   });
 

@@ -8,7 +8,7 @@ import { resolveBuildOptions } from '../../utils/build-options';
 import { resolveRolldownOptions } from '../rolldown';
 import type { BundlerContext } from '../types';
 
-function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
+function getPlugins(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
   const plugins: rolldown.Plugin[] = [];
   const visit = (plugin: unknown) => {
     if (plugin == null) {
@@ -23,6 +23,11 @@ function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOp
 
   visit(options.input?.plugins);
 
+  return plugins;
+}
+
+function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
+  const plugins = getPlugins(options);
   const plugin = plugins.find((plugin) => plugin.name === 'rollipop:status');
   expect(plugin).toBeDefined();
   return plugin!;
@@ -97,6 +102,39 @@ describe('resolveRolldownOptions', () => {
       exclude: [/vendor/],
       target: '18',
     });
+  });
+
+  it('passes object aliases to rolldown resolve options', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const config = createTestConfig(process.cwd());
+    config.resolver.alias = {
+      '@src': '/project/src',
+    };
+
+    const options = await resolveTestRolldownOptions(config, 'test-bundler-object-alias');
+
+    expect(options.input?.resolve?.alias).toEqual({
+      '@src': '/project/src',
+    });
+    expect(getPlugins(options).map((plugin) => plugin.name)).not.toContain('builtin:vite-alias');
+  });
+
+  it('installs array aliases through the alias plugin', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const config = createTestConfig(process.cwd());
+    config.resolver.alias = [
+      {
+        find: '@src',
+        replacement: '/project/src',
+      },
+    ];
+
+    const options = await resolveTestRolldownOptions(config, 'test-bundler-array-alias');
+
+    expect(options.input?.resolve?.alias).toBeUndefined();
+    expect(getPlugins(options).map((plugin) => plugin.name)).toContain('builtin:vite-alias');
   });
 
   it('transforms only polyfills that opt into Rollipop transform', async () => {

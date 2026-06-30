@@ -11,6 +11,7 @@ import type * as swc from '@swc/core';
 
 export type { RollipopReactNativeFlowConfig, RollipopReactNativeWorkletsConfig };
 
+import type { AliasEntry } from '../core/plugins';
 import type { Plugin } from '../core/plugins/types';
 import type { InteractiveCommand } from '../node/cli-utils';
 import type { MaybePromise, NullValue, Reporter } from '../types';
@@ -214,7 +215,41 @@ export type PluginOption = MaybePromise<
   | PluginOption[]
 >;
 
-export type ResolverConfig = Omit<NonNullable<rolldown.InputOptions['resolve']>, 'extensions'> & {
+export type ResolverConfig = Omit<
+  NonNullable<rolldown.InputOptions['resolve']>,
+  'alias' | 'extensions'
+> & {
+  /**
+   * Substitute one package or module path for another.
+   *
+   * Object aliases are forwarded to Rolldown's native `resolve.alias`.
+   * Array aliases are installed through Rollipop's alias plugin so plugin
+   * [`resolveId`](/reference/Interface.Plugin#resolveid) hooks can participate in resolving the replacement.
+   *
+   * @example
+   * ```js
+   * // Object alias
+   * resolve: {
+   *   alias: {
+   *     '@': '/src',
+   *     'utils': './src/utils',
+   *   }
+   * }
+   *
+   * // Array alias
+   * resolve: {
+   *   alias: [
+   *     { find: '@', replacement: '/src' },
+   *     { find: /^utils\//, replacement: './src/utils/' },
+   *   ]
+   * }
+   * ```
+   *
+   * > [!WARNING]
+   * > Object aliases use `resolve.alias`, which will not call `resolveId` hooks of other plugins.
+   * > Use the array form when plugin-based resolution is required.
+   */
+  alias?: AliasConfig;
   /**
    * Defaults to: `['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json']`
    */
@@ -243,6 +278,8 @@ export type ResolverConfig = Omit<NonNullable<rolldown.InputOptions['resolve']>,
    */
   external?: rolldown.InputOptions['external'];
 };
+
+export type AliasConfig = NonNullable<rolldown.InputOptions['resolve']>['alias'] | AliasEntry[];
 
 export type TransformerConfig = Omit<
   TransformOptions,
