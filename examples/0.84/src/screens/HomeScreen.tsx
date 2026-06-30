@@ -16,7 +16,7 @@ const breathe: CSSAnimationKeyframes = {
   },
 };
 
-type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'home'>;
+type HomeNavigation = NativeStackNavigationProp<RootStackParamList, 'index'>;
 
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigation>();

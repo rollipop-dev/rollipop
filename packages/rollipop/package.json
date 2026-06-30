@@ -16,6 +16,7 @@
   "bin": "./bin/index.js",
   "files": [
     "client.d.ts",
+    "import-glob.d.ts",
     "bin",
     "dist",
     "skills",
