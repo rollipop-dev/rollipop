@@ -1,5 +1,7 @@
+/**
+ * @TODO Sync with the pages/*.ts files.
+ */
 export type RootStackParamList = {
-  home: undefined;
+  index: undefined;
   details: undefined;
-  test_suites: undefined;
 };

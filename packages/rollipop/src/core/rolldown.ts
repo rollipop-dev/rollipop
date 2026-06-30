@@ -31,6 +31,7 @@ import {
   type BabelPluginOptions,
   type DevServerPluginOptions,
   type EntryPluginOptions,
+  type ImportGlobPluginOptions,
   type ReactNativePluginOptions,
   type ReporterPluginOptions,
   type SwcPluginOptions,
@@ -38,6 +39,7 @@ import {
   babel,
   devServer,
   entry,
+  importGlob,
   reactNative,
   reporter,
   swc,
@@ -170,6 +172,7 @@ export async function resolveRolldownOptions(
   );
 
   const entryPluginOptions = resolveEntryPluginOptions(config);
+  const importGlobPluginOptions = resolveImportGlobPluginOptions(config);
   const reactNativePluginOptions = await resolveReactNativePluginOptions(
     config,
     context,
@@ -200,6 +203,7 @@ export async function resolveRolldownOptions(
     },
     plugins: withTransformBoundary(context, [
       entry(entryPluginOptions),
+      importGlob(importGlobPluginOptions),
       reactNative(reactNativePluginOptions),
       babel(babelPluginOptions),
       swc(swcPluginOptions),
@@ -276,6 +280,14 @@ function resolveEntryPluginOptions(config: ResolvedConfig): EntryPluginOptions {
   return {
     entryPath: config.entry,
     preludePaths: config.serializer.prelude,
+  };
+}
+
+function resolveImportGlobPluginOptions(config: ResolvedConfig): ImportGlobPluginOptions {
+  return {
+    root: config.root,
+    sourcemap: config.mode === 'development',
+    restoreQueryExtension: false,
   };
 }
 

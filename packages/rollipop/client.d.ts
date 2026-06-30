@@ -4,6 +4,10 @@ interface ImportMetaEnv {
 }
 
 interface ImportMeta {
-  hot?: import('./dist').HMRContext;
+  glob: import('./import-glob').ImportGlobFunction;
   env: ImportMetaEnv;
+  /**
+   * Only available in development mode.
+   */
+  hot?: import('./dist').HMRContext;
 }
