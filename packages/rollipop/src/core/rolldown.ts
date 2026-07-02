@@ -45,6 +45,8 @@ import {
   reactNative,
   reporter,
   swc,
+  DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+  DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
 } from './plugins';
 import { printPluginLog } from './plugins/context';
 import { withTransformBoundary } from './plugins/utils/transform-utils';
@@ -251,7 +253,7 @@ export async function resolveRolldownOptions(
     outro: rolldownOutro,
     intro: async (chunk) => {
       return [
-        ...getGlobalVariables(dev, context.buildType),
+        ...getGlobalVariables(dev),
         ...loadPolyfills(config),
         typeof rolldownIntro === 'function' ? await rolldownIntro(chunk) : rolldownIntro,
       ]
@@ -615,6 +617,9 @@ export function getOverrideOptionsForDevServer(buildOptions: ResolvedBuildOption
         refresh: {
           refreshReg: '$RefreshReg$',
           refreshSig: '$RefreshSig$',
+          // `@rollipop/rolldown` specific options
+          include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+          exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
         },
       },
     },

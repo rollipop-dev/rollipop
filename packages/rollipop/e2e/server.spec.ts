@@ -156,12 +156,6 @@ describe('dev server', () => {
     it('contains process.env.NODE_ENV = "production"', () => {
       expect(code).toContain('NODE_ENV = process.env.NODE_ENV || "production"');
     });
-
-    it('does NOT contain React Refresh stubs in production', () => {
-      // $RefreshReg$ and $RefreshSig$ should only be in dev+serve mode
-      // production builds should not have them in the global intro
-      expect(code).not.toMatch(/^var \$RefreshReg\$/m);
-    });
   });
 
   describe('bundle content - platform difference', () => {

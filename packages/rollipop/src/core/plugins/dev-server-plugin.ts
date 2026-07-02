@@ -12,6 +12,9 @@ export interface DevServerPluginOptions {
   hmrConfig: ResolvedHmrConfig | null;
 }
 
+export const DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS = [/\.[tj]sx?(?:$|\?)/];
+export const DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS = [/node_modules/];
+
 async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldown.Plugin[] | null> {
   const { cwd, hmrClientPath, hmrConfig } = options;
 
@@ -43,8 +46,8 @@ async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldow
     replaceHMRClientPlugin,
     reactRefresh({
       cwd,
-      include: [/\.[tj]sx?(?:$|\?)/],
-      exclude: [/\/node_modules\//],
+      include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+      exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
     }),
   ];
 }
