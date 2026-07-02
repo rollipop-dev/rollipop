@@ -1,4 +1,18 @@
 
+## [1.0.0-alpha.28] - 2026-07-02
+
+### 🚀 Features
+
+- use napi's `resetCache` instead by @leegeunhyeok
+- align react-refresh transform targets by @leegeunhyeok
+- improve alias config by @leegeunhyeok
+- glob import (#129) by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- bump `@rollipop/rolldown` to 1.0.21 (#130) by @leegeunhyeok
+
+
 ## [1.0.0-alpha.27] - 2026-06-29
 
 ### 🚀 Features
