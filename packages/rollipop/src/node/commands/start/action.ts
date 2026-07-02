@@ -15,7 +15,7 @@ export const action: CommandAction<StartCommandOptions> = async function (option
   });
 
   if (options.resetCache) {
-    Rollipop.resetCache(cwd);
+    await Rollipop.resetCache();
     logger.info('The transform cache was reset');
   }
 

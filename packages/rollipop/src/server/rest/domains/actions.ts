@@ -16,8 +16,8 @@ export const actionsRest = fp<ActionsRestOptions>(
       return { reloaded: true };
     });
 
-    fastify.post('/reset-cache', () => {
-      resetCache(context.config.root);
+    fastify.post('/reset-cache', async () => {
+      await resetCache();
       context.eventBus.emit({ type: 'cache_reset' });
       return { reset: true };
     });

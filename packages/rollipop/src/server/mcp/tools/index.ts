@@ -86,7 +86,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       description: 'Clear the build cache.',
       inputSchema: emptyArgs,
       async handler() {
-        resetCache(context.config.root);
+        await resetCache();
         context.eventBus.emit({ type: 'cache_reset' });
         return textResult('Cache cleared successfully.');
       },

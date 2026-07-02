@@ -9,7 +9,7 @@ import {
 import type { Plugin } from '../src/core/plugins/types';
 import type { ReportableEvent } from '../src/types';
 import { resetCache } from '../src/utils/reset-cache';
-import { build, createConfig, fixturePath } from './helpers';
+import { build, createConfig } from './helpers';
 
 describe('plugin system', () => {
   describe('rolldown hooks', () => {
@@ -133,7 +133,6 @@ describe('plugin system', () => {
     });
 
     it('reports persistent transform cache hits as progress', async () => {
-      const root = fixturePath('serializer/prelude');
       const collectEvents = (events: ReportableEvent[]) => ({
         update(event: ReportableEvent) {
           events.push(event);
@@ -147,7 +146,7 @@ describe('plugin system', () => {
         return event;
       };
 
-      resetCache(root);
+      await resetCache();
       try {
         const firstEvents: ReportableEvent[] = [];
         await build(
@@ -173,7 +172,7 @@ describe('plugin system', () => {
         expect(progressEvent?.type).toBe('transform');
         expect(progressEvent?.transformedModules).toBe(doneEvent.totalModules);
       } finally {
-        resetCache(root);
+        await resetCache();
       }
     });
   });

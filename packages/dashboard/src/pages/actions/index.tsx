@@ -110,10 +110,7 @@ export function ActionsPage({
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Reset cache?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Filesystem cache will be removed. Restart the development server to build from a
-                    clean cache state.
-                  </AlertDialogDescription>
+                  <AlertDialogDescription>Filesystem cache will be removed.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>

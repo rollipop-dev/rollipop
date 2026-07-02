@@ -19,7 +19,7 @@ export const action: CommandAction<BundleCommandArgs> = async function (options)
   });
 
   if (options.resetCache) {
-    Rollipop.resetCache(cwd);
+    await Rollipop.resetCache();
     logger.info('The transform cache was reset');
   }
 
