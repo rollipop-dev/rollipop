@@ -15,6 +15,8 @@ import type { ServerEventBus } from './events/event-bus';
 import type { DevServerState } from './state/store';
 import type { WebSocketClient } from './wss/server';
 
+export type * from './sse/types';
+
 export type FastifyInstance = BaseFastifyInstance & {
   // `@fastify/middie` extension
   use(fn: fastifyMiddie.Handler): FastifyInstance;
