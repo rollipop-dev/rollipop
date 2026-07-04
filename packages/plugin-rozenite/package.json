@@ -13,7 +13,6 @@
     "url": "git+https://github.com/rollipop-dev/rollipop.git",
     "directory": "packages/plugin-rozenite"
   },
-  "bin": "./bin/index.js",
   "files": [
     "dist"
   ],
