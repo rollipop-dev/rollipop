@@ -1,15 +1,26 @@
 const path = require('node:path');
 
+const projectRoot = process.cwd();
+
+function requireFromProjectRoot(id) {
+  return require(require.resolve(id, { paths: [projectRoot] }));
+}
+
 function loadBasePreset() {
-  let preset;
   try {
-    preset = require('@react-native/jest-preset');
-    return { preset, setup: '@react-native/jest-preset/setup.js' };
+    return {
+      preset: requireFromProjectRoot('@react-native/jest-preset'),
+      setup: '@react-native/jest-preset/setup.js',
+    };
   } catch {}
+
   try {
-    preset = require('react-native/jest-preset');
-    return { preset, setup: 'react-native/jest/setup.js' };
+    return {
+      preset: requireFromProjectRoot('react-native/jest-preset'),
+      setup: 'react-native/jest/setup.js',
+    };
   } catch {}
+
   throw new Error(
     '@rollipop/jest-preset: could not resolve a React Native jest preset. ' +
       'Install either `@react-native/jest-preset` (RN >= 0.85) or `react-native` (RN <= 0.84).',
