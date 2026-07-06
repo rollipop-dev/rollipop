@@ -1,31 +1,17 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreExportsUsedInFile": true,
-  "tags": [
-    "-lintignore"
-  ],
+  "tags": ["-lintignore"],
   "ignoreIssues": {
-    "examples/module-federation/src/host/App.tsx": [
-      "unlisted"
-    ],
-    "examples/0.72/hmr-client.ts": [
-      "unresolved"
-    ],
-    "packages/rollipop/src/runtime/hmr-client.ts": [
-      "unresolved"
-    ],
-    "packages/rollipop/src/internal/react-native.ts": [
-      "unlisted"
-    ],
-    "packages/plugin-rozenite/src/patch.ts": [
-      "unlisted"
-    ]
+    "examples/module-federation/src/host/App.tsx": ["unlisted"],
+    "examples/0.72/hmr-client.ts": ["unresolved"],
+    "packages/rollipop/src/runtime/hmr-client.ts": ["unresolved"],
+    "packages/rollipop/src/internal/react-native.ts": ["unlisted"],
+    "packages/plugin-rozenite/src/patch.ts": ["unlisted"]
   },
   "workspaces": {
     ".": {
-      "entry": [
-        "vite.config.ts"
-      ]
+      "entry": ["vite.config.ts"]
     },
     "docs": {
       "entry": [
@@ -35,48 +21,18 @@
         "src/components/mdx/**/*.{ts,tsx}",
         "scripts/**/*.mjs"
       ],
-      "project": [
-        "**/*.{js,mjs,ts,tsx}",
-        "!**/.next/**",
-        "!**/.source/**",
-        "!out/**"
-      ],
-      "ignoreDependencies": [
-        "tailwindcss"
-      ]
+      "project": ["**/*.{js,mjs,ts,tsx}", "!**/.next/**", "!**/.source/**", "!out/**"],
+      "ignoreDependencies": ["tailwindcss"]
     },
     "examples/0.72": {
-      "entry": [
-        "App.tsx",
-        "rollipop.config.ts",
-        "__tests__/**/*.{js,jsx,ts,tsx}",
-        "hmr-client.ts"
-      ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!android/**",
-        "!ios/**"
-      ],
-      "ignoreDependencies": [
-        "@babel/runtime",
-        "babel-jest"
-      ]
+      "entry": ["App.tsx", "rollipop.config.ts", "__tests__/**/*.{js,jsx,ts,tsx}", "hmr-client.ts"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
+      "ignoreDependencies": ["@babel/runtime", "babel-jest"]
     },
     "examples/0.84": {
-      "entry": [
-        "App.tsx",
-        "rollipop.config.ts",
-        "__tests__/**/*.{js,jsx,ts,tsx}"
-      ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!android/**",
-        "!ios/**"
-      ],
-      "ignoreDependencies": [
-        "@babel/runtime",
-        "@swc/helpers"
-      ]
+      "entry": ["App.tsx", "rollipop.config.ts", "__tests__/**/*.{js,jsx,ts,tsx}"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
+      "ignoreDependencies": ["@babel/runtime", "@swc/helpers"]
     },
     "examples/module-federation": {
       "entry": [
@@ -88,47 +44,20 @@
         "src/remote/index.ts",
         "src/remote/exposed/**/*.{ts,tsx}"
       ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!android/**",
-        "!ios/**"
-      ],
-      "ignoreDependencies": [
-        "@babel/runtime",
-        "@module-federation/runtime"
-      ]
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
+      "ignoreDependencies": ["@babel/runtime", "@module-federation/runtime"]
     },
     "packages/dashboard": {
-      "project": [
-        "src/**/*.{js,jsx,ts,tsx}"
-      ],
-      "ignoreDependencies": [
-        "shadcn",
-        "tailwindcss",
-        "tw-animate-css"
-      ]
+      "project": ["src/**/*.{js,jsx,ts,tsx}"],
+      "ignoreDependencies": ["shadcn", "tailwindcss", "tw-animate-css"]
     },
     "packages/init": {
-      "entry": [
-        "vite.config.ts",
-        "src/**/__tests__/**/*.{js,jsx,ts,tsx}"
-      ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!dist/**"
-      ]
+      "entry": ["vite.config.ts", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/jest-preset": {
-      "entry": [
-        "vite.config.ts",
-        "src/index.ts",
-        "src/transformer.ts",
-        "src/mock.ts"
-      ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!dist/**"
-      ]
+      "entry": ["vite.config.ts", "src/index.ts", "src/transformer.ts", "src/mock.ts"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/plugin-module-federation": {
       "entry": [
@@ -137,33 +66,16 @@
         "src/runtime.ts",
         "src/**/__tests__/**/*.{js,jsx,ts,tsx}"
       ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!dist/**"
-      ],
-      "ignoreDependencies": [
-        "@module-federation/runtime"
-      ]
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"],
+      "ignoreDependencies": ["@module-federation/runtime"]
     },
     "packages/plugin-rozenite": {
-      "entry": [
-        "vite.config.ts",
-        "src/index.ts"
-      ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!dist/**"
-      ]
+      "entry": ["vite.config.ts", "src/index.ts"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/plugin-svg": {
-      "entry": [
-        "vite.config.ts",
-        "src/index.ts"
-      ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!dist/**"
-      ]
+      "entry": ["vite.config.ts", "src/index.ts"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/rollipop": {
       "entry": [
@@ -180,13 +92,8 @@
         "e2e/runtime/harness.ts",
         "testing/**/*.{js,jsx,ts,tsx}"
       ],
-      "project": [
-        "**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}",
-        "!dist/**"
-      ],
-      "ignoreFiles": [
-        "e2e/**/__fixtures__/**"
-      ]
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"],
+      "ignoreFiles": ["e2e/**/__fixtures__/**"]
     }
   }
 }

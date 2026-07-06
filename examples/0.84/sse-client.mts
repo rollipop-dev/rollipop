@@ -16,7 +16,6 @@
 import http from 'node:http';
 
 import pc from 'picocolors';
-
 import type { SSEEvent } from 'rollipop';
 
 const port = Number(process.argv[2] || '8081');
