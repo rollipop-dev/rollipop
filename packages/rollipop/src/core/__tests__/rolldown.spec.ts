@@ -37,7 +37,7 @@ async function resolveTestRolldownOptions(
   config: ReturnType<typeof createTestConfig>,
   contextId: string,
 ) {
-  config.devMode.hmr = false;
+  config.dev.hmr = false;
   config.reactNative.assetRegistryPath = path.join(config.root, 'package.json');
 
   return resolveRolldownOptions(
@@ -72,7 +72,7 @@ describe('resolveRolldownOptions', () => {
     resolveRolldownOptions.cache.clear();
 
     const config = createTestConfig(process.cwd());
-    config.transformer.reactCompiler = {};
+    config.transform.reactCompiler = {};
 
     const options = await resolveTestRolldownOptions(
       config,
@@ -88,7 +88,7 @@ describe('resolveRolldownOptions', () => {
     resolveRolldownOptions.cache.clear();
 
     const config = createTestConfig(process.cwd());
-    config.transformer.reactCompiler = {
+    config.transform.reactCompiler = {
       exclude: [/vendor/],
       target: '18',
     };
@@ -108,7 +108,7 @@ describe('resolveRolldownOptions', () => {
     resolveRolldownOptions.cache.clear();
 
     const config = createTestConfig(process.cwd());
-    config.resolver.alias = {
+    config.resolve.alias = {
       '@src': '/project/src',
     };
 
@@ -124,7 +124,7 @@ describe('resolveRolldownOptions', () => {
     resolveRolldownOptions.cache.clear();
 
     const config = createTestConfig(process.cwd());
-    config.resolver.alias = [
+    config.resolve.alias = [
       {
         find: '@src',
         replacement: '/project/src',
@@ -137,31 +137,14 @@ describe('resolveRolldownOptions', () => {
     expect(getPlugins(options).map((plugin) => plugin.name)).toContain('builtin:vite-alias');
   });
 
-  it('transforms only polyfills that opt into Rollipop transform', async () => {
+  it('injects polyfills through the output intro', async () => {
     resolveRolldownOptions.cache.clear();
 
     const root = process.cwd();
     const config = createTestConfig(root);
-    config.devMode.hmr = false;
+    config.dev.hmr = false;
     config.reactNative.assetRegistryPath = path.join(root, 'package.json');
-    config.serializer.polyfills = [
-      {
-        type: 'plain',
-        // TypeScript
-        code: 'var __PLAIN_TRANSFORMED__: number = 1;',
-        withTransform: true,
-      },
-      {
-        type: 'iife',
-        // Flow
-        code: 'global.__IIFE_TRANSFORMED__ = (2: number);',
-        withTransform: true,
-      },
-      {
-        type: 'plain',
-        code: 'var __PLAIN_UNTRANSFORMED__: number = 3;',
-      },
-    ];
+    config.polyfills = [{ type: 'plain', code: 'var __POLYFILL__ = 1;' }];
     const context = {
       id: 'test-bundler',
       root,
@@ -184,13 +167,8 @@ describe('resolveRolldownOptions', () => {
     ) => string | Promise<string>;
     const introCode = await intro({ fileName: 'bundle.js' } as rolldown.OutputChunk);
 
-    expect(introCode).toContain('var __PLAIN_TRANSFORMED__ = 1;');
-    expect(introCode).not.toContain('var __PLAIN_TRANSFORMED__: number = 1;');
-    expect(introCode).toMatch(/\(function\s*\(global\d*\)/);
-    expect(introCode).toMatch(/global\d*\.__IIFE_TRANSFORMED__ = 2;/);
-    expect(introCode).not.toContain('global.__IIFE_TRANSFORMED__ = (2: number);');
-    expect(introCode).toContain('var __PLAIN_UNTRANSFORMED__: number = 3;');
-    expect(introCode).toMatchSnapshot();
+    expect(introCode).toContain('__POLYFILL__');
+    expect(introCode).toContain('\\0rollipop/polyfill?index=0');
   });
 
   it('reports rolldown build logs through the reporter pipeline', async () => {
@@ -200,7 +178,7 @@ describe('resolveRolldownOptions', () => {
     const root = process.cwd();
     const config = createTestConfig(root);
     config.reporter = reporter;
-    config.devMode.hmr = false;
+    config.dev.hmr = false;
     config.reactNative.assetRegistryPath = path.join(root, 'package.json');
     const context = {
       id: 'test-bundler',
@@ -280,7 +258,7 @@ describe('resolveRolldownOptions', () => {
       }) satisfies BundlerContext;
     const createConfig = () => {
       const config = createTestConfig(root);
-      config.devMode.hmr = false;
+      config.dev.hmr = false;
       config.reactNative.assetRegistryPath = path.join(root, 'package.json');
       return config;
     };

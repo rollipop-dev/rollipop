@@ -2,7 +2,7 @@ import * as babel from '@babel/core';
 import type * as rolldown from '@rollipop/rolldown';
 import { invariant } from 'es-toolkit';
 
-import type { TransformerConfig } from '../../config';
+import type { TransformConfig } from '../../config';
 import { mergeBabelOptions } from '../../utils/babel';
 import type { BundlerContext } from '../types';
 import { isJSX, isTS } from './utils';
@@ -16,7 +16,7 @@ export interface BabelPluginOptions {
    * user-provided rules run — the rust-side pipeline handles the rest.
    */
   useNativeTransformPipeline: boolean;
-  transformConfig?: TransformerConfig['babel'];
+  transformConfig?: TransformConfig['babel'];
 }
 
 function babelPlugin({

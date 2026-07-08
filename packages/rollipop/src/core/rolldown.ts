@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type * as rolldown from '@rollipop/rolldown';
-import type { TransformOptions } from '@rollipop/rolldown/utils';
+import type { TransformOptions as RollipopTransformOptions } from '@rollipop/rolldown/utils';
 import { invariant, isNotNil, merge } from 'es-toolkit';
 
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
-import type { ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
+import type { PluginOption, ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
 import { applyOverrideRolldownOptions } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { getGlobalVariables } from '../internal/react-native';
@@ -57,6 +57,9 @@ export interface RolldownOptions {
   output?: rolldown.OutputOptions;
 }
 
+type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
+type ReactCompilerTransformOptions = RolldownTransformOptions['reactCompiler'];
+
 export async function resolveRolldownOptions(
   context: BundlerContext,
   config: ResolvedConfig,
@@ -94,90 +97,109 @@ export async function resolveRolldownOptions(
   const hmrConfig = resolveHmrConfig(config);
   const hmrEnabled = hmrConfig != null;
 
-  // Resolver
+  const rawRolldownOptions = config.rolldownOptions ?? {};
   const {
-    sourceExtensions,
-    assetExtensions,
-    preferNativePlatform,
-    external: rolldownExternal,
-    ...rolldownResolve
-  } = config.resolver;
+    output: rawOutputOptions,
+    plugins: rawPlugins,
+    resolve: rawResolve,
+    transform: rawTransform,
+    experimental: rawExperimental,
+    ...rawInputOptions
+  } = rawRolldownOptions;
 
-  // Serializer
   const {
-    banner: rolldownBanner,
-    footer: rolldownFooter,
-    postBanner: rolldownPostBanner,
-    postFooter: rolldownPostFooter,
-    intro: rolldownIntro,
-    outro: rolldownOutro,
-    shimMissingExports: rolldownShimMissingExports,
-  } = config.serializer;
-
-  // Transformer
-  const { flow: _flow, babel: _babel, swc: _swc, ...rolldownTransform } = config.transformer;
-
-  // Optimization
-  const {
-    treeshake: rolldownTreeshake,
-    minify: rolldownMinify,
-    lazyBarrel: rolldownLazyBarrel,
-    ...rolldownOptimization
-  } = config.optimization;
-
-  // Sourcemap specific options
-  const {
-    sourcemap: rolldownSourcemap,
-    sourcemapBaseUrl: rolldownSourcemapBaseUrl,
-    sourcemapDebugIds: rolldownSourcemapDebugIds,
-    sourcemapIgnoreList: rolldownSourcemapIgnoreList,
-    sourcemapPathTransform: rolldownSourcemapPathTransform,
+    root: _root,
+    mode: _mode,
+    entry: _entry,
+    resolve: _resolve,
+    transform: _transform,
+    prelude: _prelude,
+    polyfills: _polyfills,
+    output: _output,
+    plugins: _plugins,
+    reactNative: _reactNative,
+    terminal: _terminal,
+    reporter: _reporter,
+    analyzer: _analyzer,
+    dev: _dev,
+    envDir: _envDir,
+    envFile: _envFile,
+    envPrefix: _envPrefix,
+    runtimeTarget: _runtimeTarget,
+    experimental: _experimental,
+    rolldownOptions: _rolldownOptions,
+    dangerously_overrideRolldownOptions: _dangerouslyOverrideRolldownOptions,
+    configFile: _configFile,
+    ...rolldownInput
   } = config;
+
+  const { sourceExtensions, assetExtensions, preferNativePlatform, ...rolldownResolve } =
+    config.resolve;
+
+  const { intro: rolldownIntro, ...rolldownOutput } = config.output;
+  const rawOutputIntro = rawOutputOptions?.intro;
+  const rawOutputSourcemapPathTransform = rawOutputOptions?.sourcemapPathTransform;
+
+  const {
+    nativeTransformPipeline: _nativeTransformPipeline,
+    flow: _experimentalFlow,
+    worklets: _experimentalWorklets,
+    ...rolldownExperimental
+  } = config.experimental;
+
+  const {
+    flow: _flow,
+    babel: _babel,
+    swc: _swc,
+    reactCompiler,
+    ...rolldownTransform
+  } = config.transform;
 
   // User Plugins
   const userPlugins = config.plugins;
   const { rolldownAlias, aliasPluginOptions } = resolveAliasPluginOptions(config);
 
   const mergedResolveOptions = merge(
-    {
+    merge({ ...rawResolve }, {
       extensions: getResolveExtensions({
         sourceExtensions,
         assetExtensions,
         platform,
         preferNativePlatform,
       }),
-    } satisfies rolldown.InputOptions['resolve'],
+    } satisfies rolldown.InputOptions['resolve']),
     {
       ...rolldownResolve,
       alias: rolldownAlias,
     },
   );
 
-  const mergedTransformOptions = merge(
-    {
-      cwd: config.root,
-      target: 'esnext',
-      jsx: {
-        runtime: 'automatic',
-        development: dev,
-      },
-      define: {
-        __DEV__: asLiteral(dev),
-        'process.env.NODE_ENV': asLiteral(nodeEnvironment(dev)),
-        'process.env.DEBUG_ROLLIPOP': asLiteral(isDebugEnabled()),
-        ...(hmrEnabled ? null : { 'import.meta.hot': 'undefined' }),
-        ...defineEnvFromObject(env),
-        ...defineEnvFromObject(builtInEnv),
-      },
-      helpers: {
-        mode: 'Runtime',
-      },
-    } satisfies TransformOptions,
-    {
-      ...rolldownTransform,
-      reactCompiler: resolveReactCompilerTransformOptions(rolldownTransform.reactCompiler),
+  const defaultTransformOptions = {
+    cwd: config.root,
+    target: 'esnext',
+    jsx: {
+      runtime: 'automatic',
+      development: dev,
     },
+    define: {
+      __DEV__: asLiteral(dev),
+      'process.env.NODE_ENV': asLiteral(nodeEnvironment(dev)),
+      'process.env.DEBUG_ROLLIPOP': asLiteral(isDebugEnabled()),
+      ...(hmrEnabled ? null : { 'import.meta.hot': 'undefined' }),
+      ...defineEnvFromObject(env),
+      ...defineEnvFromObject(builtInEnv),
+    },
+    helpers: {
+      mode: 'Runtime',
+    },
+  } satisfies RollipopTransformOptions;
+  const mergedTransformOptions = merge(
+    merge({ ...rawTransform }, defaultTransformOptions),
+    rolldownTransform,
   );
+  if (reactCompiler != null) {
+    mergedTransformOptions.reactCompiler = resolveReactCompilerTransformOptions(reactCompiler);
+  }
 
   const entryPluginOptions = resolveEntryPluginOptions(config);
   const importGlobPluginOptions = resolveImportGlobPluginOptions(config);
@@ -193,23 +215,20 @@ export async function resolveRolldownOptions(
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
 
   const inputOptions: rolldown.InputOptions = {
+    ...merge(rawInputOptions, rolldownInput),
     platform: 'neutral',
     cwd: config.root,
     input: ROLLIPOP_VIRTUAL_ENTRY_ID,
-    tsconfig: config.tsconfig,
     resolve: mergedResolveOptions,
     transform: mergedTransformOptions,
-    treeshake: rolldownTreeshake,
-    external: rolldownExternal,
-    shimMissingExports: rolldownShimMissingExports,
-    optimization: rolldownOptimization,
-    experimental: {
-      lazyBarrel: rolldownLazyBarrel,
-      ...(isDevServerMode
+    experimental: merge(
+      merge({ ...rawExperimental }, rolldownExperimental),
+      isDevServerMode
         ? { devMode: hmrConfig ? { implement: hmrConfig.runtimeImplement } : false }
-        : null),
-    },
+        : {},
+    ),
     plugins: withTransformBoundary(context, [
+      rawPlugins as PluginOption,
       entry(entryPluginOptions),
       importGlob(importGlobPluginOptions),
       alias(aliasPluginOptions),
@@ -244,33 +263,31 @@ export async function resolveRolldownOptions(
     id: context.id,
   };
 
-  const outputOptions: rolldown.OutputOptions = {
-    file: buildOptions.outfile,
-    banner: rolldownBanner,
-    footer: rolldownFooter,
-    postFooter: rolldownPostFooter,
-    postBanner: rolldownPostBanner,
-    outro: rolldownOutro,
-    intro: async (chunk) => {
-      return [
-        ...getGlobalVariables(dev),
-        ...loadPolyfills(config),
-        typeof rolldownIntro === 'function' ? await rolldownIntro(chunk) : rolldownIntro,
-      ]
-        .filter(isNotNil)
-        .join('\n');
+  const outputOptions: rolldown.OutputOptions = merge(
+    merge({ ...rawOutputOptions }, rolldownOutput),
+    {
+      file: buildOptions.outfile,
+      intro: async (chunk: rolldown.RenderedChunk) => {
+        return [
+          ...getGlobalVariables(dev),
+          ...loadPolyfills(config),
+          await resolveOutputAddon(rawOutputIntro, chunk),
+          await resolveOutputAddon(rolldownIntro, chunk),
+        ]
+          .filter(isNotNil)
+          .join('\n');
+      },
+      minify: buildOptions.minify ?? rolldownOutput.minify,
+      sourcemap: buildOptions.sourcemap ?? rolldownOutput.sourcemap,
+      sourcemapPathTransform:
+        rolldownOutput.sourcemapPathTransform ??
+        rawOutputSourcemapPathTransform ??
+        createProjectRootSourcemapPathTransform(config.root),
+      codeSplitting: false,
+      // `@rollipop/rolldown` specific options
+      persistentCache: cache,
     },
-    minify: buildOptions.minify ?? rolldownMinify,
-    sourcemap: buildOptions.sourcemap ?? rolldownSourcemap,
-    sourcemapBaseUrl: rolldownSourcemapBaseUrl,
-    sourcemapDebugIds: rolldownSourcemapDebugIds,
-    sourcemapIgnoreList: rolldownSourcemapIgnoreList,
-    sourcemapPathTransform:
-      rolldownSourcemapPathTransform ?? createProjectRootSourcemapPathTransform(config.root),
-    codeSplitting: false,
-    // `@rollipop/rolldown` specific options
-    persistentCache: cache,
-  };
+  );
 
   const finalOptions = await applyDangerouslyOverrideOptionsFinalizer(
     config,
@@ -288,7 +305,7 @@ resolveRolldownOptions.cache = new Map<string, RolldownOptions>();
 function resolveEntryPluginOptions(config: ResolvedConfig): EntryPluginOptions {
   return {
     entryPath: config.entry,
-    preludePaths: config.serializer.prelude,
+    preludePaths: config.prelude,
   };
 }
 
@@ -304,7 +321,7 @@ function resolveAliasPluginOptions(config: ResolvedConfig): {
   rolldownAlias: NonNullable<rolldown.InputOptions['resolve']>['alias'];
   aliasPluginOptions: AliasPluginOptions;
 } {
-  const { alias } = config.resolver;
+  const { alias } = config.resolve;
 
   if (Array.isArray(alias)) {
     return { rolldownAlias: undefined, aliasPluginOptions: { entries: alias } };
@@ -322,12 +339,12 @@ async function resolveReactNativePluginOptions(
     context,
     projectRoot: config.root,
     platform: buildOptions.platform,
-    preferNativePlatform: config.resolver.preferNativePlatform,
+    preferNativePlatform: config.resolve.preferNativePlatform,
     buildType: context.buildType,
     assetsDir: buildOptions.assetsDir,
-    assetExtensions: config.resolver.assetExtensions,
+    assetExtensions: config.resolve.assetExtensions,
     assetRegistryPath: await resolveAssetRegistryPath(config),
-    flowFilter: config.transformer.flow?.filter ?? [],
+    flowFilter: config.transform.flow?.filter ?? [],
     codegenFilter: config.reactNative.codegen?.filter ?? [],
     builtinPluginConfig: resolveReactNativeBuiltinPluginConfig(config),
   };
@@ -377,8 +394,8 @@ function resolveWorkletsConfig(
 }
 
 function resolveReactCompilerTransformOptions(
-  reactCompiler: TransformOptions['reactCompiler'],
-): TransformOptions['reactCompiler'] {
+  reactCompiler: ReactCompilerTransformOptions,
+): ReactCompilerTransformOptions {
   if (reactCompiler == null) {
     return undefined;
   }
@@ -396,7 +413,7 @@ function resolveBabelPluginOptions(
   return {
     context,
     useNativeTransformPipeline: config.experimental?.nativeTransformPipeline,
-    transformConfig: config.transformer.babel,
+    transformConfig: config.transform.babel,
   };
 }
 
@@ -408,7 +425,7 @@ function resolveSwcPluginOptions(
     context,
     useNativeTransformPipeline: config.experimental?.nativeTransformPipeline,
     runtimeTarget: config.runtimeTarget,
-    transformConfig: config.transformer.swc,
+    transformConfig: config.transform.swc,
   };
 }
 
@@ -506,25 +523,15 @@ export function getResolveExtensions({
   return resolveExtensions;
 }
 
-/**
- * Default sourcemap path transform.
- *
- * Rolldown emits `sources` relative to the bundle output's directory, which
- * yields paths like `../App.tsx` when the bundle lives under e.g. `dist/`.
- * RN tooling (symbolication, devtools) expects project-root-relative paths,
- * so this rewrites each entry to be relative to `projectRoot`.
- */
-function createProjectRootSourcemapPathTransform(
-  projectRoot: string,
-): NonNullable<rolldown.OutputOptions['sourcemapPathTransform']> {
-  return (source, sourcemapPath) => {
-    const absolute = path.resolve(path.dirname(sourcemapPath), source);
-    return path.relative(projectRoot, absolute);
-  };
+async function resolveOutputAddon(
+  addon: rolldown.OutputOptions['intro'],
+  chunk: rolldown.RenderedChunk,
+) {
+  return typeof addon === 'function' ? await addon(chunk) : addon;
 }
 
 function loadPolyfills(config: ResolvedConfig) {
-  return config.serializer.polyfills.map((polyfill, index) => {
+  return config.polyfills.map((polyfill, index) => {
     if (typeof polyfill === 'string') {
       return fs.readFileSync(polyfill, 'utf-8');
     }
@@ -540,6 +547,23 @@ function loadPolyfills(config: ResolvedConfig) {
       '//#endregion',
     ].join('\n');
   });
+}
+
+/**
+ * Default sourcemap path transform.
+ *
+ * Rolldown emits `sources` relative to the bundle output's directory, which
+ * yields paths like `../App.tsx` when the bundle lives under e.g. `dist/`.
+ * RN tooling (symbolication, devtools) expects project-root-relative paths,
+ * so this rewrites each entry to be relative to `projectRoot`.
+ */
+function createProjectRootSourcemapPathTransform(
+  projectRoot: string,
+): NonNullable<rolldown.OutputOptions['sourcemapPathTransform']> {
+  return (source, sourcemapPath) => {
+    const absolute = path.resolve(path.dirname(sourcemapPath), source);
+    return path.relative(projectRoot, absolute);
+  };
 }
 
 async function applyDangerouslyOverrideOptionsFinalizer(

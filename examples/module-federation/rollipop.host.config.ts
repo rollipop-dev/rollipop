@@ -28,9 +28,7 @@ function transformRuntime(filename: string) {
 
 export default defineConfig({
   entry: 'src/host/index.ts',
-  serializer: {
-    polyfills: [{ type: 'iife', code: 'globalThis.window = globalThis;' }],
-  },
+  polyfills: [{ type: 'iife', code: 'globalThis.window = globalThis;' }],
   plugins: [
     svg(),
     federation({

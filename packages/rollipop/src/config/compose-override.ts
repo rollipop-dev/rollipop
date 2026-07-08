@@ -1,5 +1,3 @@
-import { merge } from 'es-toolkit';
-
 import type { Config, RolldownConfig } from './types';
 
 type OverrideOption = NonNullable<Config['dangerously_overrideRolldownOptions']>;
@@ -8,14 +6,7 @@ export async function applyOverrideRolldownOptions(
   override: OverrideOption,
   rolldownOptions: RolldownConfig,
 ): Promise<RolldownConfig> {
-  if (typeof override === 'function') {
-    return await override(rolldownOptions);
-  }
-
-  return {
-    input: merge(rolldownOptions.input ?? {}, override.input ?? {}),
-    output: merge(rolldownOptions.output ?? {}, override.output ?? {}),
-  };
+  return await override(rolldownOptions);
 }
 
 export function composeOverrideRolldownOptions(

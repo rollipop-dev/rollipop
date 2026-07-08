@@ -39,7 +39,7 @@ export class Bundler {
     const mergedOutput = merge(output, devServerOptions.output);
 
     const devEngine = await dev(mergedInput, mergedOutput, {
-      watch: config.watcher,
+      watch: config.dev.watch,
       ...devEngineOptions,
     });
 

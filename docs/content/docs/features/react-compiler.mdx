@@ -17,7 +17,7 @@ React Compiler is disabled by default. Pass an empty object to opt in with Rolli
 import { defineConfig } from 'rollipop';
 
 export default defineConfig({
-  transformer: {
+  transform: {
     reactCompiler: {},
   },
 });
@@ -27,7 +27,7 @@ With the empty object form, Rollipop skips files whose module id matches `/node_
 
 ## Configuration
 
-`transformer.reactCompiler` accepts rolldown's React Compiler options.
+`transform.reactCompiler` accepts rolldown's React Compiler options.
 
 | Property          | Type                                           | Description                                                               |
 | ----------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
@@ -44,7 +44,7 @@ If you omit `exclude`, Rollipop uses `/node_modules/` by default:
 
 ```ts title="rollipop.config.ts"
 export default defineConfig({
-  transformer: {
+  transform: {
     reactCompiler: {},
   },
 });
@@ -54,7 +54,7 @@ If you provide `exclude`, your value replaces that default. Include `/node_modul
 
 ```ts title="rollipop.config.ts"
 export default defineConfig({
-  transformer: {
+  transform: {
     reactCompiler: {
       exclude: [/node_modules/, /vendor/],
     },

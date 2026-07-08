@@ -7,25 +7,19 @@ describe('mergeConfig', () => {
     const reporterA = { update: () => {} };
     const baseConfig: PluginFlattenConfig = {
       root: '/foo',
-      resolver: {
+      resolve: {
         sourceExtensions: ['ts', 'tsx'],
         assetExtensions: ['png', 'jpg'],
         preferNativePlatform: true,
       },
-      transformer: {
+      transform: {
         define: {
           __DEV__: 'true',
         },
       },
-      serializer: {
-        prelude: ['/path/to/prelude-a.js'],
-        polyfills: [
-          {
-            type: 'iife',
-            code: 'console.log("polyfill-a")',
-          },
-        ],
-      },
+      prelude: ['/path/to/prelude-a.js'],
+      polyfills: [{ type: 'iife', code: 'console.log("polyfill-a")' }],
+      output: {},
       reactNative: {
         assetRegistryPath: '/path/to/AssetRegistry.js',
       },
@@ -34,7 +28,7 @@ describe('mergeConfig', () => {
 
     const configA: PluginFlattenConfig = {
       root: '/bar',
-      resolver: {
+      resolve: {
         sourceExtensions: ['js', 'jsx'],
       },
     };
@@ -42,25 +36,19 @@ describe('mergeConfig', () => {
     const reporterB = { update: () => {} };
     const configB: PluginFlattenConfig = {
       root: '/baz',
-      resolver: {
+      resolve: {
         // Duplicate source extensions should be removed
         sourceExtensions: ['ts', 'jsx'],
       },
-      transformer: {
+      transform: {
         define: {
           __DEV__: 'false',
           'process.env.NODE_ENV': 'production',
         },
       },
-      serializer: {
-        prelude: ['/path/to/prelude-b.js'],
-        polyfills: [
-          {
-            type: 'iife',
-            code: 'console.log("polyfill-b")',
-          },
-        ],
-      },
+      prelude: ['/path/to/prelude-b.js'],
+      polyfills: [{ type: 'plain', code: 'console.log("polyfill-b")' }],
+      output: {},
       reporter: reporterB,
     };
 
@@ -68,30 +56,23 @@ describe('mergeConfig', () => {
 
     expect(config).toEqual({
       root: '/baz',
-      resolver: {
+      resolve: {
         sourceExtensions: ['ts', 'tsx', 'js', 'jsx'],
         assetExtensions: ['png', 'jpg'],
         preferNativePlatform: true,
       },
-      transformer: {
+      transform: {
         define: {
           __DEV__: 'false',
           'process.env.NODE_ENV': 'production',
         },
       },
-      serializer: {
-        prelude: ['/path/to/prelude-a.js', '/path/to/prelude-b.js'],
-        polyfills: [
-          {
-            type: 'iife',
-            code: 'console.log("polyfill-a")',
-          },
-          {
-            type: 'iife',
-            code: 'console.log("polyfill-b")',
-          },
-        ],
-      },
+      prelude: ['/path/to/prelude-a.js', '/path/to/prelude-b.js'],
+      polyfills: [
+        { type: 'iife', code: 'console.log("polyfill-a")' },
+        { type: 'plain', code: 'console.log("polyfill-b")' },
+      ],
+      output: {},
       reactNative: {
         assetRegistryPath: '/path/to/AssetRegistry.js',
       },

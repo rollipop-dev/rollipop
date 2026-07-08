@@ -18,15 +18,15 @@ Use `debugging.md` when the next step is collecting MCP/SSE/build-log/app-log/sy
 
 ## Configuration
 
-Use `configuration.md` when the fix is likely a resolver, transformer, env, sourcemap, optimization, or `resolver.external` change. The config reference is https://rollipop.dev/docs/get-started/configuration.md.
+Use `configuration.md` when the fix is likely a resolve, transform, env, output sourcemap, optimization, or top-level `external` change. The config reference is https://rollipop.dev/docs/get-started/configuration.md.
 
 ## Resolution Failures
 
-Rollipop uses stricter standard package resolution than Metro. For a failing specifier, inspect the package's `package.json` and verify `exports`, `react-native`, `browser`, `main`, and requested subpaths. Change `resolver.mainFields` only when package metadata supports the intended entry.
+Rollipop uses stricter standard package resolution than Metro. For a failing specifier, inspect the package's `package.json` and verify `exports`, `react-native`, `browser`, `main`, and requested subpaths. Change `resolve.mainFields` only when package metadata supports the intended entry.
 
 ## Optional Require Failures
 
-Metro-era probes like `try { require('some-optional-package') } catch { ... }` can still fail at Rollipop bundle time because the `require` is statically resolved. Install required dependencies; externalize the exact specifier through `resolver.external` only when runtime fallback is intentional.
+Metro-era probes like `try { require('some-optional-package') } catch { ... }` can still fail at Rollipop bundle time because the `require` is statically resolved. Install required dependencies; externalize the exact specifier through top-level `external` only when runtime fallback is intentional.
 
 ## Agent Direction
 

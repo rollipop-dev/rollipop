@@ -24,8 +24,7 @@ import type { PluginFlattenConfig } from './merge-config';
 import type {
   AnalyzerConfig,
   Config,
-  DevModeConfig,
-  OptimizationConfig,
+  DevConfig,
   Polyfill,
   ReactNativeConfig,
   TerminalConfig,
@@ -46,7 +45,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
     root: projectRoot,
     mode: mode ?? 'development',
     entry: 'index.js',
-    resolver: {
+    resolve: {
       sourceExtensions: DEFAULT_SOURCE_EXTENSIONS,
       assetExtensions: DEFAULT_ASSET_EXTENSIONS,
       mainFields: DEFAULT_RESOLVER_MAIN_FIELDS,
@@ -55,7 +54,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       preferNativePlatform: true,
       symlinks: true,
     },
-    transformer: {
+    transform: {
       flow: {
         filter: {
           id: /\.jsx?$/,
@@ -63,28 +62,20 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
         },
       },
     },
-    serializer: {
-      prelude: [getInitializeCorePath(projectRoot)] as string[],
-      polyfills: (await Promise.all(
-        getPolyfillScriptPaths(reactNativePath).map(async (path) => {
-          const code = fs.readFileSync(path, 'utf-8');
-          const result = await stripFlowTypes(path, code);
+    prelude: [getInitializeCorePath(projectRoot)] as string[],
+    polyfills: (await Promise.all(
+      getPolyfillScriptPaths(reactNativePath).map(async (path) => {
+        const code = fs.readFileSync(path, 'utf-8');
+        const result = await stripFlowTypes(path, code);
 
-          return {
-            type: 'iife',
-            code: result.code,
-          } satisfies Polyfill;
-        }),
-      )) as Polyfill[],
-    },
-    watcher: {
-      skipWrite: true,
-      useDebounce: true,
-      debounceDuration: 50,
-    },
-    optimization: {
-      treeshake: true as NonNullable<OptimizationConfig['treeshake']>,
-    },
+        return {
+          type: 'iife',
+          code: result.code,
+        } satisfies Polyfill;
+      }),
+    )) as Polyfill[],
+    output: {},
+    treeshake: true as NonNullable<Config['treeshake']>,
     reactNative: {
       reactNativePath,
       codegen: {
@@ -102,8 +93,13 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
         NonNullable<ReactNativeConfig>['hmrClientPath']
       >,
     },
-    devMode: {
-      hmr: true as NonNullable<DevModeConfig['hmr']>,
+    dev: {
+      watch: {
+        skipWrite: true,
+        useDebounce: true,
+        debounceDuration: 50,
+      },
+      hmr: true as NonNullable<DevConfig['hmr']>,
     },
     reporter: new ClientLogReporter() as Reporter,
     analyzer: {

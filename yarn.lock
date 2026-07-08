@@ -19881,7 +19881,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-refresh@npm:^0.14.0":
+"react-refresh@npm:0.14.2, react-refresh@npm:^0.14.0":
   version: 0.14.2
   resolution: "react-refresh@npm:0.14.2"
   checksum: 10c0/875b72ef56b147a131e33f2abd6ec059d1989854b3ff438898e4f9310bfcc73acff709445b7ba843318a953cb9424bcc2c05af2b3d80011cee28f25aef3e2ebb
@@ -20708,6 +20708,7 @@ __metadata:
     mitt: "npm:3.0.1"
     open: "npm:11.0.0"
     pretty-format: "npm:30.4.1"
+    react-refresh: "npm:0.14.2"
     rolldown-analyzer: "npm:0.3.0"
     source-map: "npm:0.7.6"
     strip-ansi: "npm:7.2.0"

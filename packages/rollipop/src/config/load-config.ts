@@ -44,7 +44,7 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
 
   const plugins = await flattenPluginOption(userConfig.plugins);
   // Pre-merge defaults so the `config` hook sees the fully-resolved config and mutations
-  // (including removing entries from default arrays like `resolver.assetExtensions`) are preserved as the final result.
+  // (including removing entries from default arrays like `resolve.assetExtensions`) are preserved as the final result.
   const baseConfig = mergeConfig(defaultConfig, { ...userConfig, plugins });
   const pluginConfig = await resolvePluginConfig(baseConfig, plugins);
   const resolvedConfig: ResolvedConfig = {

@@ -8,7 +8,7 @@ import {
   serializeDevServerStatus,
   serializeFeatureFlags,
   serializeProjectInfo,
-} from './serializers';
+} from './formatters';
 
 export interface Snapshot {
   project: ReturnType<typeof getProjectInfo>;

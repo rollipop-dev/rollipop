@@ -25,6 +25,6 @@ export default defineConfig({
 });
 ```
 
-The plugin's `config` hook adds `svg` to `resolver.sourceExtensions` and removes it from `resolver.assetExtensions`, so `.svg` imports are routed through the plugin's `load` hook instead of being bundled as static assets.
+The plugin's `config` hook adds `svg` to `resolve.sourceExtensions` and removes it from `resolve.assetExtensions`, so `.svg` imports are routed through the plugin's `load` hook instead of being bundled as static assets.
 
-When the plugin is **not** added, `.svg` files are treated as regular assets (the default `resolver.assetExtensions` includes `svg`).
+When the plugin is **not** added, `.svg` files are treated as regular assets (the default `resolve.assetExtensions` includes `svg`).

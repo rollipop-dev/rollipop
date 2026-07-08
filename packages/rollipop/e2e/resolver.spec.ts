@@ -10,7 +10,7 @@ describe('resolver', () => {
   describe('platform suffix', () => {
     it('resolves .android.ts when platform is android', async () => {
       const chunk = await build('resolver/platform-suffix', {
-        resolver: { preferNativePlatform: true },
+        resolve: { preferNativePlatform: true },
       });
 
       expect(chunk.code).toContain('"android"');
@@ -21,7 +21,7 @@ describe('resolver', () => {
     it('resolves .ios.ts when platform is ios', async () => {
       const chunk = await build(
         'resolver/platform-suffix',
-        { resolver: { preferNativePlatform: true } },
+        { resolve: { preferNativePlatform: true } },
         { platform: 'ios' },
       );
 
@@ -33,7 +33,7 @@ describe('resolver', () => {
     it('falls back to .native.ts when platform file is missing', async () => {
       const chunk = await build(
         'resolver/platform-suffix',
-        { resolver: { preferNativePlatform: true } },
+        { resolve: { preferNativePlatform: true } },
         { platform: 'windows' },
       );
 
@@ -44,7 +44,7 @@ describe('resolver', () => {
     it('skips .native.ts when preferNativePlatform is false', async () => {
       const chunk = await build(
         'resolver/platform-suffix',
-        { resolver: { preferNativePlatform: false } },
+        { resolve: { preferNativePlatform: false } },
         { platform: 'windows' },
       );
 
@@ -56,7 +56,7 @@ describe('resolver', () => {
   describe('alias', () => {
     it('resolves object aliased module paths', async () => {
       const chunk = await build('resolver/alias', {
-        resolver: {
+        resolve: {
           alias: {
             '@src': path.join(fixturePath('resolver/alias'), 'src'),
           },
@@ -69,7 +69,7 @@ describe('resolver', () => {
 
     it('resolves array aliased module paths', async () => {
       const chunk = await build('resolver/alias', {
-        resolver: {
+        resolve: {
           alias: [
             {
               find: '@src',
@@ -100,7 +100,7 @@ describe('resolver', () => {
       };
 
       const chunk = await build('resolver/alias-plugin', {
-        resolver: {
+        resolve: {
           alias: [
             {
               find: '@config',
@@ -150,7 +150,7 @@ describe('resolver', () => {
 
     it('prefers react-native condition over import/require', async () => {
       const chunk = await build('resolver/condition-names', {
-        resolver: { conditionNames: ['react-native', 'import', 'require'] },
+        resolve: { conditionNames: ['react-native', 'import', 'require'] },
       });
 
       expect(chunk.code).toContain('"react-native"');
@@ -159,7 +159,7 @@ describe('resolver', () => {
 
     it('uses import condition when react-native is not configured', async () => {
       const chunk = await build('resolver/condition-names', {
-        resolver: { conditionNames: ['import', 'require'] },
+        resolve: { conditionNames: ['import', 'require'] },
       });
 
       expect(chunk.code).toContain('"esm"');
@@ -196,7 +196,7 @@ describe('resolver', () => {
 
     it('prefers react-native field over browser and main', async () => {
       const chunk = await build('resolver/main-fields', {
-        resolver: { mainFields: ['react-native', 'browser', 'main'] },
+        resolve: { mainFields: ['react-native', 'browser', 'main'] },
       });
 
       expect(chunk.code).toContain('react-native-field');
@@ -206,7 +206,7 @@ describe('resolver', () => {
 
     it('uses browser field when react-native is not in mainFields', async () => {
       const chunk = await build('resolver/main-fields', {
-        resolver: { mainFields: ['browser', 'main'] },
+        resolve: { mainFields: ['browser', 'main'] },
       });
 
       expect(chunk.code).toContain('browser-field');
@@ -215,7 +215,7 @@ describe('resolver', () => {
 
     it('uses main field as last fallback', async () => {
       const chunk = await build('resolver/main-fields', {
-        resolver: { mainFields: ['main'] },
+        resolve: { mainFields: ['main'] },
       });
 
       expect(chunk.code).toContain('main-field');
@@ -225,11 +225,11 @@ describe('resolver', () => {
   describe('external', () => {
     it('string pattern marks module as external', async () => {
       const chunk = await build('resolver/alias', {
-        resolver: {
+        external: ['@src/util'],
+        resolve: {
           alias: {
             '@src': path.join(fixturePath('resolver/alias'), 'src'),
           },
-          external: ['@src/util'],
         },
       });
 
@@ -238,11 +238,11 @@ describe('resolver', () => {
 
     it('regex pattern marks matching modules as external', async () => {
       const chunk = await build('resolver/alias', {
-        resolver: {
+        external: [/^@src/],
+        resolve: {
           alias: {
             '@src': path.join(fixturePath('resolver/alias'), 'src'),
           },
-          external: [/^@src/],
         },
       });
 

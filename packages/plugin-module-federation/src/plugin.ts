@@ -43,13 +43,11 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
   return {
     name: PLUGIN_NAME,
     config(pluginConfig) {
-      const serializer = (pluginConfig.serializer ??= {});
-
       if (hasExposes) {
         // Federation remote runs inside a host that already initialized the React Native runtime.
         // So we don't need to run the prelude and polyfills again.
-        serializer.prelude = [];
-        serializer.polyfills = [];
+        pluginConfig.prelude = [];
+        pluginConfig.polyfills = [];
 
         return {
           dangerously_overrideRolldownOptions: (opts) => ({
@@ -61,7 +59,7 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
       }
 
       if (hasRemotes && config.runtime?.implement != null) {
-        const polyfills = (serializer.polyfills ??= []);
+        const polyfills = (pluginConfig.polyfills ??= []);
         polyfills.push({ type: 'iife', code: config.runtime.implement });
       }
     },

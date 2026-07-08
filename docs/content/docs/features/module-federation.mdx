@@ -100,7 +100,7 @@ export default defineConfig({
 });
 ```
 
-The bundle is emitted as an IIFE. Each shared dependency import is replaced with a stub that reads from the host's `globalThis.__rollipop_shared__` registry. Rollipop's prelude / polyfills are skipped because the host has already initialized the React Native runtime.
+The bundle is emitted as an IIFE. Each shared dependency import is replaced with a stub that reads from the host's `globalThis.__rollipop_shared__` registry. Rollipop's prelude and polyfills are skipped because the host has already initialized the React Native runtime.
 
 ## Script loader contract
 

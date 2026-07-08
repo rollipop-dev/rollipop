@@ -32,7 +32,7 @@ describe('createId', () => {
 
     configA.plugins = [{ name: 'plugin-a' }, { name: 'plugin-b' }];
     configB.plugins = [{ name: 'plugin-b' }, { name: 'plugin-a' }]; // different order
-    configB.transformer.define = { __DEV__: 'false' }; // different value
+    configB.transform.define = { __DEV__: 'false' }; // different value
 
     const idA = createId(configA, BUILD_OPTIONS);
     const idB = createId(configB, BUILD_OPTIONS);
@@ -42,9 +42,9 @@ describe('createId', () => {
     expect(idA === idC).toBe(false);
     expect([idA, idB, idC]).toMatchInlineSnapshot(`
       [
-        "3b4579b097c7c28be527d60715511a9a",
-        "05ccf09c99152531da3b1cb00809f7f5",
-        "1236ec91ae9b57f0f3e59b46a5ef5fbf",
+        "758c7ccdd69a8c6bb0725e6fef25f9ac",
+        "6c631621bffdcc5e05ea02659b4df7c5",
+        "14a7aa2e4813504a70aca675c3646b4e",
       ]
     `);
   });

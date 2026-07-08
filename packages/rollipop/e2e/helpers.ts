@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { OutputChunk } from '@rollipop/rolldown';
 
 import type { ResolvedConfig } from '../src/config/defaults';
-import type { Config, Polyfill } from '../src/config/types';
+import type { Config } from '../src/config/types';
 import {
   DEFAULT_ANALYZE_FILE,
   DEFAULT_ANALYZE_REPORT_FILE,
@@ -31,22 +31,22 @@ export interface TestConfigOptions {
   entry?: string;
   mode?: Config['mode'];
   plugins?: Plugin[];
-  resolver?: Partial<NonNullable<Config['resolver']>> & Record<string, unknown>;
-  transformer?: Partial<NonNullable<Config['transformer']>>;
-  serializer?: Partial<NonNullable<Config['serializer']>> & { polyfills?: Polyfill[] };
+  external?: Config['external'];
+  resolve?: Partial<NonNullable<Config['resolve']>> & Record<string, unknown>;
+  transform?: Partial<NonNullable<Config['transform']>>;
+  prelude?: Config['prelude'];
+  polyfills?: Config['polyfills'];
+  output?: Partial<NonNullable<Config['output']>>;
+  treeshake?: Config['treeshake'];
   optimization?: Partial<NonNullable<Config['optimization']>>;
   reactNative?: Partial<NonNullable<Config['reactNative']>>;
   analyzer?: Partial<NonNullable<Config['analyzer']>>;
-  sourcemap?: Config['sourcemap'];
-  sourcemapBaseUrl?: Config['sourcemapBaseUrl'];
-  sourcemapDebugIds?: Config['sourcemapDebugIds'];
-  sourcemapIgnoreList?: Config['sourcemapIgnoreList'];
-  sourcemapPathTransform?: Config['sourcemapPathTransform'];
   envDir?: string;
   envFile?: string;
   envPrefix?: string;
   experimental?: Partial<NonNullable<Config['experimental']>>;
   reporter?: Reporter;
+  rolldownOptions?: Config['rolldownOptions'];
   dangerously_overrideRolldownOptions?: Config['dangerously_overrideRolldownOptions'];
 }
 
@@ -60,27 +60,25 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
     mode: options.mode ?? 'production',
     entry: path.resolve(root, options.entry ?? 'index.ts'),
     tsconfig: false,
-    resolver: {
+    resolve: {
       sourceExtensions: DEFAULT_SOURCE_EXTENSIONS,
       assetExtensions: [],
       mainFields: DEFAULT_RESOLVER_MAIN_FIELDS,
       conditionNames: DEFAULT_RESOLVER_CONDITION_NAMES,
       preferNativePlatform: true,
       symlinks: true,
-      ...options.resolver,
+      ...options.resolve,
     },
-    transformer: {
+    transform: {
       flow: { filter: { id: /\.jsx?$/, code: /@flow/ } },
-      ...options.transformer,
+      ...options.transform,
     },
-    serializer: {
-      prelude: [],
-      polyfills: [],
-      ...options.serializer,
-    },
-    watcher: { skipWrite: true, useDebounce: true, debounceDuration: 50 },
+    prelude: options.prelude ?? [],
+    polyfills: options.polyfills ?? [],
+    output: options.output ?? {},
+    external: options.external,
+    treeshake: options.treeshake ?? true,
     optimization: {
-      treeshake: true,
       ...options.optimization,
     },
     reactNative: {
@@ -97,7 +95,7 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       autoOpen: false,
       ...options.analyzer,
     },
-    devMode: { hmr: false },
+    dev: { watch: { skipWrite: true, useDebounce: true, debounceDuration: 50 }, hmr: false },
     experimental: {
       nativeTransformPipeline: false,
       ...options.experimental,
@@ -108,11 +106,7 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
     envFile: options.envFile ?? DEFAULT_ENV_FILE,
     envPrefix: options.envPrefix ?? DEFAULT_ENV_PREFIX,
     plugins: options.plugins ?? [],
-    sourcemap: options.sourcemap,
-    sourcemapBaseUrl: options.sourcemapBaseUrl,
-    sourcemapDebugIds: options.sourcemapDebugIds,
-    sourcemapIgnoreList: options.sourcemapIgnoreList,
-    sourcemapPathTransform: options.sourcemapPathTransform,
+    rolldownOptions: options.rolldownOptions,
     dangerously_overrideRolldownOptions: options.dangerously_overrideRolldownOptions,
     runtimeTarget: DEFAULT_RUNTIME_TARGET,
   } as unknown as ResolvedConfig;
