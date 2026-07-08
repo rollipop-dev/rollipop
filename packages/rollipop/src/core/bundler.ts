@@ -34,7 +34,8 @@ export class Bundler {
       devEngineOptions,
     );
 
-    const devServerOptions = getOverrideOptionsForDevServer(resolvedBuildOptions);
+    const hmrEnabled = config.mode === 'development' && config.dev.hmr !== false;
+    const devServerOptions = getOverrideOptionsForDevServer(resolvedBuildOptions, hmrEnabled);
     const mergedInput = merge(input, devServerOptions.input);
     const mergedOutput = merge(output, devServerOptions.output);
 

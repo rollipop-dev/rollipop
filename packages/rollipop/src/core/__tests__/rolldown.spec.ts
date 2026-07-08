@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 
 import { createTestConfig } from '../../testing/config';
 import { resolveBuildOptions } from '../../utils/build-options';
-import { resolveRolldownOptions } from '../rolldown';
+import { getOverrideOptionsForDevServer, resolveRolldownOptions } from '../rolldown';
 import type { BundlerContext } from '../types';
 
 function getPlugins(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
@@ -22,6 +22,25 @@ function getPlugins(options: Awaited<ReturnType<typeof resolveRolldownOptions>>)
   };
 
   visit(options.input?.plugins);
+
+  return plugins;
+}
+
+async function getResolvedPlugins(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
+  const plugins: rolldown.Plugin[] = [];
+  const visit = async (pluginOption: unknown) => {
+    const plugin = await pluginOption;
+    if (plugin == null || plugin === false) {
+      return;
+    }
+    if (Array.isArray(plugin)) {
+      await Promise.all(plugin.map(visit));
+      return;
+    }
+    plugins.push(plugin as rolldown.Plugin);
+  };
+
+  await visit(options.input?.plugins);
 
   return plugins;
 }
@@ -57,6 +76,47 @@ async function resolveTestRolldownOptions(
 }
 
 describe('resolveRolldownOptions', () => {
+  it('disables React Refresh transform options for dev server when HMR is disabled', () => {
+    const config = createTestConfig(process.cwd());
+    config.dev.hmr = false;
+
+    const options = getOverrideOptionsForDevServer(
+      resolveBuildOptions(config, { platform: 'ios', dev: true }),
+      false,
+    );
+
+    expect(options.input.transform?.jsx).toEqual({ development: true });
+  });
+
+  it('excludes React Refresh wrapper plugins for dev server when HMR is disabled', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    config.dev.hmr = false;
+    config.reactNative.assetRegistryPath = path.join(root, 'package.json');
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-dev-server-hmr-disabled',
+        root,
+        buildType: 'serve',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'ios', dev: true }),
+      { host: 'localhost', port: 8081 },
+    );
+
+    const pluginNames = (await getResolvedPlugins(options)).map((plugin) => plugin.name);
+
+    expect(pluginNames).not.toContain('rollipop:replace-hmr-client');
+    expect(pluginNames.some((name) => name.includes('refresh'))).toBe(false);
+  });
+
   it('keeps react compiler disabled by default', async () => {
     resolveRolldownOptions.cache.clear();
 

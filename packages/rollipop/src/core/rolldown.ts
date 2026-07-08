@@ -628,23 +628,30 @@ export function getOverrideOptions() {
   return { input, output };
 }
 
-export function getOverrideOptionsForDevServer(buildOptions: ResolvedBuildOptions) {
+export function getOverrideOptionsForDevServer(
+  buildOptions: ResolvedBuildOptions,
+  hmrEnabled = true,
+) {
   const overrideOptions = getOverrideOptions();
 
   const input: rolldown.InputOptions = {
     transform: {
       jsx: {
         development: buildOptions.dev,
-        /**
-         * @see `rollipopReactRefreshWrapperPlugin`
-         */
-        refresh: {
-          refreshReg: '$RefreshReg$',
-          refreshSig: '$RefreshSig$',
-          // `@rollipop/rolldown` specific options
-          include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
-          exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
-        },
+        ...(hmrEnabled
+          ? {
+              /**
+               * @see `rollipopReactRefreshWrapperPlugin`
+               */
+              refresh: {
+                refreshReg: '$RefreshReg$',
+                refreshSig: '$RefreshSig$',
+                // `@rollipop/rolldown` specific options
+                include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+                exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
+              },
+            }
+          : null),
       },
     },
     experimental: {
