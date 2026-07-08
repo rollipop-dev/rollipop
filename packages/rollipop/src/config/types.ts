@@ -6,7 +6,6 @@ import type {
   RollipopReactNativeWorkletsConfig,
 } from '@rollipop/rolldown/experimental';
 import type { TopLevelFilterExpression } from '@rollipop/rolldown/filter';
-import type { TransformOptions } from '@rollipop/rolldown/utils';
 import type * as swc from '@swc/core';
 
 export type { RollipopReactNativeFlowConfig, RollipopReactNativeWorkletsConfig };
@@ -17,8 +16,25 @@ import type { InteractiveCommand } from '../node/cli-utils';
 import type { MaybePromise, NullValue, Reporter } from '../types';
 
 type RolldownExperimentalOptions = NonNullable<rolldown.InputOptions['experimental']>;
+type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
+type ReactCompilerTransformOptions = RolldownTransformOptions['reactCompiler'];
+type RollipopManagedInputOption =
+  | 'input'
+  | 'plugins'
+  | 'cwd'
+  | 'platform'
+  | 'checks'
+  | 'logLevel'
+  | 'onLog'
+  | 'onwarn'
+  | 'resolve'
+  | 'transform'
+  | 'watch'
+  | 'experimental'
+  | 'id';
+type RollipopManagedOutputOption = 'dir' | 'file' | 'format' | 'codeSplitting' | 'persistentCache';
 
-export interface Config {
+export interface Config extends Omit<rolldown.InputOptions, RollipopManagedInputOption> {
   /**
    * Defaults to current working directory.
    */
@@ -36,23 +52,23 @@ export interface Config {
   /**
    * Resolver configuration.
    */
-  resolver?: ResolverConfig;
+  resolve?: ResolveConfig;
   /**
    * Transformer configuration.
    */
-  transformer?: TransformerConfig;
+  transform?: TransformConfig;
   /**
-   * Serializer configuration.
+   * Prelude modules imported before the app entry module.
    */
-  serializer?: SerializerConfig;
+  prelude?: string[];
   /**
-   * Watcher configuration.
+   * Polyfills injected before the app modules run.
    */
-  watcher?: WatcherConfig;
+  polyfills?: Polyfill[];
   /**
-   * Optimization configuration.
+   * Output configuration.
    */
-  optimization?: OptimizationConfig;
+  output?: OutputConfig;
   /**
    * React Native specific configuration.
    */
@@ -72,7 +88,7 @@ export interface Config {
   /**
    * Dev mode specific configuration. (for dev server)
    */
-  devMode?: DevModeConfig;
+  dev?: DevConfig;
   /**
    * Directory to load environment variables from.
    *
@@ -99,88 +115,6 @@ export interface Config {
    */
   envPrefix?: string;
   /**
-   * Configures TypeScript configuration file resolution and usage.
-   *
-   * Defaults to: `true`
-   */
-  tsconfig?: rolldown.InputOptions['tsconfig'];
-  /**
-   * Whether to generate sourcemaps.
-   *
-   * - `false`: No sourcemap will be generated.
-   * - `true`: A separate sourcemap file will be generated.
-   * - `'inline'`: The sourcemap will be appended to the output file as a data URL.
-   * - `'hidden'`: A separate sourcemap file will be generated, but the link to the sourcemap (//# sourceMappingURL comment) will not be included in the output file.
-   *
-   * Defaults to: `true` when in development mode, `false` otherwise.
-   */
-  sourcemap?: rolldown.OutputOptions['sourcemap'];
-  /**
-   * The base URL for the links to the sourcemap file in the output file.
-   *
-   * By default, relative URLs are generated. If this option is set, an absolute URL with that base URL will be generated.
-   * This is useful when deploying source maps to a different location than your code, such as a CDN or separate debugging server.
-   */
-  sourcemapBaseUrl?: rolldown.OutputOptions['sourcemapBaseUrl'];
-  /**
-   * Whether to include [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in the sourcemap.
-   *
-   * When `true`, a unique debug ID will be emitted in source and sourcemaps which streamlines identifying sourcemaps across different builds.
-   *
-   * Defaults to: `false`
-   */
-  sourcemapDebugIds?: rolldown.OutputOptions['sourcemapDebugIds'];
-  /**
-   * Control which source files are included in the sourcemap ignore list.
-   *
-   * Files in the ignore list are excluded from debugger stepping and error stack traces.
-   *
-   * - `false`: Include no source files in the ignore list
-   * - `true`: Include all source files in the ignore list
-   * - `string`: Files containing this string in their path will be included in the ignore list
-   * - `RegExp`: Files matching this regular expression will be included in the ignore list
-   * - `function`: Custom function to determine if a source should be ignored
-   *
-   * :::tip Performance
-   * Using static values (`boolean`, `string`, or `RegExp`) is significantly more performant than functions.
-   * Calling JavaScript functions from Rust has extremely high overhead, so prefer static patterns when possible.
-   * :::
-   *
-   * @example
-   * ```js
-   * // ✅ Preferred: Use RegExp for better performance
-   * sourcemapIgnoreList: /node_modules/
-   *
-   * // ✅ Preferred: Use string pattern for better performance
-   * sourcemapIgnoreList: "vendor"
-   *
-   * // ! Use sparingly: Function calls have high overhead
-   * sourcemapIgnoreList: (source, sourcemapPath) => {
-   *   return source.includes('node_modules') || source.includes('.min.');
-   * }
-   * ```
-   *
-   * Defaults to: `/node_modules/`
-   */
-  sourcemapIgnoreList?: rolldown.OutputOptions['sourcemapIgnoreList'];
-  /**
-   * A transformation to apply to each path in a sourcemap.
-   *
-   * @example
-   * ```js
-   * export default defineConfig({
-   *   output: {
-   *     sourcemap: true,
-   *     sourcemapPathTransform: (source, sourcemapPath) => {
-   *       // Remove 'src/' prefix from all source paths
-   *       return source.replace(/^src\//, '');
-   *     },
-   *   },
-   * });
-   * ```
-   */
-  sourcemapPathTransform?: rolldown.OutputOptions['sourcemapPathTransform'];
-  /**
    * Plugins to apply to the build.
    */
   plugins?: PluginOption;
@@ -196,14 +130,19 @@ export interface Config {
    */
   experimental?: ExperimentalConfig;
   /**
-   * Rollipop provides default options for Rolldown, but you can override them by this option.
+   * Raw Rolldown options merged before Rollipop's generated options.
+   *
+   * Use this for Rolldown options that Rollipop does not expose directly.
+   * Rollipop-managed options can still be overwritten by the generated config.
+   */
+  rolldownOptions?: RawRolldownOptions;
+  /**
+   * Rollipop provides default options for Rolldown, but you can override the final
+   * generated options with this hook.
    *
    * **DANGEROUS**: This option is dangerous because it can break the build.
    */
-  dangerously_overrideRolldownOptions?:
-    | RolldownConfig
-    | ((config: RolldownConfig) => RolldownConfig)
-    | ((config: RolldownConfig) => Promise<RolldownConfig>);
+  dangerously_overrideRolldownOptions?: (config: RolldownConfig) => MaybePromise<RolldownConfig>;
 }
 
 export type PluginOption = MaybePromise<
@@ -215,7 +154,7 @@ export type PluginOption = MaybePromise<
   | PluginOption[]
 >;
 
-export type ResolverConfig = Omit<
+export type ResolveConfig = Omit<
   NonNullable<rolldown.InputOptions['resolve']>,
   'alias' | 'extensions'
 > & {
@@ -271,20 +210,18 @@ export type ResolverConfig = Omit<
    * Defaults to: `true`
    */
   preferNativePlatform?: boolean;
-  /**
-   * Specifies which modules should be treated as external and not bundled.
-   *
-   * External modules will be left as import statements in the output.
-   */
-  external?: rolldown.InputOptions['external'];
 };
 
 export type AliasConfig = NonNullable<rolldown.InputOptions['resolve']>['alias'] | AliasEntry[];
 
-export type TransformerConfig = Omit<
-  TransformOptions,
+export type TransformConfig = Omit<
+  RolldownTransformOptions,
   'cwd' | 'lang' | 'sourceType' | 'plugins'
 > & {
+  /**
+   * React Compiler transformation configuration.
+   */
+  reactCompiler?: ReactCompilerTransformOptions;
   /**
    * Flow specific configuration.
    *
@@ -318,7 +255,7 @@ export interface FlowConfig {
   filter?: rolldown.HookFilter | TopLevelFilterExpression[];
 }
 
-export interface ExperimentalConfig {
+export interface ExperimentalConfig extends RolldownExperimentalOptions {
   /**
    * Enables the native (rust) transform pipeline, which replaces the
    * legacy JS-side codegen marker, Flow strip, and SWC/babel preset
@@ -345,50 +282,7 @@ export interface ExperimentalConfig {
   worklets?: RollipopReactNativeWorkletsConfig;
 }
 
-export interface SerializerConfig {
-  /**
-   * Paths to prelude files.
-   *
-   * Prelude files are imported in the top of the entry module.
-   */
-  prelude?: string[];
-  /**
-   * Polyfills to include in the output bundle.
-   *
-   * Polyfills are injected in the top of the output bundle.
-   */
-  polyfills?: Polyfill[];
-  /**
-   * A string to prepend to the bundle before `renderChunk` hook.
-   */
-  banner?: rolldown.OutputOptions['banner'];
-  /**
-   * A string to append to the bundle before `renderChunk` hook.
-   */
-  footer?: rolldown.OutputOptions['footer'];
-  /**
-   * A string to prepend to the bundle after `renderChunk` hook and minification.
-   */
-  postBanner?: rolldown.OutputOptions['postBanner'];
-  /**
-   * A string to append to the bundle after `renderChunk` hook and minification.
-   */
-  postFooter?: rolldown.OutputOptions['postFooter'];
-  /**
-   * A string to prepend inside any format-specific wrapper.
-   */
-  intro?: rolldown.OutputOptions['intro'];
-  /**
-   * A string to append inside any format-specific wrapper.
-   */
-  outro?: rolldown.OutputOptions['outro'];
-  /**
-   * When `true`, creates shim variables for missing exports instead of throwing an error.
-   *
-   * Defaults to: `false`
-   */
-  shimMissingExports?: rolldown.InputOptions['shimMissingExports'];
-}
+export interface OutputConfig extends Omit<rolldown.OutputOptions, RollipopManagedOutputOption> {}
 
 export type Polyfill = string | PolyfillWithCode | PolyfillWithPath;
 export type PolyfillOptions = { withTransform?: boolean };
@@ -396,42 +290,15 @@ export type PolyfillWithCode = { type: PolyfillType; code: string } & PolyfillOp
 export type PolyfillWithPath = { type: PolyfillType; path: string } & PolyfillOptions;
 export type PolyfillType = 'plain' | 'iife';
 
-export type OptimizationConfig = rolldown.OptimizationOptions & {
-  /**
-   * Controls tree-shaking (dead code elimination).
-   *
-   * When `false`, tree-shaking will be disabled. When `true`, it is equivalent to setting each options to the default value.
-   *
-   * Defaults to: `true`
-   */
-  treeshake?: rolldown.InputOptions['treeshake'];
-  /**
-   * Control code minification.
-   *
-   * - `true`: Enable full minification including code compression and dead code elimination
-   * - `false`: Disable minification (default)
-   * - `'dce-only'`: Only perform dead code elimination without code compression
-   * - `MinifyOptions`: Fine-grained control over minification settings
-   *
-   * Defaults to: `false`
-   */
-  minify?: rolldown.OutputOptions['minify'];
-  /**
-   * Control whether to enable lazy barrel optimization.
-   *
-   * Lazy barrel optimization avoids compiling unused re-export modules in side-effect-free barrel modules,
-   * significantly improving build performance for large codebases with many barrel modules.
-   *
-   * Defaults to: `false`
-   *
-   * @see {@link https://rolldown.rs/in-depth/lazy-barrel-optimization | Lazy Barrel Documentation}
-   */
-  lazyBarrel?: RolldownExperimentalOptions['lazyBarrel'];
-};
+export type OptimizationConfig = rolldown.OptimizationOptions;
 
 export type WatcherConfig = DevWatchOptions;
 
-export interface DevModeConfig {
+export interface DevConfig {
+  /**
+   * Watcher configuration.
+   */
+  watch?: WatcherConfig;
   /**
    * Hot Module Replacement configurations.
    * This feature is only available in `development` mode.
@@ -531,6 +398,10 @@ export interface TerminalConfig {
    * Extra commands to display in the interactive mode.
    */
   extraCommands?: InteractiveCommand[];
+}
+
+export interface RawRolldownOptions extends rolldown.InputOptions {
+  output?: rolldown.OutputOptions;
 }
 
 export interface RolldownConfig {

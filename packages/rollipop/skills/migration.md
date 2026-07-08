@@ -26,6 +26,6 @@ After migration, validate both dev-server startup and a real bundle. If validati
 
 ## Route Next
 
-- Use `configuration.md` for resolver, transformer, env, sourcemap, and optimization changes.
+- Use `configuration.md` for resolve, transform, env, output sourcemap, and optimization changes.
 - Use `plugins.md` when Metro transformer or middleware behavior should become a Rollipop plugin.
 - Use `troubleshooting.md` for failures after migration or during validation.

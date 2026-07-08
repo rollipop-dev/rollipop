@@ -5,7 +5,7 @@ import { defineConfig } from 'rollipop';
 
 export default defineConfig({
   runtimeTarget: 'hermes',
-  devMode: {
+  dev: {
     hmr: {
       // Override the default HMR client implementation with the React Native 0.72 compatible implementation.
       clientImplement: fs.readFileSync(path.resolve('hmr-client.ts'), 'utf-8'),

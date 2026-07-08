@@ -9,25 +9,19 @@ describe('resolvePluginConfig', () => {
   it('should resolve plugin config', async () => {
     const baseConfig: Config = {
       root: '/foo',
-      resolver: {
+      resolve: {
         sourceExtensions: ['ts', 'tsx'],
         assetExtensions: ['png', 'jpg'],
         preferNativePlatform: true,
       },
-      transformer: {
+      transform: {
         define: {
           __DEV__: 'true',
         },
       },
-      serializer: {
-        prelude: ['/path/to/prelude.js'],
-        polyfills: [
-          {
-            type: 'iife',
-            code: 'console.log("polyfill")',
-          },
-        ],
-      },
+      prelude: ['/path/to/prelude.js'],
+      polyfills: [{ type: 'iife', code: 'console.log("polyfill")' }],
+      output: {},
       reactNative: {
         assetRegistryPath: '/path/to/AssetRegistry.js',
       },
@@ -37,23 +31,17 @@ describe('resolvePluginConfig', () => {
       name: 'plugin-a',
       config: {
         root: '/plugin-a',
-        resolver: {
+        resolve: {
           sourceExtensions: ['js', 'jsx'],
         },
-        transformer: {
+        transform: {
           define: {
             'process.env.PLUGIN_A': 'true',
           },
         },
-        serializer: {
-          prelude: ['/path/to/prelude-plugin-a.js'],
-          polyfills: [
-            {
-              type: 'iife',
-              code: 'console.log("polyfill-plugin-a")',
-            },
-          ],
-        },
+        prelude: ['/path/to/prelude-plugin-a.js'],
+        polyfills: [{ type: 'plain', code: 'console.log("polyfill-plugin-a")' }],
+        output: {},
       },
     };
 
@@ -61,24 +49,18 @@ describe('resolvePluginConfig', () => {
       name: 'plugin-b',
       config: () => ({
         root: '/plugin-b',
-        resolver: {
+        resolve: {
           assetExtensions: ['webp'],
           preferNativePlatform: false,
         },
-        transformer: {
+        transform: {
           define: {
             'process.env.PLUGIN_B': 'true',
           },
         },
-        serializer: {
-          prelude: ['/path/to/prelude-plugin-b.js'],
-          polyfills: [
-            {
-              type: 'iife',
-              code: 'console.log("polyfill-plugin-b")',
-            },
-          ],
-        },
+        prelude: ['/path/to/prelude-plugin-b.js'],
+        polyfills: [{ type: 'iife', code: 'console.log("polyfill-plugin-b")' }],
+        output: {},
         reactNative: {
           assetRegistryPath: '/path/to/AssetRegistry-plugin-b.js',
         },
@@ -100,39 +82,29 @@ describe('resolvePluginConfig', () => {
 
     expect(pluginConfig).toEqual({
       root: '/plugin-c',
-      resolver: {
+      resolve: {
         sourceExtensions: ['ts', 'tsx', 'js', 'jsx'],
         assetExtensions: ['png', 'jpg', 'webp'],
         preferNativePlatform: false,
       },
-      transformer: {
+      transform: {
         define: {
           __DEV__: 'true',
           'process.env.PLUGIN_A': 'true',
           'process.env.PLUGIN_B': 'true',
         },
       },
-      serializer: {
-        prelude: [
-          '/path/to/prelude.js',
-          '/path/to/prelude-plugin-a.js',
-          '/path/to/prelude-plugin-b.js',
-        ],
-        polyfills: [
-          {
-            type: 'iife',
-            code: 'console.log("polyfill")',
-          },
-          {
-            type: 'iife',
-            code: 'console.log("polyfill-plugin-a")',
-          },
-          {
-            type: 'iife',
-            code: 'console.log("polyfill-plugin-b")',
-          },
-        ],
-      },
+      prelude: [
+        '/path/to/prelude.js',
+        '/path/to/prelude-plugin-a.js',
+        '/path/to/prelude-plugin-b.js',
+      ],
+      polyfills: [
+        { type: 'iife', code: 'console.log("polyfill")' },
+        { type: 'plain', code: 'console.log("polyfill-plugin-a")' },
+        { type: 'iife', code: 'console.log("polyfill-plugin-b")' },
+      ],
+      output: {},
       reactNative: {
         assetRegistryPath: '/path/to/AssetRegistry-plugin-c.js',
       },

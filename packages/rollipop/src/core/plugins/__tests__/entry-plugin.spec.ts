@@ -53,7 +53,9 @@ describe('entry plugin', () => {
     expect(interpreter(load.filter, undefined, ROLLIPOP_VIRTUAL_ENTRY_ID)).toBe(true);
     expect(interpreter(load.filter, undefined, entryPath)).toBe(false);
     expect(load.handler(ROLLIPOP_VIRTUAL_ENTRY_ID)).toEqual({
-      code: `import ${JSON.stringify(preludePath)};\nimport ${JSON.stringify(entryPath)};`,
+      code: [`import ${JSON.stringify(preludePath)};`, `import ${JSON.stringify(entryPath)};`].join(
+        '\n',
+      ),
       moduleType: 'js',
     });
   });

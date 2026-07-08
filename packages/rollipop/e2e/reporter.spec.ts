@@ -7,7 +7,7 @@ describe('reporter', () => {
   it('receives lifecycle events from regular builds', async () => {
     const events: ReportableEvent[] = [];
 
-    await build('serializer/prelude', {
+    await build('bundle-output/prelude', {
       reporter: {
         update(event) {
           events.push(event);

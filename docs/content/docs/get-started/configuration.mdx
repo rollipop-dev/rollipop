@@ -88,72 +88,72 @@ export default defineConfig({
 });
 ```
 
-## resolver
+## resolve
 
 Module resolution configuration.
 
 <Callout>
-  `resolver` option is extends Rolldown's
+  `resolve` option extends Rolldown's
   [`InputOptions['resolve']`](https://github.com/rolldown/rolldown/blob/v1.0.0-beta.57/packages/rolldown/src/binding.d.cts#L1905).
 </Callout>
 
-### resolver.sourceExtensions
+### resolve.sourceExtensions
 
 - **Type:** `string[]`
 - **Default:** `['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs', 'json']`
 
 File extensions to resolve as source files.
 
-### resolver.assetExtensions
+### resolve.assetExtensions
 
 - **Type:** `string[]`
 - **Default:** images (`bmp`, `gif`, `jpg`, `jpeg`, `png`, `psd`, `svg`, `webp`, `xml`), video (`m4v`, `mov`, `mp4`, `mpeg`, `mpg`, `webm`), audio (`aac`, `aiff`, `caf`, `m4a`, `mp3`, `wav`), documents (`html`, `pdf`, `yaml`, `yml`), fonts (`otf`, `ttf`), and archives (`zip`).
 
 File extensions to resolve as asset files.
 
-### resolver.mainFields
+### resolve.mainFields
 
 - **Type:** `string[]`
 - **Default:** `['react-native', 'browser', 'main']`
 
 Fields to check in package.json when resolving packages.
 
-### resolver.conditionNames
+### resolve.conditionNames
 
 - **Type:** `string[]`
 - **Default:** `['react-native', 'import', 'require']`
 
 Condition names for exports field resolution in package.json.
 
-### resolver.preferNativePlatform
+### resolve.preferNativePlatform
 
 - **Type:** `boolean`
 - **Default:** `true`
 
-If `true`, resolver will resolve platform-specific files with `.native` suffix.
+If `true`, Rollipop will resolve platform-specific files with `.native` suffix.
 
 For example:
 
 - **true**: `index.android.js` → `index.native.js` → `index.js`
 - **false**: `index.android.js` → `index.js`
 
-### resolver.symlinks
+### resolve.symlinks
 
 - **Type:** `boolean`
 - **Default:** `true`
 
 Whether to resolve symlinks to their symlinked location.
 
-## transformer
+## transform
 
 Source code transformation configuration.
 
 <Callout>
-  `transformer` option is extends Rolldown's
-  [`TransformOptions`](https://github.com/rolldown/rolldown/blob/v1.0.0-beta.57/packages/rolldown/src/binding.d.cts#L1171).
+  `transform` option extends Rolldown's `InputOptions['transform']` with Rollipop-specific transform
+  extensions.
 </Callout>
 
-### transformer.flow
+### transform.flow
 
 Flow type syntax transformation configuration.
 
@@ -164,7 +164,7 @@ Flow type syntax transformation configuration.
 
 Filter for Flow transformation pipeline. Uses Rolldown's [hook filter feature](https://rolldown.rs/apis/plugin-hook-filters) to determine which files should be processed.
 
-### transformer.reactCompiler
+### transform.reactCompiler
 
 React Compiler transformation configuration.
 
@@ -175,7 +175,7 @@ React Compiler is disabled by default. Pass an empty object to enable it with Ro
 
 ```ts
 export default defineConfig({
-  transformer: {
+  transform: {
     reactCompiler: {},
   },
 });
@@ -185,7 +185,7 @@ When `exclude` is omitted, Rollipop skips files whose module id matches `/node_m
 
 See [React Compiler](/docs/features/react-compiler) for setup guidance and option details.
 
-### transformer.babel
+### transform.babel
 
 Custom Babel transformation rules.
 
@@ -197,7 +197,7 @@ Define custom Babel transformation rules for specific files.
 
 ```ts
 export default defineConfig({
-  transformer: {
+  transform: {
     babel: {
       rules: [
         {
@@ -221,7 +221,7 @@ interface BabelTransformRule {
 }
 ```
 
-### transformer.swc
+### transform.swc
 
 Custom SWC transformation rules.
 
@@ -233,7 +233,7 @@ Define custom SWC transformation rules for specific files.
 
 ```ts
 export default defineConfig({
-  transformer: {
+  transform: {
     swc: {
       rules: [
         {
@@ -261,24 +261,18 @@ interface SwcTransformRule {
 }
 ```
 
-## serializer
-
-Output serialization configuration.
-
-### serializer.prelude
+## prelude
 
 - **Type:** `string[]`
-- **Default:** `['react-native/Libraries/Core/InitializeCore']`
+- **Default:** React Native `InitializeCore`
 
-Paths to prelude files that are imported at the top of the entry module.
+Prelude modules imported before the app entry module.
 
-By default, Rollipop includes React Native's `InitializeCore` module, which sets up the initial JavaScript environment. This module is essential for React Native applications to function properly.
+Each entry is imported as a file module before the app entry module.
 
 ```ts
 export default defineConfig({
-  serializer: {
-    prelude: ['./src/setup.js'],
-  },
+  prelude: ['./src/setup.js'],
 });
 ```
 
@@ -286,115 +280,79 @@ export default defineConfig({
 
 ```ts
 export default defineConfig({
-  serializer: {
-    prelude: ['./src/custom-setup.js'],
-  },
+  prelude: ['./src/custom-setup.js'],
 });
 ```
 
-### serializer.polyfills
+## polyfills
 
-- **Type:** `Polyfill[]`
-- **Default:** Polyfills from `react-native/rn-get-polyfills`
+- **Type:** `(string | { type: 'plain' | 'iife'; code: string; withTransform?: boolean } | { type: 'plain' | 'iife'; path: string; withTransform?: boolean })[]`
+- **Default:** React Native polyfills from `react-native/rn-get-polyfills`
 
-Polyfills to include in the output bundle. Polyfills are injected at the top of the output bundle.
+Polyfills injected before the app modules run.
 
-By default, Rollipop includes all polyfills provided by React Native's `rn-get-polyfills` module. These polyfills are automatically processed to remove Flow type annotations and wrapped in IIFE (Immediately Invoked Function Expression) format.
+String entries are loaded from files. Object entries can provide inline `code` or a file `path`.
+Use `type: 'iife'` when the polyfill should run in its own function scope, or `type: 'plain'`
+when the code should be injected as-is.
 
 ```ts
 export default defineConfig({
-  serializer: {
-    polyfills: [
-      // String path
-      './polyfills/console.js',
-      // With code
-      {
-        type: 'iife',
-        code: '(function() { /* polyfill code */ })()',
-      },
-      // With path
-      {
-        type: 'plain',
-        path: './polyfills/promise.js',
-      },
-    ],
-  },
+  polyfills: [
+    {
+      type: 'iife',
+      code: 'globalThis.window = globalThis;',
+    },
+  ],
 });
 ```
 
-**Polyfill Types:**
+## output
 
-- `'iife'`: Wraps the polyfill code in an IIFE `(function() { ... })()`
-- `'plain'`: Injects the polyfill code as-is without wrapping
+Output configuration.
 
-**Polyfill Formats:**
+<Callout>
+  `output` option extends Rolldown's `OutputOptions`. Rollipop internally owns `file`, `dir`,
+  `format`, `codeSplitting`, and `persistentCache`.
+</Callout>
 
-You can specify polyfills in three ways:
+Other Rolldown output options such as `banner`, `footer`, `intro`, `outro`, `sourcemap`, and
+`minify` are also configured under `output`.
 
-1. **String path**: Simple file path
+## dev
 
-   ```ts
-   polyfills: ['./polyfills/custom.js'];
-   ```
+Development mode configuration.
 
-2. **Object with code**: Inline polyfill code
-
-   ```ts
-   polyfills: [
-     {
-       type: 'iife',
-       code: 'console.log("Polyfill loaded");',
-     },
-   ];
-   ```
-
-3. **Object with path**: File path with explicit type
-   ```ts
-   polyfills: [
-     {
-       type: 'plain',
-       path: './polyfills/global.js',
-     },
-   ];
-   ```
-
-A string to prepend to the bundle before the `renderChunk` hook.
-
-## watcher
+### dev.watch
 
 File watcher configuration for development mode.
 
 <Callout>
-  `watcher` option is extends Rolldown's
+  `dev.watch` option extends Rolldown's
   [`DevWatchOptions`](https://github.com/rolldown/rolldown/blob/v1.0.0-beta.57/packages/rolldown/src/binding.d.cts#L1718).
 </Callout>
 
-### watcher.skipWrite
+#### dev.watch.skipWrite
 
 - **Type:** `boolean`
 - **Default:** `true`
 
 Skip writing output files during watch mode.
 
-### watcher.useDebounce
+#### dev.watch.useDebounce
 
 - **Type:** `boolean`
 - **Default:** `true`
 
 Use debouncing for file change events.
 
-### watcher.debounceDuration
+#### dev.watch.debounceDuration
 
 - **Type:** `number`
 - **Default:** `50`
 
 Debounce duration in milliseconds.
 
-## devMode
-
-Development mode configuration.
-
-### devMode.hmr
+### dev.hmr
 
 - **Type:** `boolean | HmrConfig`
 - **Default:** `true`
@@ -403,7 +361,7 @@ Enable or configure Hot Module Replacement (HMR).
 
 ```ts
 export default defineConfig({
-  devMode: {
+  dev: {
     hmr: true,
   },
 });
@@ -413,7 +371,7 @@ export default defineConfig({
 
 ```ts
 export default defineConfig({
-  devMode: {
+  dev: {
     hmr: {
       runtimeImplement: './custom-hmr-runtime.js',
       clientImplement: './custom-hmr-client.js',
@@ -636,18 +594,18 @@ export default defineConfig({
 });
 ```
 
-## optimization
-
-Build optimization configuration.
-
-### optimization.treeshake
+## treeshake
 
 - **Type:** `boolean | TreeshakeConfig`
 - **Default:** `true`
 
 Controls tree-shaking (dead code elimination). When `false`, tree-shaking will be disabled.
 
-### optimization.minify
+## optimization
+
+Rolldown optimization configuration. This maps to Rolldown's `InputOptions['optimization']`.
+
+## output.minify
 
 - **Type:** `boolean | 'dce-only' | MinifyOptions`
 - **Default:** `false`
@@ -661,13 +619,13 @@ Control code minification.
 
 ```ts
 export default defineConfig({
-  optimization: {
+  output: {
     minify: true,
   },
 });
 ```
 
-### optimization.lazyBarrel
+## experimental.lazyBarrel
 
 - **Type:** `boolean`
 - **Default:** `false`
@@ -676,7 +634,7 @@ Enable lazy barrel optimization. Avoids compiling unused re-export modules in si
 
 See [Lazy Barrel Documentation](https://rolldown.rs/in-depth/lazy-barrel-optimization) for details.
 
-## sourcemap
+## output.sourcemap
 
 - **Type:** `boolean | 'inline' | 'hidden'`
 - **Default:** `true` in development, `false` in production
@@ -690,24 +648,26 @@ Whether to generate sourcemaps.
 
 ```ts
 export default defineConfig({
-  sourcemap: true,
+  output: {
+    sourcemap: true,
+  },
 });
 ```
 
-### sourcemapBaseUrl
+### output.sourcemapBaseUrl
 
 - **Type:** `string`
 
 Base URL for links to sourcemap files. When set, absolute URLs will be generated instead of relative ones. Useful when deploying sourcemaps to a separate location like a CDN.
 
-### sourcemapDebugIds
+### output.sourcemapDebugIds
 
 - **Type:** `boolean`
 - **Default:** `false`
 
 Include [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in the sourcemap. A unique debug ID helps identify sourcemaps across different builds.
 
-### sourcemapIgnoreList
+### output.sourcemapIgnoreList
 
 - **Type:** `boolean | string | RegExp | ((source: string, sourcemapPath: string) => boolean)`
 - **Default:** `/node_modules/`
@@ -719,7 +679,7 @@ Control which source files are included in the sourcemap ignore list. Files in t
   functions. Prefer static patterns when possible.
 </Callout>
 
-### sourcemapPathTransform
+### output.sourcemapPathTransform
 
 - **Type:** `(source: string, sourcemapPath: string) => string`
 
@@ -727,8 +687,10 @@ Transform each path in a sourcemap.
 
 ```ts
 export default defineConfig({
-  sourcemapPathTransform: (source) => {
-    return source.replace(/^src\//, '');
+  output: {
+    sourcemapPathTransform: (source) => {
+      return source.replace(/^src\//, '');
+    },
   },
 });
 ```
@@ -744,11 +706,31 @@ Configures TypeScript configuration file resolution and usage. When set to a str
 
 Experimental options. See [Experimental Features](/docs/features/experimental) for the full reference and stability notes.
 
+## rolldownOptions
+
+- **Type:** `InputOptions & { output?: OutputOptions }`
+
+Raw Rolldown options merged before Rollipop's generated options.
+
+Use this when you need a Rolldown option that Rollipop does not expose directly. Rollipop-managed
+options can still be overwritten by the generated config.
+
+```ts
+export default defineConfig({
+  rolldownOptions: {
+    external: ['react'],
+    output: {
+      banner: '/* generated */',
+    },
+  },
+});
+```
+
 ## dangerously_overrideRolldownOptions
 
-- **Type:** `RolldownConfig | ((config: RolldownConfig) => RolldownConfig)`
+- **Type:** `(config: RolldownConfig) => RolldownConfig | Promise<RolldownConfig>`
 
-Override Rolldown's internal configuration directly.
+Override Rollipop's final generated Rolldown configuration directly.
 
 <Callout type="warn">
   This option is **dangerous** and can break the build. Use only when you know exactly what you're

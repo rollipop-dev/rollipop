@@ -7,7 +7,7 @@ import { build, buildToFile, cleanup, fixturePath } from './helpers';
 
 describe('output', () => {
   describe('sourcemap', () => {
-    const fixture = 'serializer/prelude';
+    const fixture = 'bundle-output/prelude';
     const outDir = '.out-sourcemap';
 
     it('sourcemap: true generates separate .map file', async () => {
@@ -51,7 +51,7 @@ describe('output', () => {
         const { outfile } = await buildToFile(
           fixture,
           outDir,
-          { sourcemapBaseUrl: 'https://cdn.example.com/maps' },
+          { output: { sourcemapBaseUrl: 'https://cdn.example.com/maps' } },
           { sourcemap: true },
         );
 
@@ -68,7 +68,9 @@ describe('output', () => {
           fixture,
           outDir,
           {
-            sourcemapPathTransform: (source) => source.replace(/.*\//, 'rewritten/'),
+            output: {
+              sourcemapPathTransform: (source: string) => source.replace(/.*\//, 'rewritten/'),
+            },
           },
           { sourcemap: true },
         );
@@ -87,7 +89,7 @@ describe('output', () => {
   });
 
   describe('sourcemap outfile', () => {
-    const fixture = 'serializer/prelude';
+    const fixture = 'bundle-output/prelude';
     const outDir = '.out-sourcemap-outfile';
 
     it('sourcemapOutfile moves sourcemap to custom location', async () => {
@@ -117,7 +119,7 @@ describe('output', () => {
   });
 
   describe('file output', () => {
-    const fixture = 'serializer/prelude';
+    const fixture = 'bundle-output/prelude';
     const outDir = '.out-file';
 
     it('writes bundle to outfile path', async () => {
@@ -134,14 +136,14 @@ describe('output', () => {
 
   describe('global variables', () => {
     it('injects __BUNDLE_START_TIME__ for performance tracking', async () => {
-      const chunk = await build('serializer/prelude');
+      const chunk = await build('bundle-output/prelude');
 
       expect(chunk.code).toContain('__BUNDLE_START_TIME__');
       expect(chunk.code).toContain('nativePerformanceNow');
     });
 
     it('injects process polyfill with NODE_ENV', async () => {
-      const chunk = await build('serializer/prelude');
+      const chunk = await build('bundle-output/prelude');
 
       expect(chunk.code).toContain('var process = globalThis.process || {}');
       expect(chunk.code).toContain('process.env = process.env || {}');
@@ -150,7 +152,7 @@ describe('output', () => {
     it('dev server mode adds React Refresh stubs', async () => {
       // Note: This only applies to serve mode, which we can test via the intro
       // by checking the global vars function behavior
-      const prod = await build('serializer/prelude');
+      const prod = await build('bundle-output/prelude');
 
       // Production build should NOT have $RefreshReg$/$RefreshSig$
       expect(prod.code).not.toContain('$RefreshReg$');
@@ -158,24 +160,26 @@ describe('output', () => {
     });
   });
 
-  describe('dangerously_overrideRolldownOptions', () => {
-    it('object form merges into rolldown options', async () => {
-      const chunk = await build('serializer/prelude', {
-        dangerously_overrideRolldownOptions: {
+  describe('rolldownOptions', () => {
+    it('merges raw rolldown options before final config is generated', async () => {
+      const chunk = await build('bundle-output/prelude', {
+        rolldownOptions: {
           output: {
-            banner: '/* DANGEROUS_OVERRIDE */',
+            banner: '/* RAW_ROLLDOWN_OPTIONS */',
           },
         },
       });
 
-      expect(chunk.code).toContain('/* DANGEROUS_OVERRIDE */');
+      expect(chunk.code).toContain('/* RAW_ROLLDOWN_OPTIONS */');
     });
+  });
 
-    it('function form receives full config and can modify it', async () => {
+  describe('dangerously_overrideRolldownOptions', () => {
+    it('receives full final config and can modify it', async () => {
       let receivedInput = false;
       let receivedOutput = false;
 
-      const chunk = await build('serializer/prelude', {
+      const chunk = await build('bundle-output/prelude', {
         dangerously_overrideRolldownOptions: (config) => {
           receivedInput = !!config.input;
           receivedOutput = !!config.output;

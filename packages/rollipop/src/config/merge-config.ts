@@ -24,7 +24,7 @@ export function mergeConfig(
   for (const overrideConfig of overrideConfigs) {
     mergedConfig = mergeWith(mergedConfig, overrideConfig, (target, source, key) => {
       if (
-        ['sourceExtensions', 'assetExtensions', 'polyfills', 'prelude', 'plugins'].includes(key)
+        ['sourceExtensions', 'assetExtensions', 'prelude', 'polyfills', 'plugins'].includes(key)
       ) {
         return Array.from(new Set([...(target ?? []), ...(source ?? [])]));
       }

@@ -22,7 +22,7 @@ export function createTestConfig(basePath: string): ResolvedConfig {
     root: basePath,
     mode: 'development',
     entry: 'index.js',
-    resolver: {
+    resolve: {
       sourceExtensions: DEFAULT_SOURCE_EXTENSIONS,
       assetExtensions: DEFAULT_ASSET_EXTENSIONS,
       mainFields: DEFAULT_RESOLVER_MAIN_FIELDS,
@@ -31,7 +31,7 @@ export function createTestConfig(basePath: string): ResolvedConfig {
       preferNativePlatform: true,
       symlinks: true,
     },
-    transformer: {
+    transform: {
       flow: {
         filter: {
           id: /\.jsx?$/,
@@ -39,23 +39,10 @@ export function createTestConfig(basePath: string): ResolvedConfig {
         },
       },
     },
-    serializer: {
-      prelude: [path.join(basePath, '__tests__/react-native/Libraries/Core/InitializeCore.js')],
-      polyfills: [
-        {
-          type: 'iife',
-          code: 'console.log("[TEST] Polyfill")',
-        },
-      ],
-    },
-    watcher: {
-      skipWrite: true,
-      useDebounce: true,
-      debounceDuration: 50,
-    },
-    optimization: {
-      treeshake: true,
-    },
+    prelude: [path.join(basePath, '__tests__/react-native/Libraries/Core/InitializeCore.js')],
+    polyfills: [{ type: 'iife', code: 'console.log("[TEST] Polyfill")' }],
+    output: {},
+    treeshake: true,
     reactNative: {
       reactNativePath: '__tests__/react-native',
       codegen: {
@@ -66,7 +53,12 @@ export function createTestConfig(basePath: string): ResolvedConfig {
       assetRegistryPath: DEFAULT_ASSET_REGISTRY_PATH,
       hmrClientPath: DEFAULT_HMR_CLIENT_PATH,
     },
-    devMode: {
+    dev: {
+      watch: {
+        skipWrite: true,
+        useDebounce: true,
+        debounceDuration: 50,
+      },
       hmr: true,
     },
     reporter: {

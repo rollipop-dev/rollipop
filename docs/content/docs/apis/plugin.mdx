@@ -67,7 +67,7 @@ export default function myPlugin() {
   return {
     name: 'my-plugin',
     config: {
-      resolver: {
+      resolve: {
         alias: {
           '@': '/src',
         },
@@ -86,7 +86,7 @@ export default function myPlugin() {
     config(config) {
       // Return partial config to merge
       return {
-        resolver: {
+        resolve: {
           alias: {
             '@': '/src',
           },

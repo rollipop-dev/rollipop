@@ -9,15 +9,15 @@ export function svgPlugin(): Plugin {
   return {
     name: 'rollipop:svg',
     config(config) {
-      const resolver = (config.resolver ??= {});
-      const sourceExtensions = (resolver.sourceExtensions ??= []);
-      const assetExtensions = (resolver.assetExtensions ??= []);
+      const resolve = (config.resolve ??= {});
+      const sourceExtensions = (resolve.sourceExtensions ??= []);
+      const assetExtensions = (resolve.assetExtensions ??= []);
 
       if (!sourceExtensions.includes(SVG_EXTENSION)) {
         sourceExtensions.push(SVG_EXTENSION);
       }
 
-      resolver.assetExtensions = assetExtensions.filter((extension) => extension !== SVG_EXTENSION);
+      resolve.assetExtensions = assetExtensions.filter((extension) => extension !== SVG_EXTENSION);
     },
     load: {
       filter: {

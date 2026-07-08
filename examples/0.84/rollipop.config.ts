@@ -14,7 +14,7 @@ export default defineConfig({
     enabled: true,
     autoOpen: true,
   },
-  transformer: {
+  transform: {
     reactCompiler: {},
   },
   plugins: [

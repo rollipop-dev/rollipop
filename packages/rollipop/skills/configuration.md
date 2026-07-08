@@ -1,6 +1,6 @@
 ---
 name: configuration
-description: Rollipop configuration workflow. Use for rollipop.config.ts, defineConfig, resolver, transformer, serializer, React Native options, env files, sourcemaps, optimization, terminal, reporter, and experimental options.
+description: Rollipop configuration workflow. Use for rollipop.config.ts, defineConfig, resolve, transform, output, React Native options, env files, sourcemaps, optimization, terminal, reporter, and experimental options.
 allowed-tools: Bash(npx:*), Bash(npm:*), Bash(pnpm:*), Bash(rollipop:*), Bash(yarn:*), Bash(node:*)
 ---
 
@@ -20,12 +20,12 @@ Use https://rollipop.dev/docs/features/env.md when changing env file loading, pr
 
 Use https://rollipop.dev/docs/features/experimental.md before enabling experimental options. Keep the change explicit and mention stability/version risk. For worklets specifically, read https://rollipop.dev/docs/features/reanimated-worklets.md.
 
-## Resolver Changes
+## Resolve Changes
 
-When changing resolver behavior, verify package metadata (`exports`, `react-native`, `browser`, `main`) before adding aliases or externals. Prefer resolver/config APIs over `dangerously_overrideRolldownOptions`.
+When changing module resolution behavior, verify package metadata (`exports`, `react-native`, `browser`, `main`) before adding aliases or externals. Prefer resolve/config APIs over `dangerously_overrideRolldownOptions`.
 
 ## Watchpoints
 
 - Translate intent from existing Metro config instead of copying Metro fields mechanically.
-- Overriding arrays can accidentally remove React Native defaults; check docs before replacing serializer, resolver extension lists, or polyfills.
+- Overriding arrays can accidentally remove React Native defaults; check docs before replacing prelude or resolve extension lists.
 - If config is produced dynamically, inspect both the source config and the resolved behavior through dev-server diagnostics when available.

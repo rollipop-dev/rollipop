@@ -132,9 +132,8 @@ describe('dev server', () => {
       expect(code).toContain('AppRegistry');
     });
 
-    it('contains polyfill code from react-native', () => {
-      // react-native polyfills are injected as IIFE
-      expect(code).toMatch(/\(function\s*\(global\)/);
+    it('contains React Native polyfill code', () => {
+      expect(code).toContain('ErrorUtils');
     });
 
     it('contains import.meta.env.MODE = "development"', () => {

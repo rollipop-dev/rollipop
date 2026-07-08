@@ -25,14 +25,14 @@ export function resolveHmrConfig(config: ResolvedConfig): ResolvedHmrConfig | nu
 
   const defaultRuntimeImplements = getDefaultRuntimeImplements();
 
-  if (typeof config.devMode.hmr === 'boolean') {
-    return config.devMode.hmr ? defaultRuntimeImplements : null;
+  if (typeof config.dev.hmr === 'boolean') {
+    return config.dev.hmr ? defaultRuntimeImplements : null;
   }
 
   const {
     runtimeImplement = defaultRuntimeImplements.runtimeImplement,
     clientImplement = defaultRuntimeImplements.clientImplement,
-  } = config.devMode.hmr;
+  } = config.dev.hmr;
 
   return { runtimeImplement, clientImplement };
 }

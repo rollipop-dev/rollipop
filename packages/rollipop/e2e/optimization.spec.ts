@@ -14,7 +14,7 @@ describe('optimization', () => {
 
     it('preserves all exports when disabled', async () => {
       const chunk = await build('optimization/treeshake', {
-        optimization: { treeshake: false },
+        treeshake: false,
       });
 
       expect(chunk.code).toContain('add');
@@ -26,7 +26,7 @@ describe('optimization', () => {
   describe('minify', () => {
     it('minify: false preserves readable output', async () => {
       const chunk = await build('optimization/treeshake', {
-        optimization: { minify: false },
+        output: { minify: false },
       });
 
       // Non-minified output should have meaningful whitespace
@@ -76,11 +76,11 @@ describe('optimization', () => {
       expect(chunk.code).not.toContain('unusedMultiply');
     });
 
-    it('buildOptions.minify overrides config.optimization.minify', async () => {
+    it('buildOptions.minify overrides config.output.minify', async () => {
       // Config says minify: true, but buildOptions says false
       const chunk = await build(
         'optimization/treeshake',
-        { optimization: { minify: true } },
+        { output: { minify: true } },
         { minify: false },
       );
 

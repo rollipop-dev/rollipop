@@ -54,7 +54,7 @@ const plugin = fp<ServeAssetPluginOptions>(
         try {
           const resolvedAssetPath = AssetUtils.resolveAssetPath(assetPath, {
             platform: query.platform,
-            preferNativePlatform: context.config.resolver.preferNativePlatform,
+            preferNativePlatform: context.config.resolve.preferNativePlatform,
           });
           handle = await fs.promises.open(resolvedAssetPath, 'r');
           const assetData = await handle.readFile();

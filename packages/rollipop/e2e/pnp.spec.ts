@@ -200,8 +200,8 @@ async function main() {
     hasDevFalse: chunk.code.includes('var __DEV__ = false'),
     hasBundleStartTime: chunk.code.includes('__BUNDLE_START_TIME__'),
     hasNodeEnv: chunk.code.includes('process.env.NODE_ENV'),
-    // Default polyfills from react-native (injected as IIFE)
-    hasPolyfillIIFE: /\\(function\\s*\\(global\\)/.test(chunk.code),
+    // Default React Native polyfills
+    hasReactNativePolyfill: chunk.code.includes('ErrorUtils'),
   }));
 }
 
@@ -259,7 +259,7 @@ describe('Yarn PnP', () => {
     expect(result.hasDevFalse).toBe(true);
     expect(result.hasBundleStartTime).toBe(true);
     expect(result.hasNodeEnv).toBe(true);
-    // Default polyfills from react-native
-    expect(result.hasPolyfillIIFE).toBe(true);
+    // Default React Native polyfills
+    expect(result.hasReactNativePolyfill).toBe(true);
   }, 300_000);
 });

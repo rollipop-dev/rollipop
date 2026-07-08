@@ -8,7 +8,7 @@ describe('transformer', () => {
     it('compiles JSX with automatic runtime (no React import needed)', async () => {
       const chunk = await build('transformer/jsx', {
         entry: 'index.tsx',
-        resolver: { external: [/^react/] },
+        external: [/^react/],
       });
 
       // automatic runtime uses jsx/jsxs from react/jsx-runtime
@@ -21,7 +21,7 @@ describe('transformer', () => {
     it('uses jsxDEV in development mode', async () => {
       const chunk = await build(
         'transformer/jsx',
-        { entry: 'index.tsx', mode: 'development', resolver: { external: [/^react/] } },
+        { entry: 'index.tsx', mode: 'development', external: [/^react/] },
         { dev: true },
       );
 
@@ -32,7 +32,7 @@ describe('transformer', () => {
       const chunk = await build('transformer/jsx', {
         entry: 'index.tsx',
         mode: 'production',
-        resolver: { external: [/^react/] },
+        external: [/^react/],
       });
 
       expect(chunk.code).not.toContain('jsxDEV');
@@ -41,7 +41,7 @@ describe('transformer', () => {
     it('builds with the native transform pipeline enabled', async () => {
       const chunk = await build('transformer/jsx', {
         entry: 'index.tsx',
-        resolver: { external: [/^react/] },
+        external: [/^react/],
         experimental: {
           nativeTransformPipeline: true,
         },
@@ -110,7 +110,7 @@ describe('transformer', () => {
 
     it('custom SWC rule applies additional transforms', async () => {
       const chunk = await build('optimization/treeshake', {
-        transformer: {
+        transform: {
           swc: {
             rules: [
               {
@@ -140,8 +140,8 @@ describe('transformer', () => {
 
   describe('Babel', () => {
     it('custom babel rule transforms matching files', async () => {
-      const chunk = await build('serializer/prelude', {
-        transformer: {
+      const chunk = await build('bundle-output/prelude', {
+        transform: {
           babel: {
             rules: [
               {
@@ -174,8 +174,8 @@ describe('transformer', () => {
     it('babel options as function receives code and id', async () => {
       const receivedIds: string[] = [];
 
-      await build('serializer/prelude', {
-        transformer: {
+      await build('bundle-output/prelude', {
+        transform: {
           babel: {
             rules: [
               {
@@ -197,8 +197,8 @@ describe('transformer', () => {
     it('multiple babel rules stack transforms', async () => {
       const order: string[] = [];
 
-      await build('serializer/prelude', {
-        transformer: {
+      await build('bundle-output/prelude', {
+        transform: {
           babel: {
             rules: [
               {
@@ -247,8 +247,8 @@ describe('transformer', () => {
     it('multiple SWC rules are stacked on the same file', async () => {
       const matchedRuleIds: number[] = [];
 
-      const chunk = await build('serializer/prelude', {
-        transformer: {
+      const chunk = await build('bundle-output/prelude', {
+        transform: {
           swc: {
             rules: [
               {
@@ -289,7 +289,7 @@ describe('transformer', () => {
         },
       };
 
-      await build('serializer/prelude', { plugins: [plugin] });
+      await build('bundle-output/prelude', { plugins: [plugin] });
 
       expect(transformOrder).toContain('user-plugin');
     });
@@ -299,7 +299,7 @@ describe('transformer', () => {
       const babelProcessedIds: string[] = [];
 
       const chunk = await build('resolver/condition-names', {
-        transformer: {
+        transform: {
           babel: {
             rules: [
               {

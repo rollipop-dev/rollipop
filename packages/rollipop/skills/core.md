@@ -27,5 +27,5 @@ Treat Rollipop as a Metro replacement for React Native, not as a generic web bun
 - Use `build.md` for `rollipop bundle`, production output, sourcemaps, assets, cache behavior, or programmatic `runBuild`.
 - Use `dev-server.md` for `rollipop start`, HMR, ports, HTTPS, interactive mode, or programmatic `runServer`.
 - Use `debugging.md` for MCP/SSE diagnostics, app logs, build logs, symbolication, or cache triage.
-- Use `configuration.md` for `rollipop.config.ts`, resolver/transformer/env/sourcemap/optimization options, or React Native-specific config.
+- Use `configuration.md` for `rollipop.config.ts`, resolve/transform/output/env/optimization options, or React Native-specific config.
 - Use `plugins.md` for plugin setup, plugin authoring, SVG/analyze/module federation, reporter integration, or client-server plugin communication.

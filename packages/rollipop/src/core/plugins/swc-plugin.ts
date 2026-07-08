@@ -2,7 +2,7 @@ import type * as rolldown from '@rollipop/rolldown';
 import { id, include } from '@rollipop/rolldown/filter';
 import * as swc from '@swc/core';
 
-import type { ResolvedConfig, TransformerConfig } from '../../config';
+import type { ResolvedConfig, TransformConfig } from '../../config';
 import { mergeSwcOptions } from '../../utils/swc';
 import type { BundlerContext } from '../types';
 import { ROLLDOWN_RUNTIME_EXCLUDE_FILTER } from './shared/filters';
@@ -18,7 +18,7 @@ export interface SwcPluginOptions {
    */
   useNativeTransformPipeline: boolean;
   runtimeTarget: ResolvedConfig['runtimeTarget'];
-  transformConfig?: TransformerConfig['swc'];
+  transformConfig?: TransformConfig['swc'];
 }
 
 function swcPlugin({

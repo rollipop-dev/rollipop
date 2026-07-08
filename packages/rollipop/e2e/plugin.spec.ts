@@ -48,7 +48,7 @@ describe('plugin system', () => {
         },
       };
 
-      const chunk = await build('serializer/prelude', { plugins: [plugin] });
+      const chunk = await build('bundle-output/prelude', { plugins: [plugin] });
 
       expect(chunk.code).toContain('TRANSFORMED');
       expect(chunk.code).not.toContain('main entry');
@@ -67,7 +67,7 @@ describe('plugin system', () => {
         },
       };
 
-      await build('serializer/prelude', { plugins: [plugin] });
+      await build('bundle-output/prelude', { plugins: [plugin] });
 
       expect(transformedIds.length).toBeGreaterThan(0);
       expect(transformedIds.every((id) => id.endsWith('.ts'))).toBe(true);
@@ -89,7 +89,7 @@ describe('plugin system', () => {
         },
       };
 
-      await build('serializer/prelude', { plugins: [plugin] });
+      await build('bundle-output/prelude', { plugins: [plugin] });
 
       expect(buildStartCalled).toBe(true);
       expect(buildStartBeforeTransform).toBe(true);
@@ -105,7 +105,7 @@ describe('plugin system', () => {
         },
       };
 
-      await build('serializer/prelude', { plugins: [plugin] });
+      await build('bundle-output/prelude', { plugins: [plugin] });
 
       expect(receivedError).toBeUndefined();
     });
@@ -124,7 +124,7 @@ describe('plugin system', () => {
       };
 
       try {
-        await build('serializer/prelude', { plugins: [plugin] });
+        await build('bundle-output/prelude', { plugins: [plugin] });
       } catch {
         // expected — build should fail due to forced error
       }
@@ -150,14 +150,14 @@ describe('plugin system', () => {
       try {
         const firstEvents: ReportableEvent[] = [];
         await build(
-          'serializer/prelude',
+          'bundle-output/prelude',
           { reporter: collectEvents(firstEvents) },
           { cache: true },
         );
 
         const secondEvents: ReportableEvent[] = [];
         await build(
-          'serializer/prelude',
+          'bundle-output/prelude',
           { reporter: collectEvents(secondEvents) },
           { cache: true },
         );
@@ -202,7 +202,7 @@ describe('plugin system', () => {
         },
       };
 
-      await build('serializer/prelude', { plugins: [pluginA, pluginB, pluginC] });
+      await build('bundle-output/prelude', { plugins: [pluginA, pluginB, pluginC] });
 
       expect(order).toEqual(['a', 'b', 'c']);
     });
@@ -228,7 +228,7 @@ describe('plugin system', () => {
       };
 
       // Even though normalPlugin is listed first, prePlugin should run first
-      await build('serializer/prelude', { plugins: [normalPlugin, prePlugin] });
+      await build('bundle-output/prelude', { plugins: [normalPlugin, prePlugin] });
 
       const preIdx = order.indexOf('pre');
       const normalIdx = order.indexOf('normal');
@@ -243,8 +243,8 @@ describe('plugin system', () => {
         config(config) {
           return {
             ...config,
-            serializer: {
-              ...config.serializer,
+            output: {
+              ...config.output,
               banner: '/* INJECTED_BY_CONFIG_HOOK */',
             },
           };
@@ -255,30 +255,30 @@ describe('plugin system', () => {
       const baseConfig = {};
       const result = await resolvePluginConfig(baseConfig, [plugin]);
 
-      expect(result.serializer?.banner).toBe('/* INJECTED_BY_CONFIG_HOOK */');
+      expect(result.output?.banner).toBe('/* INJECTED_BY_CONFIG_HOOK */');
     });
 
     it('config hook as object is merged into config', async () => {
       const plugin: Plugin = {
         name: 'test:config-object',
         config: {
-          optimization: { treeshake: false },
-          serializer: { banner: '/* FROM_OBJECT */' },
+          treeshake: false,
+          output: { banner: '/* FROM_OBJECT */' },
         },
       };
 
-      const baseConfig = { optimization: { treeshake: true } };
+      const baseConfig = { treeshake: true };
       const result = await resolvePluginConfig(baseConfig as any, [plugin]);
 
-      expect(result.optimization?.treeshake).toBe(false);
-      expect(result.serializer?.banner).toBe('/* FROM_OBJECT */');
+      expect(result.treeshake).toBe(false);
+      expect(result.output?.banner).toBe('/* FROM_OBJECT */');
     });
 
     it('multiple config hooks are applied sequentially', async () => {
       const pluginA: Plugin = {
         name: 'test:config-a',
         config: {
-          serializer: { banner: '/* A */' },
+          output: { banner: '/* A */' },
         },
       };
 
@@ -288,8 +288,8 @@ describe('plugin system', () => {
           // Should receive config already merged with plugin A
           return {
             ...config,
-            serializer: {
-              ...config.serializer,
+            output: {
+              ...config.output,
               footer: '/* B */',
             },
           };
@@ -298,8 +298,8 @@ describe('plugin system', () => {
 
       const result = await resolvePluginConfig({}, [pluginA, pluginB]);
 
-      expect(result.serializer?.banner).toBe('/* A */');
-      expect(result.serializer?.footer).toBe('/* B */');
+      expect(result.output?.banner).toBe('/* A */');
+      expect(result.output?.footer).toBe('/* B */');
     });
 
     it('configResolved receives the final merged configuration', async () => {
@@ -312,7 +312,7 @@ describe('plugin system', () => {
         },
       };
 
-      const config = createConfig('serializer/prelude', { plugins: [plugin] });
+      const config = createConfig('bundle-output/prelude', { plugins: [plugin] });
       await invokeConfigResolved(config, [plugin]);
 
       expect(receivedConfig).toBeDefined();
@@ -334,7 +334,7 @@ describe('plugin system', () => {
       });
 
       const plugins = [makePlugin('a'), makePlugin('b'), makePlugin('c')];
-      const config = createConfig('serializer/prelude', { plugins });
+      const config = createConfig('bundle-output/prelude', { plugins });
 
       await invokeConfigResolved(config, plugins);
 

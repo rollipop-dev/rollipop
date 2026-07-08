@@ -52,7 +52,7 @@ export class BundlerDevEngine {
   ) {
     this._id = Bundler.createId(config, buildOptions);
     this.initializeHandle = taskHandler();
-    this.isHmrEnabled = Boolean(buildOptions.dev && config.devMode.hmr);
+    this.isHmrEnabled = Boolean(buildOptions.dev && config.dev.hmr);
 
     void this.initialize();
   }
