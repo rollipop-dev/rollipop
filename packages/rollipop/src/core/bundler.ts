@@ -19,26 +19,39 @@ export class Bundler {
     config: ResolvedConfig,
     buildOptions: Omit<BuildOptions, 'dev' | 'outfile'>,
     devEngineOptions: DevEngineOptions,
-  ) {
+  ): Promise<DevEngine> {
     const buildType = 'serve';
     const resolvedBuildOptions = resolveBuildOptions(config, buildOptions);
     const context = Bundler.createContext(buildType, config, resolvedBuildOptions);
-    const { input = {}, output = {} } = await resolveRolldownOptions(
+    const rolldownOptions = await resolveRolldownOptions(
       context,
       config,
       resolvedBuildOptions,
       devEngineOptions,
     );
+    const { input = {}, output = {} } = rolldownOptions;
 
     const devEngine = await dev(input, output, {
       watch: config.dev.watch,
       ...devEngineOptions,
     });
 
-    Object.defineProperty(devEngine, 'getContext', {
-      value: () => context,
-      enumerable: true,
-      configurable: false,
+    Object.defineProperties(devEngine, {
+      getContext: {
+        value: () => context,
+        enumerable: true,
+        configurable: false,
+      },
+      buildOptions: {
+        get: () => resolvedBuildOptions,
+        enumerable: true,
+        configurable: false,
+      },
+      rolldownOptions: {
+        get: () => rolldownOptions,
+        enumerable: true,
+        configurable: false,
+      },
     });
 
     return devEngine as DevEngine;

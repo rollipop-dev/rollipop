@@ -8,6 +8,7 @@ import {
   serializeDevServerStatus,
   serializeFeatureFlags,
   serializeProjectInfo,
+  serializeRolldownOptionsInfo,
 } from './formatters';
 
 export interface Snapshot {
@@ -30,8 +31,15 @@ export function getProjectInfo(context: DevServerContext) {
   return serializeProjectInfo(context.config, getDevServerStatus(context));
 }
 
-export function getConfigInfo(context: DevServerContext) {
-  return serializeConfigInfo(context.config);
+export async function getConfigInfo(context: DevServerContext) {
+  const rolldownOptions = await Promise.all(
+    context.bundlerPool.getInstances().map(async (bundler) => {
+      await bundler.ensureInitialized;
+      return serializeRolldownOptionsInfo(bundler, bundler.devEngine.rolldownOptions);
+    }),
+  );
+
+  return serializeConfigInfo(context.config, rolldownOptions);
 }
 
 export function getFeatureFlags(context: DevServerContext) {

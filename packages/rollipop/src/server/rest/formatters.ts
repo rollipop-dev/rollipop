@@ -19,13 +19,33 @@ export function serializeProjectInfo(
   };
 }
 
-export function serializeConfigInfo(config: ResolvedConfig) {
+export function serializeConfigInfo(
+  config: ResolvedConfig,
+  rolldownOptions: ReturnType<typeof serializeRolldownOptionsInfo>[],
+) {
   const resolved = toJsonSafe(config);
 
   return {
     path: config.configFile,
     resolved,
     serialized: JSON.stringify(resolved, null, 2),
+    rolldownOptions: {
+      resolved: rolldownOptions,
+      serialized: JSON.stringify(rolldownOptions, null, 2),
+    },
+  };
+}
+
+export function serializeRolldownOptionsInfo(bundler: BundlerDevEngine, rolldownOptions: unknown) {
+  const resolved = toJsonSafe(rolldownOptions);
+
+  return {
+    bundlerId: bundler.id,
+    entry: bundler.entry,
+    platform: bundler.buildOptions.platform,
+    dev: bundler.buildOptions.dev,
+    buildOptions: toJsonSafe(bundler.buildOptions),
+    options: resolved,
   };
 }
 

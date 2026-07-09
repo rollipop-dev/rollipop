@@ -41,6 +41,10 @@ export function toJsonSafe(value: unknown, seen = new WeakSet<object>()): unknow
     };
   }
 
+  if (value instanceof RegExp) {
+    return value.toString();
+  }
+
   if (seen.has(value)) {
     return '[Circular]';
   }

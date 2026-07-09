@@ -10,7 +10,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '../../../components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import type { DashboardConfig, Theme } from '../../../types/dashboard';
+
+type ConfigView = 'resolved' | 'rolldown';
 
 export function ConfigViewer({
   theme,
@@ -27,6 +30,7 @@ export function ConfigViewer({
 }) {
   const [config, setConfig] = useState<DashboardConfig | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [configView, setConfigView] = useState<ConfigView>('resolved');
 
   const loadConfig = async (open: boolean) => {
     if (!open || config != null) {
@@ -54,22 +58,45 @@ export function ConfigViewer({
         </Button>
       </SheetTrigger>
       <SheetContent className="gap-0 p-0 data-[side=right]:h-dvh data-[side=right]:w-[calc(100vw-2rem)] data-[side=right]:sm:max-w-3xl data-[side=right]:lg:max-w-5xl">
-        <SheetHeader className="border-b px-5 py-4">
-          <SheetTitle>Config</SheetTitle>
-          <div className="mt-3 flex min-w-0 items-center gap-2 text-muted-foreground text-xs">
-            <FileCode2 className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate font-mono">
-              {config?.path ?? configPath ?? 'Config path unavailable'}
-            </span>
-          </div>
-        </SheetHeader>
-        <div className="min-h-0 flex-1">
-          <CodeBlock
-            code={config?.serialized ?? errorMessage ?? 'Loading config...'}
-            language={config == null && errorMessage != null ? 'text' : 'json'}
-            theme={theme}
-          />
-        </div>
+        <Tabs
+          value={configView}
+          onValueChange={(value) => setConfigView(value as ConfigView)}
+          className="min-h-0 flex-1 gap-0"
+        >
+          <SheetHeader className="border-b px-5 py-4">
+            <SheetTitle>Config</SheetTitle>
+            <div className="mt-3 flex min-w-0 items-center gap-2 text-muted-foreground text-xs">
+              <FileCode2 className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate font-mono">
+                {config?.path ?? configPath ?? 'Config path unavailable'}
+              </span>
+            </div>
+            {config != null ? (
+              <TabsList className="mt-3">
+                <TabsTrigger value="resolved">Resolved config</TabsTrigger>
+                <TabsTrigger value="rolldown">Rolldown options</TabsTrigger>
+              </TabsList>
+            ) : null}
+          </SheetHeader>
+          {config == null ? (
+            <div className="min-h-0 flex-1">
+              <CodeBlock
+                code={errorMessage ?? 'Loading config...'}
+                language={errorMessage != null ? 'text' : 'json'}
+                theme={theme}
+              />
+            </div>
+          ) : (
+            <>
+              <TabsContent value="resolved">
+                <CodeBlock code={config.serialized} language="json" theme={theme} />
+              </TabsContent>
+              <TabsContent value="rolldown">
+                <CodeBlock code={config.rolldownOptions.serialized} language="json" theme={theme} />
+              </TabsContent>
+            </>
+          )}
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

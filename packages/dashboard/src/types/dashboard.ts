@@ -23,6 +23,19 @@ export interface DashboardConfig {
   path: string | null;
   resolved: unknown;
   serialized: string;
+  rolldownOptions: {
+    resolved: DashboardRolldownOptions[];
+    serialized: string;
+  };
+}
+
+export interface DashboardRolldownOptions {
+  bundlerId: string;
+  entry: string;
+  platform: string;
+  dev: boolean;
+  buildOptions: unknown;
+  options: unknown;
 }
 
 export interface FeatureFlags {

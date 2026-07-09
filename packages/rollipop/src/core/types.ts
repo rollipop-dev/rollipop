@@ -2,6 +2,8 @@ import type * as rolldown from '@rollipop/rolldown';
 import type { DevEngine as BaseDevEngine, DevOptions } from '@rollipop/rolldown/experimental';
 
 import type { FileStorage } from '../storage/file-storage';
+import { ResolvedBuildOptions } from '../utils/build-options';
+import type { RolldownOptions } from './rolldown';
 
 export interface BuildOptions {
   /**
@@ -50,7 +52,8 @@ export interface BuildOptions {
 
 export type DevEngine = BaseDevEngine & {
   getContext: () => BundlerContext;
-  triggerFullBuild: () => void | Promise<void>;
+  buildOptions: ResolvedBuildOptions;
+  rolldownOptions: RolldownOptions;
 };
 
 export type DevEngineOptions = Omit<DevOptions, 'watch'> & {

@@ -170,6 +170,35 @@ function createProject(configPath: string | null, startedAt: number): ProjectInf
 
 function createConfig(): DashboardConfig {
   const path = '/path/to/project/rollipop.config.ts';
+  const rolldownOptions = [
+    {
+      bundlerId: 'bf3a91c-ios-dev-index',
+      entry: 'index',
+      platform: 'ios',
+      dev: true,
+      buildOptions: {
+        dev: true,
+        platform: 'ios',
+        minify: false,
+      },
+      options: {
+        input: {
+          cwd: '/path/to/project',
+          input: '\0rollipop:entry',
+          platform: 'neutral',
+          resolve: {
+            extensions: ['.ios.tsx', '.native.tsx', '.tsx', '.ios.ts', '.native.ts', '.ts'],
+          },
+        },
+        output: {
+          format: 'rollipop',
+          minify: false,
+          sourcemap: true,
+          codeSplitting: false,
+        },
+      },
+    },
+  ];
   const resolved = {
     root: '/path/to/project',
     mode: 'development',
@@ -199,6 +228,10 @@ function createConfig(): DashboardConfig {
     path,
     resolved,
     serialized: JSON.stringify(resolved, null, 2),
+    rolldownOptions: {
+      resolved: rolldownOptions,
+      serialized: JSON.stringify(rolldownOptions, null, 2),
+    },
   };
 }
 
