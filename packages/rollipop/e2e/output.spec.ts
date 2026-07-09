@@ -161,26 +161,24 @@ describe('output', () => {
   });
 
   describe('rolldownOptions', () => {
-    it('merges raw rolldown options before final config is generated', async () => {
+    it('merges object options after final config is generated', async () => {
       const chunk = await build('bundle-output/prelude', {
         rolldownOptions: {
           output: {
-            banner: '/* RAW_ROLLDOWN_OPTIONS */',
+            banner: '/* OBJECT_ROLLDOWN_OPTIONS */',
           },
         },
       });
 
-      expect(chunk.code).toContain('/* RAW_ROLLDOWN_OPTIONS */');
+      expect(chunk.code).toContain('/* OBJECT_ROLLDOWN_OPTIONS */');
     });
-  });
 
-  describe('dangerously_overrideRolldownOptions', () => {
-    it('receives full final config and can modify it', async () => {
+    it('receives full final config when configured as a function', async () => {
       let receivedInput = false;
       let receivedOutput = false;
 
       const chunk = await build('bundle-output/prelude', {
-        dangerously_overrideRolldownOptions: (config) => {
+        rolldownOptions: (config) => {
           receivedInput = !!config.input;
           receivedOutput = !!config.output;
           return {

@@ -1,22 +1,36 @@
-import type { Config, RolldownConfig } from './types';
+import { merge } from 'es-toolkit';
 
-type OverrideOption = NonNullable<Config['dangerously_overrideRolldownOptions']>;
+import type {
+  RolldownOptions,
+  RolldownOptionsConfig,
+  RolldownOptionsContext,
+} from '../core/rolldown';
 
-export async function applyOverrideRolldownOptions(
-  override: OverrideOption,
-  rolldownOptions: RolldownConfig,
-): Promise<RolldownConfig> {
-  return await override(rolldownOptions);
+export async function applyRolldownOptionsConfig(
+  config: RolldownOptionsConfig,
+  options: RolldownOptions,
+  context: RolldownOptionsContext,
+): Promise<RolldownOptions> {
+  if (typeof config === 'function') {
+    return await config(options, context);
+  }
+
+  return merge(options, config);
 }
 
-export function composeOverrideRolldownOptions(
-  target: OverrideOption | undefined,
-  source: OverrideOption | undefined,
-): OverrideOption | undefined {
+export function composeRolldownOptions(
+  target: RolldownOptionsConfig | undefined,
+  source: RolldownOptionsConfig | undefined,
+): RolldownOptionsConfig | undefined {
   if (source == null) return target;
   if (target == null) return source;
-  return async (rolldownOptions: RolldownConfig) => {
-    const next = await applyOverrideRolldownOptions(target, rolldownOptions);
-    return await applyOverrideRolldownOptions(source, next);
+
+  if (typeof target !== 'function' && typeof source !== 'function') {
+    return merge(target, source);
+  }
+
+  return async (options: RolldownOptions, context: RolldownOptionsContext) => {
+    const next = await applyRolldownOptionsConfig(target, options, context);
+    return await applyRolldownOptionsConfig(source, next, context);
   };
 }

@@ -47,7 +47,6 @@ export interface TestConfigOptions {
   experimental?: Partial<NonNullable<Config['experimental']>>;
   reporter?: Reporter;
   rolldownOptions?: Config['rolldownOptions'];
-  dangerously_overrideRolldownOptions?: Config['dangerously_overrideRolldownOptions'];
 }
 
 export function createConfig(fixture: string, options: TestConfigOptions = {}): ResolvedConfig {
@@ -107,7 +106,6 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
     envPrefix: options.envPrefix ?? DEFAULT_ENV_PREFIX,
     plugins: options.plugins ?? [],
     rolldownOptions: options.rolldownOptions,
-    dangerously_overrideRolldownOptions: options.dangerously_overrideRolldownOptions,
     runtimeTarget: DEFAULT_RUNTIME_TARGET,
   } as unknown as ResolvedConfig;
 }

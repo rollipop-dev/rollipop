@@ -164,6 +164,30 @@ describe('resolveRolldownOptions', () => {
     });
   });
 
+  it('applies rolldownOptions after Rollipop internal build overrides', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const config = createTestConfig(process.cwd());
+    const calls: string[] = [];
+    config.rolldownOptions = (options, context) => {
+      calls.push(context.buildType, context.platform);
+      expect(options.output?.format).toBe('rollipop');
+      return {
+        ...options,
+        output: {
+          ...options.output,
+          format: 'iife',
+        },
+      };
+    };
+
+    const options = await resolveTestRolldownOptions(config, 'test-bundler-final-rolldown-options');
+
+    expect(calls).toEqual(['build', 'ios']);
+    expect(options.output?.format).toBe('iife');
+    expect(options.input?.optimization?.inlineConst).toBe(false);
+  });
+
   it('passes object aliases to rolldown resolve options', async () => {
     resolveRolldownOptions.cache.clear();
 

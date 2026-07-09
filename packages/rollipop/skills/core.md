@@ -18,7 +18,7 @@ Work from the React Native project root unless the user gives another directory.
 
 ## Rollipop Role
 
-Treat Rollipop as a Metro replacement for React Native, not as a generic web bundler. Use documented Rollipop config and plugin APIs before reaching for `dangerously_overrideRolldownOptions`. For the product overview, read https://rollipop.dev/docs/get-started/introduction.md.
+Treat Rollipop as a Metro replacement for React Native, not as a generic web bundler. Use documented Rollipop config and plugin APIs before reaching for final `rolldownOptions` overrides. For the product overview, read https://rollipop.dev/docs/get-started/introduction.md.
 
 ## Route Next
 

@@ -7,12 +7,12 @@ import { invariant, isNotNil, merge } from 'es-toolkit';
 
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
-import type { PluginOption, ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
-import { applyOverrideRolldownOptions } from '../config/compose-override';
+import type { ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
+import { applyRolldownOptionsConfig } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { getGlobalVariables } from '../internal/react-native';
-import type { BuildDiagnosticLog, Reporter } from '../types';
-import { ResolvedBuildOptions } from '../utils/build-options';
+import type { BuildDiagnosticLog, MaybePromise, Reporter } from '../types';
+import type { ResolvedBuildOptions } from '../utils/build-options';
 import { resolveHmrConfig } from '../utils/config';
 import { defineEnvFromObject } from '../utils/env';
 import { createVirtualModuleId, escapeVirtualModuleId } from '../utils/id';
@@ -98,16 +98,6 @@ export async function resolveRolldownOptions(
   const hmrConfig = resolveHmrConfig(config);
   const hmrEnabled = hmrConfig != null;
 
-  const rawRolldownOptions = config.rolldownOptions ?? {};
-  const {
-    output: rawOutputOptions,
-    plugins: rawPlugins,
-    resolve: rawResolve,
-    transform: rawTransform,
-    experimental: rawExperimental,
-    ...rawInputOptions
-  } = rawRolldownOptions;
-
   const {
     root: _root,
     mode: _mode,
@@ -129,7 +119,6 @@ export async function resolveRolldownOptions(
     runtimeTarget: _runtimeTarget,
     experimental: _experimental,
     rolldownOptions: _rolldownOptions,
-    dangerously_overrideRolldownOptions: _dangerouslyOverrideRolldownOptions,
     configFile: _configFile,
     ...rolldownInput
   } = config;
@@ -138,9 +127,6 @@ export async function resolveRolldownOptions(
     config.resolve;
 
   const { intro: rolldownIntro, ...rolldownOutput } = config.output;
-  const rawOutputIntro = rawOutputOptions?.intro;
-  const rawOutputSourcemapPathTransform = rawOutputOptions?.sourcemapPathTransform;
-
   const {
     nativeTransformPipeline: _nativeTransformPipeline,
     flow: _experimentalFlow,
@@ -161,14 +147,14 @@ export async function resolveRolldownOptions(
   const { rolldownAlias, aliasPluginOptions } = resolveAliasPluginOptions(config);
 
   const mergedResolveOptions = merge(
-    merge({ ...rawResolve }, {
+    {
       extensions: getResolveExtensions({
         sourceExtensions,
         assetExtensions,
         platform,
         preferNativePlatform,
       }),
-    } satisfies rolldown.InputOptions['resolve']),
+    } satisfies rolldown.InputOptions['resolve'],
     {
       ...rolldownResolve,
       alias: rolldownAlias,
@@ -195,7 +181,7 @@ export async function resolveRolldownOptions(
     },
   } satisfies RollipopTransformOptions;
   const mergedTransformOptions = merge(
-    merge({ ...rawTransform }, defaultTransformOptions),
+    { ...defaultTransformOptions } as RolldownTransformOptions,
     rolldownTransform,
   );
   if (reactCompiler != null) {
@@ -216,20 +202,19 @@ export async function resolveRolldownOptions(
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
 
   const inputOptions: rolldown.InputOptions = {
-    ...merge(rawInputOptions, rolldownInput),
+    ...rolldownInput,
     platform: 'neutral',
     cwd: config.root,
     input: ROLLIPOP_VIRTUAL_ENTRY_ID,
     resolve: mergedResolveOptions,
     transform: mergedTransformOptions,
     experimental: merge(
-      merge({ ...rawExperimental }, rolldownExperimental),
+      { ...rolldownExperimental },
       isDevServerMode
         ? { devMode: hmrConfig ? { implement: hmrConfig.runtimeImplement } : false }
         : {},
     ),
     plugins: withTransformBoundary(context, [
-      rawPlugins as PluginOption,
       entry(entryPluginOptions),
       importGlob(importGlobPluginOptions),
       alias(aliasPluginOptions),
@@ -265,14 +250,13 @@ export async function resolveRolldownOptions(
   };
 
   const outputOptions: rolldown.OutputOptions = merge(
-    merge({ ...rawOutputOptions }, rolldownOutput),
+    { ...rolldownOutput },
     {
       file: buildOptions.outfile,
       intro: async (chunk: rolldown.RenderedChunk) => {
         return [
           ...getGlobalVariables(dev),
           ...loadPolyfills(config),
-          await resolveOutputAddon(rawOutputIntro, chunk),
           await resolveOutputAddon(rolldownIntro, chunk),
         ]
           .filter(isNotNil)
@@ -282,7 +266,6 @@ export async function resolveRolldownOptions(
       sourcemap: buildOptions.sourcemap ?? rolldownOutput.sourcemap,
       sourcemapPathTransform:
         rolldownOutput.sourcemapPathTransform ??
-        rawOutputSourcemapPathTransform ??
         createProjectRootSourcemapPathTransform(config.root),
       codeSplitting: false,
       // `@rollipop/rolldown` specific options
@@ -290,10 +273,23 @@ export async function resolveRolldownOptions(
     },
   );
 
-  const finalOptions = await applyDangerouslyOverrideOptionsFinalizer(
-    config,
-    inputOptions,
-    outputOptions,
+  const overrideOptions = isDevServerMode
+    ? getOverrideOptionsForDevServer(buildOptions, hmrEnabled)
+    : getOverrideOptions();
+  const rolldownOptions: RolldownOptions = {
+    input: merge(inputOptions, overrideOptions.input),
+    output: merge(outputOptions, overrideOptions.output),
+  };
+  const rolldownOptionsContext: RolldownOptionsContext = Object.freeze({
+    id: context.id,
+    root: context.root,
+    buildType: context.buildType,
+    ...buildOptions,
+  });
+  const finalOptions = await applyRolldownOptionsFinalizer(
+    config.rolldownOptions ?? null,
+    rolldownOptions,
+    rolldownOptionsContext,
   );
 
   resolveRolldownOptions.cache.set(cacheKey, finalOptions);
@@ -569,19 +565,15 @@ function createProjectRootSourcemapPathTransform(
   };
 }
 
-async function applyDangerouslyOverrideOptionsFinalizer(
-  config: ResolvedConfig,
-  inputOptions: rolldown.InputOptions,
-  outputOptions: rolldown.OutputOptions,
+async function applyRolldownOptionsFinalizer(
+  config: RolldownOptionsConfig | null,
+  rolldownOptions: RolldownOptions,
+  context: RolldownOptionsContext,
 ) {
-  const override = config.dangerously_overrideRolldownOptions;
-  if (override == null) {
-    return { input: inputOptions, output: outputOptions };
+  if (config == null) {
+    return rolldownOptions;
   }
-  return await applyOverrideRolldownOptions(override, {
-    input: inputOptions,
-    output: outputOptions,
-  });
+  return await applyRolldownOptionsConfig(config, rolldownOptions, context);
 }
 
 function isPluginLog(log: rolldown.RolldownLog): boolean {
@@ -677,3 +669,14 @@ export function getOverrideOptionsForDevServer(
     output: merge(overrideOptions.output, output),
   };
 }
+
+export type RolldownOptionsFunction = (
+  options: RolldownOptions,
+  context: RolldownOptionsContext,
+) => MaybePromise<RolldownOptions>;
+
+export type RolldownOptionsConfig = RolldownOptions | RolldownOptionsFunction;
+
+export type RolldownOptionsContext = Readonly<
+  ResolvedBuildOptions & Pick<BundlerContext, 'id' | 'root' | 'buildType'>
+>;

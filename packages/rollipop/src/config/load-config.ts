@@ -102,7 +102,7 @@ export async function resolvePluginConfig(
 
   for (const plugin of plugins) {
     const context = createPluginContext(plugin.name);
-    const overrideBefore = mergedConfig.dangerously_overrideRolldownOptions;
+    const rolldownOptionsBefore = mergedConfig.rolldownOptions;
 
     if (typeof plugin.config === 'function') {
       const config = await plugin.config.call(context, mergedConfig);
@@ -113,9 +113,9 @@ export async function resolvePluginConfig(
       mergedConfig = mergeConfig(mergedConfig, plugin.config);
     }
 
-    const overrideAfter = mergedConfig.dangerously_overrideRolldownOptions;
-    if (overrideAfter != null && overrideAfter !== overrideBefore) {
-      context.debug({ message: `set 'dangerously_overrideRolldownOptions'` });
+    const rolldownOptionsAfter = mergedConfig.rolldownOptions;
+    if (rolldownOptionsAfter != null && rolldownOptionsAfter !== rolldownOptionsBefore) {
+      context.debug({ message: `set 'rolldownOptions'` });
     }
   }
 

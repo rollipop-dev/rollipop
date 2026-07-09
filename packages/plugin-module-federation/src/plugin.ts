@@ -50,7 +50,7 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
         pluginConfig.polyfills = [];
 
         return {
-          dangerously_overrideRolldownOptions: (opts) => ({
+          rolldownOptions: (opts) => ({
             input: opts.input,
             // Output as IIFE — the bundle is a script that dynamically runs on the runtime.
             output: { ...opts.output, format: 'iife' },

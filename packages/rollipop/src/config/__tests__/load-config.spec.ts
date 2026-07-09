@@ -1,9 +1,31 @@
 import { describe, it, expect, vitest } from 'vite-plus/test';
 
 import type { Plugin } from '../../core/plugins/types';
+import type {
+  RolldownOptions,
+  RolldownOptionsContext,
+  RolldownOptionsFunction,
+} from '../../core/rolldown';
 import type { ResolvedConfig } from '../defaults';
 import { invokeConfigResolved, resolvePluginConfig } from '../load-config';
 import type { Config } from '../types';
+
+const rolldownOptionsContext = {
+  id: 'test-bundler',
+  root: '/root',
+  buildType: 'build',
+  platform: 'ios',
+  dev: false,
+  minify: false,
+  cache: true,
+} as RolldownOptionsContext;
+
+function createRolldownOptions(): RolldownOptions {
+  return {
+    input: {},
+    output: {},
+  };
+}
 
 describe('resolvePluginConfig', () => {
   it('should resolve plugin config', async () => {
@@ -112,51 +134,162 @@ describe('resolvePluginConfig', () => {
   });
 });
 
-describe('resolvePluginConfig — dangerously_overrideRolldownOptions composition', () => {
-  it('chains user config and plugin overrides in declaration order', async () => {
+describe('resolvePluginConfig — rolldownOptions composition', () => {
+  it('composes function options in declaration order', async () => {
     const calls: string[] = [];
-    const userOverride: NonNullable<Config['dangerously_overrideRolldownOptions']> = (opts) => {
+    const userOverride: RolldownOptionsFunction = (opts, context) => {
       calls.push('user');
-      (opts.output as Record<string, unknown>).userMark = true;
-      return opts;
+      expect(context).toBe(rolldownOptionsContext);
+      return {
+        ...opts,
+        output: {
+          ...opts.output,
+          userMark: true,
+        },
+      };
     };
-    const pluginOverride: NonNullable<Config['dangerously_overrideRolldownOptions']> = (opts) => {
+    const pluginOverride: RolldownOptionsFunction = (opts, context) => {
       calls.push('plugin');
-      (opts.output as Record<string, unknown>).pluginMark = true;
-      return opts;
+      expect(context).toBe(rolldownOptionsContext);
+      expect(opts.output).toMatchObject({ userMark: true });
+      return {
+        ...opts,
+        output: {
+          ...opts.output,
+          pluginMark: true,
+        },
+      };
     };
 
     const baseConfig: Config = {
-      dangerously_overrideRolldownOptions: userOverride,
+      rolldownOptions: userOverride,
     };
 
     const plugin: Plugin = {
       name: 'plugin-a',
-      config: () => ({ dangerously_overrideRolldownOptions: pluginOverride }),
+      config: () => ({ rolldownOptions: pluginOverride }),
     };
 
     const merged = await resolvePluginConfig(baseConfig, [plugin]);
 
-    expect(typeof merged.dangerously_overrideRolldownOptions).toBe('function');
-    const composed = merged.dangerously_overrideRolldownOptions as (input: {
-      input: object;
-      output: object;
-    }) => Promise<{ input: object; output: Record<string, unknown> }>;
-    const finalOpts = await composed({ input: {}, output: {} });
+    expect(typeof merged.rolldownOptions).toBe('function');
+    const composed = merged.rolldownOptions as RolldownOptionsFunction;
+    const finalOpts = await composed(createRolldownOptions(), rolldownOptionsContext);
     expect(calls).toEqual(['user', 'plugin']);
     expect(finalOpts.output).toMatchObject({ userMark: true, pluginMark: true });
   });
 
   it('uses single override unchanged when only one source defines it', async () => {
-    const single: NonNullable<Config['dangerously_overrideRolldownOptions']> = (opts) => opts;
+    const single: NonNullable<Config['rolldownOptions']> = (opts) => opts;
     const baseConfig: Config = {};
     const plugin: Plugin = {
       name: 'plugin-only',
-      config: () => ({ dangerously_overrideRolldownOptions: single }),
+      config: () => ({ rolldownOptions: single }),
     };
 
     const merged = await resolvePluginConfig(baseConfig, [plugin]);
-    expect(merged.dangerously_overrideRolldownOptions).toBe(single);
+    expect(merged.rolldownOptions).toBe(single);
+  });
+
+  it('merges object options from user config and plugins', async () => {
+    const baseConfig: Config = {
+      rolldownOptions: {
+        input: { external: ['react'] },
+      },
+    };
+    const plugin: Plugin = {
+      name: 'plugin-object',
+      config: () => ({
+        rolldownOptions: {
+          output: { banner: '/* plugin */' },
+        },
+      }),
+    };
+
+    const merged = await resolvePluginConfig(baseConfig, [plugin]);
+    expect(merged.rolldownOptions).toMatchObject({
+      input: { external: ['react'] },
+      output: { banner: '/* plugin */' },
+    });
+  });
+
+  it('composes object then function options in declaration order', async () => {
+    const calls: string[] = [];
+    const pluginOverride: RolldownOptionsFunction = (opts, context) => {
+      calls.push('plugin');
+      expect(context).toBe(rolldownOptionsContext);
+      expect(opts).toMatchObject({
+        input: { external: ['react'] },
+        output: { banner: '/* user */' },
+      });
+      return {
+        ...opts,
+        output: {
+          ...opts.output,
+          footer: '/* plugin */',
+        },
+      };
+    };
+
+    const baseConfig: Config = {
+      rolldownOptions: {
+        input: { external: ['react'] },
+        output: { banner: '/* user */' },
+      },
+    };
+    const plugin: Plugin = {
+      name: 'plugin-function',
+      config: () => ({ rolldownOptions: pluginOverride }),
+    };
+
+    const merged = await resolvePluginConfig(baseConfig, [plugin]);
+
+    expect(typeof merged.rolldownOptions).toBe('function');
+    const composed = merged.rolldownOptions as RolldownOptionsFunction;
+    const finalOpts = await composed(createRolldownOptions(), rolldownOptionsContext);
+    expect(calls).toEqual(['plugin']);
+    expect(finalOpts).toMatchObject({
+      input: { external: ['react'] },
+      output: { banner: '/* user */', footer: '/* plugin */' },
+    });
+  });
+
+  it('composes function then object options in declaration order', async () => {
+    const calls: string[] = [];
+    const userOverride: RolldownOptionsFunction = (opts, context) => {
+      calls.push('user');
+      expect(context).toBe(rolldownOptionsContext);
+      return {
+        ...opts,
+        input: {
+          ...opts.input,
+          external: ['react'],
+        },
+      };
+    };
+
+    const baseConfig: Config = {
+      rolldownOptions: userOverride,
+    };
+    const plugin: Plugin = {
+      name: 'plugin-object',
+      config: () => ({
+        rolldownOptions: {
+          output: { banner: '/* plugin */' },
+        },
+      }),
+    };
+
+    const merged = await resolvePluginConfig(baseConfig, [plugin]);
+
+    expect(typeof merged.rolldownOptions).toBe('function');
+    const composed = merged.rolldownOptions as RolldownOptionsFunction;
+    const finalOpts = await composed(createRolldownOptions(), rolldownOptionsContext);
+    expect(calls).toEqual(['user']);
+    expect(finalOpts).toMatchObject({
+      input: { external: ['react'] },
+      output: { banner: '/* plugin */' },
+    });
   });
 });
 

@@ -12,8 +12,16 @@ export type { RollipopReactNativeFlowConfig, RollipopReactNativeWorkletsConfig }
 
 import type { AliasEntry } from '../core/plugins';
 import type { Plugin } from '../core/plugins/types';
+import type { RolldownOptionsConfig } from '../core/rolldown';
 import type { InteractiveCommand } from '../node/cli-utils';
 import type { MaybePromise, NullValue, Reporter } from '../types';
+
+export type {
+  RolldownOptions,
+  RolldownOptionsConfig,
+  RolldownOptionsContext,
+  RolldownOptionsFunction,
+} from '../core/rolldown';
 
 type RolldownExperimentalOptions = NonNullable<rolldown.InputOptions['experimental']>;
 type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
@@ -130,19 +138,13 @@ export interface Config extends Omit<rolldown.InputOptions, RollipopManagedInput
    */
   experimental?: ExperimentalConfig;
   /**
-   * Raw Rolldown options merged before Rollipop's generated options.
+   * **WARNING** Rollipop provides default options for Rolldown, but you can override the final
+   * generated options with this config.
    *
-   * Use this for Rolldown options that Rollipop does not expose directly.
-   * Rollipop-managed options can still be overwritten by the generated config.
+   * Object values are merged after Rollipop's generated options. Function values
+   * receive the generated options and can return a replacement.
    */
-  rolldownOptions?: RawRolldownOptions;
-  /**
-   * Rollipop provides default options for Rolldown, but you can override the final
-   * generated options with this hook.
-   *
-   * **DANGEROUS**: This option is dangerous because it can break the build.
-   */
-  dangerously_overrideRolldownOptions?: (config: RolldownConfig) => MaybePromise<RolldownConfig>;
+  rolldownOptions?: RolldownOptionsConfig;
 }
 
 export type PluginOption = MaybePromise<
@@ -398,13 +400,4 @@ export interface TerminalConfig {
    * Extra commands to display in the interactive mode.
    */
   extraCommands?: InteractiveCommand[];
-}
-
-export interface RawRolldownOptions extends rolldown.InputOptions {
-  output?: rolldown.OutputOptions;
-}
-
-export interface RolldownConfig {
-  input?: rolldown.InputOptions;
-  output?: rolldown.OutputOptions;
 }

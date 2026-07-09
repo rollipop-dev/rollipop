@@ -752,17 +752,23 @@ Experimental options. See [Experimental Features](/docs/features/experimental) f
 
 ## rolldownOptions
 
-- **Type:** `InputOptions & { output?: OutputOptions }`
+- **Type:** `RolldownOptions | ((config: RolldownOptions, context: RolldownOptionsContext) => RolldownOptions | Promise<RolldownOptions>)`
 
-Raw Rolldown options merged before Rollipop's generated options.
+Override Rollipop's final generated Rolldown configuration.
 
-Use this when you need a Rolldown option that Rollipop does not expose directly. Rollipop-managed
-options can still be overwritten by the generated config.
+Object values are merged after Rollipop's generated options. Function values receive the final
+generated options and can return a replacement.
+
+<Callout type="warn">
+  This option can break the build. Use only when you know exactly what you're doing.
+</Callout>
 
 ```ts
 export default defineConfig({
   rolldownOptions: {
-    external: ['react'],
+    input: {
+      external: ['react'],
+    },
     output: {
       banner: '/* generated */',
     },
@@ -770,20 +776,9 @@ export default defineConfig({
 });
 ```
 
-## dangerously_overrideRolldownOptions
-
-- **Type:** `(config: RolldownConfig) => RolldownConfig | Promise<RolldownConfig>`
-
-Override Rollipop's final generated Rolldown configuration directly.
-
-<Callout type="warn">
-  This option is **dangerous** and can break the build. Use only when you know exactly what you're
-  doing.
-</Callout>
-
 ```ts
 export default defineConfig({
-  dangerously_overrideRolldownOptions: (config) => {
+  rolldownOptions: (config) => {
     return {
       ...config,
       input: {

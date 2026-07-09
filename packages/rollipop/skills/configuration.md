@@ -22,7 +22,7 @@ Use https://rollipop.dev/docs/features/experimental.md before enabling experimen
 
 ## Resolve Changes
 
-When changing module resolution behavior, verify package metadata (`exports`, `react-native`, `browser`, `main`) before adding aliases or externals. Prefer resolve/config APIs over `dangerously_overrideRolldownOptions`.
+When changing module resolution behavior, verify package metadata (`exports`, `react-native`, `browser`, `main`) before adding aliases or externals. Prefer resolve/config APIs over final `rolldownOptions` overrides.
 
 ## Watchpoints
 

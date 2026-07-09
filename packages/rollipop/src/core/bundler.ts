@@ -3,18 +3,14 @@ import path from 'node:path';
 
 import * as rolldown from '@rollipop/rolldown';
 import { dev } from '@rollipop/rolldown/experimental';
-import { invariant, merge } from 'es-toolkit';
+import { invariant } from 'es-toolkit';
 
 import { Logo } from '../common/logo';
 import type { ResolvedConfig } from '../config/defaults';
 import { FileStorage } from '../storage/file-storage';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
 import { createId } from '../utils/id';
-import {
-  getOverrideOptions,
-  getOverrideOptionsForDevServer,
-  resolveRolldownOptions,
-} from './rolldown';
+import { resolveRolldownOptions } from './rolldown';
 import type { BuildType, BuildOptions, BundlerContext, DevEngine, DevEngineOptions } from './types';
 import { BundlerState } from './types';
 
@@ -34,12 +30,7 @@ export class Bundler {
       devEngineOptions,
     );
 
-    const hmrEnabled = config.mode === 'development' && config.dev.hmr !== false;
-    const devServerOptions = getOverrideOptionsForDevServer(resolvedBuildOptions, hmrEnabled);
-    const mergedInput = merge(input, devServerOptions.input);
-    const mergedOutput = merge(output, devServerOptions.output);
-
-    const devEngine = await dev(mergedInput, mergedOutput, {
+    const devEngine = await dev(input, output, {
       watch: config.dev.watch,
       ...devEngineOptions,
     });
@@ -86,14 +77,10 @@ export class Bundler {
       resolvedBuildOptions,
     );
 
-    const overrideOptions = getOverrideOptions();
-    const mergedInput = merge(input, overrideOptions.input);
-    const mergedOutput = merge(output, overrideOptions.output);
-
     const rolldownBuildOptions: rolldown.BuildOptions = {
-      ...mergedInput,
+      ...input,
       output: {
-        ...mergedOutput,
+        ...output,
         sourcemap,
       },
       write: Boolean(resolvedBuildOptions.outfile),
