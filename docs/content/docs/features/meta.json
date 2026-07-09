@@ -5,6 +5,7 @@
     "dashboard",
     "devtools",
     "env",
+    "glob-import",
     "svg",
     "analyze",
     "reporter",

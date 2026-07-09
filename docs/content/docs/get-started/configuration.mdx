@@ -111,6 +111,50 @@ File extensions to resolve as source files.
 
 File extensions to resolve as asset files.
 
+### resolve.alias
+
+- **Type:** `Record<string, string> | Array<{ find: string | RegExp; replacement: string }>`
+
+Substitute one package or module path for another in `import` or `require` statements.
+
+Object aliases are concise and work well for simple key/value replacements:
+
+```ts title="rollipop.config.ts"
+import path from 'node:path';
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve('src'),
+      '@components': path.resolve('src/components'),
+    },
+  },
+});
+```
+
+Array aliases preserve declaration order and support `RegExp` find patterns:
+
+```ts title="rollipop.config.ts"
+import path from 'node:path';
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  resolve: {
+    alias: [
+      { find: '@', replacement: path.resolve('src') },
+      { find: /^@features\/(.+)/, replacement: path.resolve('src/features/$1') },
+    ],
+  },
+});
+```
+
+The first matching array entry is applied first. When `find` is a regular expression, `replacement` can use replacement groups such as `$1`.
+
+Object aliases are forwarded to the native resolver. Array aliases are installed through Rollipop's alias plugin, so other plugins' `resolveId` hooks can participate when resolving the replacement.
+
+When aliasing to file-system paths, prefer absolute paths. Relative replacement values are used as-is and are not resolved into absolute paths for you.
+
 ### resolve.mainFields
 
 - **Type:** `string[]`

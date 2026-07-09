@@ -1,0 +1,164 @@
+---
+title: Glob Import
+---
+
+Rollipop supports `import.meta.glob` for importing multiple modules that match file-system glob patterns. This is useful for file-based registries such as screens, routes, fixtures, or feature modules.
+
+<Callout>
+  `import.meta.glob` is built in. You do not need to add a plugin to `rollipop.config.ts`.
+</Callout>
+
+## Basic Usage
+
+Pass a glob pattern to get an object keyed by matched module path:
+
+```ts title="src/pages.ts"
+const pages = import.meta.glob('./pages/*.tsx');
+
+for (const path in pages) {
+  const mod = await pages[path]();
+  console.log(path, mod);
+}
+```
+
+By default, each value is a loader function.
+
+## Eager Imports
+
+Use `eager: true` when the matched modules must be available synchronously, such as when building a React Navigation screen registry:
+
+```tsx title="src/navigation/AppNavigator.tsx"
+const pages = import.meta.glob<React.ComponentType>('../pages/*', {
+  import: 'default',
+  eager: true,
+});
+
+const screens = Object.entries(pages).map(([path, component]) => ({
+  name: path.split('/').pop()?.split('.').shift(),
+  component,
+}));
+```
+
+With `eager: true`, the matched modules are imported during bundle evaluation instead of being returned as loader functions.
+
+## Multiple Patterns
+
+The first argument can be an array:
+
+```ts
+const modules = import.meta.glob(['./features/*.ts', './platform/*.ts']);
+```
+
+## Negative Patterns
+
+Prefix a pattern with `!` to exclude matches:
+
+```ts
+const modules = import.meta.glob(['./features/*.ts', '!./features/*.spec.ts']);
+```
+
+## Named and Default Imports
+
+Use the `import` option to select a specific export from every matched module:
+
+```ts
+const setupLoaders = import.meta.glob<() => void>('./features/*.ts', {
+  import: 'setup',
+});
+
+const setup = await setupLoaders['./features/auth.ts']();
+setup();
+```
+
+Combine `import` with `eager: true` for a synchronous map of named exports:
+
+```ts
+const routes = import.meta.glob<RouteConfig>('./routes/*.ts', {
+  import: 'route',
+  eager: true,
+});
+```
+
+Set `import` to `default` to read default exports:
+
+```ts
+const screens = import.meta.glob<React.ComponentType>('./screens/*.tsx', {
+  import: 'default',
+  eager: true,
+});
+```
+
+## Custom Queries
+
+Use `query` to append a query string or query object to every generated import. This is mainly useful when another Rollipop or Rolldown plugin consumes the query:
+
+```ts
+const modules = import.meta.glob('./features/*.ts', {
+  query: { registry: 'feature' },
+});
+```
+
+The deprecated `as` option is still typed for compatibility, but prefer `query` with `import: 'default'` for new code.
+
+## Base Path
+
+Use `base` to resolve relative glob patterns from another directory and make result keys relative to that base:
+
+```ts
+const pages = import.meta.glob('./**/*.tsx', {
+  base: './src/pages',
+  import: 'default',
+  eager: true,
+});
+```
+
+For this example, a file at `src/pages/settings/index.tsx` is exposed under a key like `./settings/index.tsx`.
+
+## Case Sensitivity
+
+Glob matching is case-sensitive by default. Pass `caseSensitive: false` when a pattern should match files regardless of case:
+
+```ts
+const modules = import.meta.glob('./modules/module*.ts', {
+  caseSensitive: false,
+});
+```
+
+## Options
+
+| Option          | Type                     | Default | Description                                                                 |
+| --------------- | ------------------------ | ------- | --------------------------------------------------------------------------- |
+| `eager`         | `boolean`                | `false` | Import matched modules immediately instead of returning loader functions.   |
+| `import`        | `string`                 | -       | Select a named export from each matched module. Use `default` for defaults. |
+| `query`         | `string` or query object | -       | Append a query to each generated import.                                    |
+| `base`          | `string`                 | -       | Resolve relative patterns from a base directory and make keys relative to it. |
+| `caseSensitive` | `boolean`                | `true`  | Control case-sensitive matching.                                            |
+| `exhaustive`    | `boolean`                | `false` | Include hidden directories and `node_modules`; use carefully for performance. |
+| `as`            | `string`                 | -       | Deprecated compatibility option. Use `query` instead.                       |
+
+## TypeScript
+
+Add Rollipop's client types once in your app, usually in `rollipop-env.d.ts`:
+
+```ts title="rollipop-env.d.ts"
+/// <reference types="rollipop/client" />
+```
+
+Then pass a generic to describe each loaded module value:
+
+```ts
+const files = import.meta.glob<{ default: string }>('./messages/*.ts');
+const eagerFiles = import.meta.glob<string>('./messages/*.ts', {
+  import: 'default',
+  eager: true,
+});
+```
+
+## Caveats
+
+- `import.meta.glob` is a bundler feature, not a JavaScript or React Native runtime API.
+- Glob patterns and options must be literals. Variables and computed expressions are not supported.
+- Relative patterns should start with `./` or `../`; absolute patterns resolve from the project root.
+- Alias paths are resolved through Rollipop's resolve aliases.
+- Matching follows [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby) pattern semantics.
+- Prefer `eager: true` for registries that must be available synchronously during app startup.
