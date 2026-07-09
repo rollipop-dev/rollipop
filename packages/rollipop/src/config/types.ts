@@ -25,7 +25,7 @@ export type {
 
 type RolldownExperimentalOptions = NonNullable<rolldown.InputOptions['experimental']>;
 type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
-type ReactCompilerTransformOptions = RolldownTransformOptions['reactCompiler'];
+
 type RollipopManagedInputOption =
   | 'input'
   | 'plugins'
@@ -220,10 +220,6 @@ export type TransformConfig = Omit<
   RolldownTransformOptions,
   'cwd' | 'lang' | 'sourceType' | 'plugins'
 > & {
-  /**
-   * React Compiler transformation configuration.
-   */
-  reactCompiler?: ReactCompilerTransformOptions;
   /**
    * Flow specific configuration.
    *

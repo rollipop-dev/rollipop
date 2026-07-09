@@ -11,9 +11,7 @@ export function App() {
 }
 
 // Explicit HMR boundary so rolldown can emit a Patch (hmr:update) for
-// edits to this file. Without this, changes would bubble up to a
-// FullReload because the built-in react-refresh-wrapper plugin only
-// wraps class components (has_refresh && extends Component).
+// edits to this file regardless of React Refresh wrapper heuristics.
 if (import.meta.hot) {
   import.meta.hot.accept();
 }

@@ -29,6 +29,14 @@ if (import.meta.hot) {
 }
 `;
 
+const INDEX_JS_ORIGINAL = `import { AppRegistry } from 'react-native';
+
+import { App } from './App';
+import { name as appName } from './app.json';
+
+AppRegistry.registerComponent(appName, () => App);
+`;
+
 // Module IDs the rolldown dev engine uses internally are paths relative to
 // the project root, not absolute paths — see the register calls emitted in
 // the dev bundle (e.g. `__rolldown_runtime__.registerModule("App.tsx", ...)`).
@@ -90,42 +98,49 @@ afterAll(async () => {
 }, 60_000);
 
 afterEach(async () => {
-  if (readFixtureFile(fixture.dir, 'App.tsx') === APP_TSX_ORIGINAL) {
-    await sleep(200);
-    return;
+  if (readFixtureFile(fixture.dir, 'App.tsx') !== APP_TSX_ORIGINAL) {
+    writeFixtureFile(fixture.dir, 'App.tsx', APP_TSX_ORIGINAL);
   }
 
-  writeFixtureFile(fixture.dir, 'App.tsx', APP_TSX_ORIGINAL);
+  if (readFixtureFile(fixture.dir, 'index.js') !== INDEX_JS_ORIGINAL) {
+    writeFixtureFile(fixture.dir, 'index.js', INDEX_JS_ORIGINAL);
+  }
+
   await sleep(200);
 });
 
 describe('runtime e2e: HMR', () => {
-  it('dispatches a FullReload (hmr:reload) when an entry module without an accept boundary is invalidated', async () => {
-    // NOTE: The rolldown dev-engine watcher in its current state only emits
-    // watchChange / onHmrUpdates for files that are themselves HMR accept
-    // boundaries — writes to the entry (`index.js`) or non-boundary deps
-    // (e.g. `app.json`) never reach the pipeline. Verified empirically with
-    // an e2e probe (see the project log).
-    //
-    // We therefore drive the FullReload path via `hmr:invalidate`, which is
-    // the same runtime signal a real client would send when it can't handle
-    // an incoming update. rolldown's HMR engine walks importers looking for
-    // an accept boundary (hmr_stage.rs#propagate_update) and, finding none
-    // above the entry, returns `HmrUpdate::FullReload` — the exact behaviour
-    // the user expects for entry-file changes.
+  it('dispatches a Patch (hmr:update) that invalidates non-component refresh boundaries', async () => {
     await prepareClientForHMR();
 
-    const reloadPromise = client.waitForMessage('hmr:reload', undefined, 60_000);
+    const watchPromise = sse.waitFor('watch_change', (e) => e.file.includes('index.js'), 60_000);
+    const updateStartPromise = client.waitForMessage('hmr:update-start', undefined, 60_000);
+    const updatePromise = client.waitForMessage(
+      'hmr:update',
+      (message) => message.code.includes('invalidate'),
+      60_000,
+    );
     const updateDonePromise = client.waitForMessage('hmr:update-done', undefined, 60_000);
 
-    client.invalidate(INDEX_MODULE_ID);
+    writeFixtureFile(
+      fixture.dir,
+      'index.js',
+      `${INDEX_JS_ORIGINAL}\n// e2e-marker: index-refresh-invalidate\n`,
+    );
 
-    await reloadPromise;
+    const watch = await watchPromise;
+    expect(watch.bundlerId).toBeTruthy();
+    expect(watch.file).toContain('index.js');
+
+    await updateStartPromise;
+    const update = await updatePromise;
     await updateDonePromise;
 
+    expect(update.code).toContain('invalidate');
+
     const newMessages = client.messages.map((m) => m.type);
-    expect(newMessages).toContain('hmr:reload');
-    expect(newMessages).not.toContain('hmr:update');
+    expect(newMessages).toContain('hmr:update');
+    expect(newMessages).not.toContain('hmr:reload');
   }, 60_000);
 
   it('dispatches a Patch (hmr:update) when a module with import.meta.hot.accept changes', async () => {

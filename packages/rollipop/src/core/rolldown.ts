@@ -58,7 +58,7 @@ export interface RolldownOptions {
 }
 
 type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
-type ReactCompilerTransformOptions = RolldownTransformOptions['reactCompiler'];
+type RolldownJsxOptions = Extract<NonNullable<RolldownTransformOptions['jsx']>, object>;
 
 export async function resolveRolldownOptions(
   context: BundlerContext,
@@ -134,13 +134,7 @@ export async function resolveRolldownOptions(
     ...rolldownExperimental
   } = config.experimental;
 
-  const {
-    flow: _flow,
-    babel: _babel,
-    swc: _swc,
-    reactCompiler,
-    ...rolldownTransform
-  } = config.transform;
+  const { flow: _flow, babel: _babel, swc: _swc, ...rolldownTransform } = config.transform;
 
   // User Plugins
   const userPlugins = config.plugins;
@@ -167,6 +161,7 @@ export async function resolveRolldownOptions(
     jsx: {
       runtime: 'automatic',
       development: dev,
+      compiler: undefined,
     },
     define: {
       __DEV__: asLiteral(dev),
@@ -184,9 +179,7 @@ export async function resolveRolldownOptions(
     { ...defaultTransformOptions } as RolldownTransformOptions,
     rolldownTransform,
   );
-  if (reactCompiler != null) {
-    mergedTransformOptions.reactCompiler = resolveReactCompilerTransformOptions(reactCompiler);
-  }
+  applyReactCompilerDefaults(mergedTransformOptions);
 
   const entryPluginOptions = resolveEntryPluginOptions(config);
   const importGlobPluginOptions = resolveImportGlobPluginOptions(config);
@@ -390,16 +383,20 @@ function resolveWorkletsConfig(
   );
 }
 
-function resolveReactCompilerTransformOptions(
-  reactCompiler: ReactCompilerTransformOptions,
-): ReactCompilerTransformOptions {
-  if (reactCompiler == null) {
-    return undefined;
+function applyReactCompilerDefaults(transform: RolldownTransformOptions) {
+  const jsx = transform.jsx;
+  if (jsx == null || typeof jsx !== 'object') {
+    return;
   }
 
-  return {
-    ...reactCompiler,
-    exclude: reactCompiler.exclude ?? [/node_modules/],
+  const jsxOptions = jsx as RolldownJsxOptions;
+  if (jsxOptions.compiler == null) {
+    return;
+  }
+
+  jsxOptions.compiler = {
+    ...jsxOptions.compiler,
+    exclude: jsxOptions.compiler.exclude ?? [/node_modules/],
   };
 }
 

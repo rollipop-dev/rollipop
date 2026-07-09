@@ -208,27 +208,6 @@ Flow type syntax transformation configuration.
 
 Filter for Flow transformation pipeline. Uses Rolldown's [hook filter feature](https://rolldown.rs/apis/plugin-hook-filters) to determine which files should be processed.
 
-### transform.reactCompiler
-
-React Compiler transformation configuration.
-
-- **Type:** `OxcReactCompilerOptions`
-- **Default:** `undefined`
-
-React Compiler is disabled by default. Pass an empty object to enable it with Rollipop's defaults:
-
-```ts
-export default defineConfig({
-  transform: {
-    reactCompiler: {},
-  },
-});
-```
-
-When `exclude` is omitted, Rollipop skips files whose module id matches `/node_modules/`. If you specify `exclude`, your value replaces that default.
-
-See [React Compiler](/docs/features/react-compiler) for setup guidance and option details.
-
 ### transform.babel
 
 Custom Babel transformation rules.

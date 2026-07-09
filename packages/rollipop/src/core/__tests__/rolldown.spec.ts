@@ -8,6 +8,13 @@ import { resolveBuildOptions } from '../../utils/build-options';
 import { getOverrideOptionsForDevServer, resolveRolldownOptions } from '../rolldown';
 import type { BundlerContext } from '../types';
 
+type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
+type RolldownJsxOptions = RolldownTransformOptions['jsx'] extends infer T
+  ? T extends object
+    ? T
+    : never
+  : never;
+
 function getPlugins(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
   const plugins: rolldown.Plugin[] = [];
   const visit = (plugin: unknown) => {
@@ -125,21 +132,21 @@ describe('resolveRolldownOptions', () => {
       'test-bundler-react-compiler-disabled',
     );
 
-    expect(options.input?.transform?.reactCompiler).toBeUndefined();
+    expect((options.input?.transform?.jsx as RolldownJsxOptions)?.compiler).toBeUndefined();
   });
 
   it('enables react compiler with default exclude when configured with an empty object', async () => {
     resolveRolldownOptions.cache.clear();
 
     const config = createTestConfig(process.cwd());
-    config.transform.reactCompiler = {};
+    config.transform.jsx = { compiler: {} };
 
     const options = await resolveTestRolldownOptions(
       config,
       'test-bundler-react-compiler-empty-object',
     );
 
-    expect(options.input?.transform?.reactCompiler).toEqual({
+    expect((options.input?.transform?.jsx as RolldownJsxOptions)?.compiler).toEqual({
       exclude: [/node_modules/],
     });
   });
@@ -148,17 +155,14 @@ describe('resolveRolldownOptions', () => {
     resolveRolldownOptions.cache.clear();
 
     const config = createTestConfig(process.cwd());
-    config.transform.reactCompiler = {
-      exclude: [/vendor/],
-      target: '18',
-    };
+    config.transform.jsx = { compiler: { exclude: [/vendor/], target: '18' } };
 
     const options = await resolveTestRolldownOptions(
       config,
       'test-bundler-react-compiler-custom-exclude',
     );
 
-    expect(options.input?.transform?.reactCompiler).toEqual({
+    expect((options.input?.transform?.jsx as RolldownJsxOptions)?.compiler).toEqual({
       exclude: [/vendor/],
       target: '18',
     });
