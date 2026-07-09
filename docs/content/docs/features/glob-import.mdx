@@ -126,15 +126,15 @@ const modules = import.meta.glob('./modules/module*.ts', {
 
 ## Options
 
-| Option          | Type                     | Default | Description                                                                 |
-| --------------- | ------------------------ | ------- | --------------------------------------------------------------------------- |
-| `eager`         | `boolean`                | `false` | Import matched modules immediately instead of returning loader functions.   |
-| `import`        | `string`                 | -       | Select a named export from each matched module. Use `default` for defaults. |
-| `query`         | `string` or query object | -       | Append a query to each generated import.                                    |
+| Option          | Type                     | Default | Description                                                                   |
+| --------------- | ------------------------ | ------- | ----------------------------------------------------------------------------- |
+| `eager`         | `boolean`                | `false` | Import matched modules immediately instead of returning loader functions.     |
+| `import`        | `string`                 | -       | Select a named export from each matched module. Use `default` for defaults.   |
+| `query`         | `string` or query object | -       | Append a query to each generated import.                                      |
 | `base`          | `string`                 | -       | Resolve relative patterns from a base directory and make keys relative to it. |
-| `caseSensitive` | `boolean`                | `true`  | Control case-sensitive matching.                                            |
+| `caseSensitive` | `boolean`                | `true`  | Control case-sensitive matching.                                              |
 | `exhaustive`    | `boolean`                | `false` | Include hidden directories and `node_modules`; use carefully for performance. |
-| `as`            | `string`                 | -       | Deprecated compatibility option. Use `query` instead.                       |
+| `as`            | `string`                 | -       | Deprecated compatibility option. Use `query` instead.                         |
 
 ## TypeScript
 
