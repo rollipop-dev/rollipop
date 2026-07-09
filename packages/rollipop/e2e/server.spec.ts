@@ -8,7 +8,7 @@ const EXAMPLE_DIR = path.resolve(import.meta.dirname, '../../../examples/0.84');
 const IOS_DEV_BUNDLE = '/index.bundle?platform=ios&dev=true';
 const ANDROID_DEV_BUNDLE = '/index.bundle?platform=android&dev=true';
 const IOS_PROD_BUNDLE = '/index.bundle?platform=ios&dev=false';
-const IOS_DEV_MAP = '/index.map?platform=ios&dev=true';
+const IOS_DEV_MAP = '/index.map?platform=ios&dev=true&minify=false';
 
 let testServer: TestServer;
 let iosDevBundle: Promise<BundleResult> | undefined;
@@ -139,6 +139,10 @@ describe('dev server', () => {
     it('contains import.meta.env.MODE = "development"', () => {
       expect(code).toContain('"development"');
     });
+
+    it('points sourceMappingURL to the dev server source map URL', () => {
+      expect(code).toContain(`//# sourceMappingURL=${toUrl(IOS_DEV_MAP)}`);
+    });
   });
 
   describe('bundle content - production', () => {
@@ -182,7 +186,7 @@ describe('dev server', () => {
   });
 
   describe('source map serving', () => {
-    it('GET /index.map?platform=ios&dev=true returns valid source map', async () => {
+    it('GET /index.map?platform=ios&dev=true&minify=false returns valid source map', async () => {
       const map = await getIosDevSourceMap();
       expect(map.version).toBe(3);
       expect(map.sources).toBeDefined();

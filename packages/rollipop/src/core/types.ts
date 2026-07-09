@@ -68,6 +68,10 @@ export type DevEngineOptions = Omit<DevOptions, 'watch'> & {
    * Defaults to `false`.
    */
   https?: boolean;
+  /**
+   * Dev-server URL that should be written into the bundle's sourceMappingURL comment.
+   */
+  sourceMapUrl?: string;
 };
 
 export interface BundlerContext {

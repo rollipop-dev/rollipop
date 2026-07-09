@@ -181,6 +181,22 @@ describe('BundlerPool', () => {
     }
   });
 
+  it('passes the dev-server source map URL to the dev engine', async () => {
+    resetPool();
+    const pool = createPool();
+    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+    await instance.ensureInitialized;
+
+    expect(vi.mocked(Bundler).devEngine).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({
+        sourceMapUrl: 'http://localhost:8081/index.map?platform=ios&dev=true&minify=false',
+      }),
+    );
+  });
+
   it('emits only hmr_updates for successful HMR updates', async () => {
     resetPool();
     const eventBus = new ServerEventBus();

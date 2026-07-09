@@ -1,6 +1,7 @@
 import type { ResolvedConfig } from '../../config';
 import { ROLLIPOP_VERSION } from '../../constants';
 import { toJsonSafe } from '../../utils/serialize';
+import { getBundleSourceMapUrl, getBundleUrl } from '../bundle-url';
 import type { BundlerDevEngine } from '../bundler-pool';
 import type { BuildState } from '../state/store';
 import type { DevToolsTarget } from './devtools-targets';
@@ -64,11 +65,6 @@ export function serializeBuildSummary(builds: BuildState[]) {
 
 export function serializeBundler(serverBaseUrl: string, bundler: BundlerDevEngine) {
   const options = bundler.buildOptions;
-  const query = new URLSearchParams({
-    platform: options.platform,
-    dev: String(options.dev),
-    minify: String(typeof options.minify === 'boolean' ? options.minify : Boolean(options.minify)),
-  });
 
   return {
     id: bundler.id,
@@ -76,8 +72,8 @@ export function serializeBundler(serverBaseUrl: string, bundler: BundlerDevEngin
     dev: options.dev,
     entry: bundler.entry,
     status: bundler.status,
-    bundleUrl: new URL(`${bundler.entry}.bundle?${query.toString()}`, serverBaseUrl).toString(),
-    sourceMapUrl: new URL(`${bundler.entry}.map?${query.toString()}`, serverBaseUrl).toString(),
+    bundleUrl: getBundleUrl(serverBaseUrl, bundler.entry, options).toString(),
+    sourceMapUrl: getBundleSourceMapUrl(serverBaseUrl, bundler.entry, options).toString(),
     buildOptions: options,
   };
 }

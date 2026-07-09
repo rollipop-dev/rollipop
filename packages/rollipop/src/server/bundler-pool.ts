@@ -16,7 +16,9 @@ import { getBaseBundleName } from '../utils/bundle';
 import { bindReporter } from '../utils/config';
 import { normalizeRolldownError } from '../utils/errors';
 import { taskHandler } from '../utils/promise';
+import { getBaseUrl } from '../utils/server';
 import { type BundleStore, FileSystemBundleStore } from './bundle';
+import { getBundleSourceMapUrl } from './bundle-url';
 import type { ServerEventBus } from './events/event-bus';
 import { logger } from './logger';
 import type { ServerOptions } from './types';
@@ -123,6 +125,7 @@ export class BundlerDevEngine {
     const devEngine = await Bundler.devEngine(config, this.buildOptions, {
       host: this.options.server.host,
       port: this.options.server.port,
+      sourceMapUrl: this.buildOptions.sourcemap === 'inline' ? undefined : this.getSourceMapUrl(),
       onHmrUpdates: (errorOrResult) => {
         if (errorOrResult instanceof Error) {
           logger.error('Failed to handle HMR updates', {
@@ -199,6 +202,14 @@ export class BundlerDevEngine {
       output.map?.toString(),
     );
     return this.bundleStore;
+  }
+
+  private getSourceMapUrl() {
+    return getBundleSourceMapUrl(
+      getBaseUrl(this.options.server.host, this.options.server.port),
+      this.bundleName,
+      this.buildOptions,
+    ).toString();
   }
 
   private storeHmrChunk(updates: rolldownExperimental.BindingClientHmrUpdate[]) {

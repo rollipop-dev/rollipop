@@ -66,7 +66,8 @@ export async function resolveRolldownOptions(
   buildOptions: ResolvedBuildOptions,
   devEngineOptions?: DevEngineOptions,
 ): Promise<RolldownOptions> {
-  const cachedOptions = resolveRolldownOptions.cache.get(context.id);
+  const cacheKey = [context.id, devEngineOptions?.sourceMapUrl].filter(isNotNil).join(':');
+  const cachedOptions = resolveRolldownOptions.cache.get(cacheKey);
 
   if (cachedOptions != null) {
     return cachedOptions;
@@ -210,7 +211,7 @@ export async function resolveRolldownOptions(
   );
   const babelPluginOptions = resolveBabelPluginOptions(config, context);
   const swcPluginOptions = resolveSwcPluginOptions(config, context);
-  const devServerPluginOptions = resolveDevServerPluginOptions(config, hmrConfig);
+  const devServerPluginOptions = resolveDevServerPluginOptions(config, hmrConfig, devEngineOptions);
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
 
@@ -295,7 +296,7 @@ export async function resolveRolldownOptions(
     outputOptions,
   );
 
-  resolveRolldownOptions.cache.set(context.id, finalOptions);
+  resolveRolldownOptions.cache.set(cacheKey, finalOptions);
 
   return finalOptions;
 }
@@ -432,11 +433,13 @@ function resolveSwcPluginOptions(
 function resolveDevServerPluginOptions(
   config: ResolvedConfig,
   hmrConfig: ReturnType<typeof resolveHmrConfig>,
+  devEngineOptions: DevEngineOptions | undefined,
 ): DevServerPluginOptions {
   return {
     cwd: config.root,
     hmrClientPath: config.reactNative.hmrClientPath,
     hmrConfig,
+    sourceMapUrl: devEngineOptions?.sourceMapUrl,
   };
 }
 
