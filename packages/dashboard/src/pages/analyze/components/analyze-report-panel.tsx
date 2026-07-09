@@ -1,8 +1,11 @@
-import { BarChart3, FileQuestion, LoaderCircle } from 'lucide-react';
+import { BarChart3, FileQuestion, LoaderCircle, Maximize2, Minimize2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { EmptyState } from '../../../components/dashboard/empty-state';
+import { Button } from '../../../components/ui/button';
 import { Card, CardContent } from '../../../components/ui/card';
 import { shortId } from '../../../lib/builds';
+import { cn } from '../../../lib/utils';
 import type { BundlerInstance } from '../../../types/dashboard';
 
 export function AnalyzeReportPanel({
@@ -24,20 +27,68 @@ export function AnalyzeReportPanel({
   loading: boolean;
   errorMessage: string | null;
 }) {
-  if (
+  const [fullscreen, setFullscreen] = useState(false);
+  const reportVisible =
     analyzeEnabled &&
     bundler != null &&
     reportAvailable &&
     reportUrl != null &&
     !loading &&
-    errorMessage == null
-  ) {
+    errorMessage == null;
+
+  useEffect(() => {
+    if (!reportVisible) {
+      setFullscreen(false);
+    }
+  }, [reportVisible]);
+
+  useEffect(() => {
+    setFullscreen(false);
+  }, [reportUrl]);
+
+  useEffect(() => {
+    if (!fullscreen || typeof document === 'undefined') return;
+
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = overflow;
+    };
+  }, [fullscreen]);
+
+  if (reportVisible && bundler != null && reportUrl != null) {
+    const Icon = fullscreen ? Minimize2 : Maximize2;
+    const label = fullscreen ? 'Exit full screen' : 'View full screen';
+
     return (
-      <iframe
-        title={`Analyze report for ${shortId(bundler.id)}`}
-        src={reportUrl}
-        className="h-[760px] w-full rounded-lg border bg-background"
-      />
+      <div
+        className={cn(
+          'relative h-[760px] w-full',
+          fullscreen && 'fixed inset-0 z-40 h-dvh bg-background',
+        )}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label={label}
+          title={label}
+          aria-pressed={fullscreen}
+          className="absolute top-3 right-3 z-10 bg-background/90 shadow-sm backdrop-blur"
+          onClick={() => setFullscreen((current) => !current)}
+        >
+          <Icon className="size-4" aria-hidden="true" />
+        </Button>
+        <iframe
+          title={`Analyze report for ${shortId(bundler.id)}`}
+          src={reportUrl}
+          className={cn(
+            'h-full w-full bg-background',
+            fullscreen ? 'border-0' : 'rounded-lg border',
+          )}
+        />
+      </div>
     );
   }
 
