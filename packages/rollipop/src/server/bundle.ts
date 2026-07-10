@@ -44,7 +44,7 @@ export class FileSystemBundleStore implements BundleStore {
       mtimeMs: stats.mtimeMs,
     };
 
-    logger.debug(`File system bundle created at ${bundleFilePath}`);
+    logger.debug(`Local bundle stored at ${bundleFilePath}`);
   }
 
   private update() {
@@ -58,10 +58,10 @@ export class FileSystemBundleStore implements BundleStore {
 
   get code() {
     if (this.isStale()) {
-      logger.info('File system bundle is stale, updating...');
+      logger.info('Local bundle is stale, updating...');
       this.update();
     } else {
-      logger.trace('File system bundle is up to date');
+      logger.trace('Local bundle is up to date');
     }
     return this.holder.code;
   }
