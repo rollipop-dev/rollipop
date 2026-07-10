@@ -3,10 +3,16 @@ import path from 'node:path';
 import { interpreter } from '@rollipop/rolldown/filter';
 import { describe, expect, it } from 'vite-plus/test';
 
-import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../../../constants';
+import { ROLLIPOP_VERSION, ROLLIPOP_VIRTUAL_ENTRY_ID } from '../../../constants';
 import { entry } from '../entry-plugin';
 
 type Filter = Parameters<typeof interpreter>[0];
+
+const ROLLIPOP_META = [
+  'globalThis.__rollipop_meta__ = globalThis.__rollipop_meta__ || {',
+  `version: ${JSON.stringify(ROLLIPOP_VERSION)},`,
+  '};',
+].join('\n');
 
 describe('entry plugin', () => {
   it('loads a virtual entry that imports the app entry', () => {
@@ -20,7 +26,7 @@ describe('entry plugin', () => {
     expect(interpreter(load.filter, undefined, ROLLIPOP_VIRTUAL_ENTRY_ID)).toBe(true);
     expect(interpreter(load.filter, undefined, entryPath)).toBe(false);
     expect(load.handler(ROLLIPOP_VIRTUAL_ENTRY_ID)).toEqual({
-      code: `import ${JSON.stringify(entryPath)};`,
+      code: [ROLLIPOP_META, `import ${JSON.stringify(entryPath)};`].join('\n'),
       moduleType: 'js',
     });
   });
@@ -53,9 +59,11 @@ describe('entry plugin', () => {
     expect(interpreter(load.filter, undefined, ROLLIPOP_VIRTUAL_ENTRY_ID)).toBe(true);
     expect(interpreter(load.filter, undefined, entryPath)).toBe(false);
     expect(load.handler(ROLLIPOP_VIRTUAL_ENTRY_ID)).toEqual({
-      code: [`import ${JSON.stringify(preludePath)};`, `import ${JSON.stringify(entryPath)};`].join(
-        '\n',
-      ),
+      code: [
+        ROLLIPOP_META,
+        `import ${JSON.stringify(preludePath)};`,
+        `import ${JSON.stringify(entryPath)};`,
+      ].join('\n'),
       moduleType: 'js',
     });
   });

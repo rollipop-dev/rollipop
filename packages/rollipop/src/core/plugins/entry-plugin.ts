@@ -1,9 +1,15 @@
 import * as rolldown from '@rollipop/rolldown';
 import { exactRegex, id, include } from '@rollipop/rolldown/filter';
+import dedent from 'dedent';
 
-import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../../constants';
+import { ROLLIPOP_VERSION, ROLLIPOP_VIRTUAL_ENTRY_ID } from '../../constants';
 
 const VIRTUAL_ENTRY_FILTER = [include(id(exactRegex(ROLLIPOP_VIRTUAL_ENTRY_ID)))];
+const ROLLIPOP_META = dedent`
+globalThis.__rollipop_meta__ = globalThis.__rollipop_meta__ || {
+  version: ${JSON.stringify(ROLLIPOP_VERSION)},
+};
+`;
 
 export interface EntryPluginOptions {
   entryPath: string;
@@ -29,7 +35,7 @@ function entryPlugin(options: EntryPluginOptions): rolldown.Plugin {
       filter: VIRTUAL_ENTRY_FILTER,
       handler() {
         return {
-          code: importStatements,
+          code: [ROLLIPOP_META, importStatements].join('\n'),
           moduleType: 'js',
         };
       },
