@@ -43,8 +43,9 @@ jobs:
         run: corepack enable
 
       - name: Setup NPM
+        # https://github.com/npm/cli/issues/9722
         run: |
-          npm install -g npm@latest
+          npm install -g npm@11
           npm -v
 
       - name: Install dependencies
