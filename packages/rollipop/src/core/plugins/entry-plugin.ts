@@ -2,28 +2,34 @@ import * as rolldown from '@rollipop/rolldown';
 import { exactRegex, id, include } from '@rollipop/rolldown/filter';
 import dedent from 'dedent';
 
-import { ROLLIPOP_VERSION, ROLLIPOP_VIRTUAL_ENTRY_ID } from '../../constants';
+import {
+  ROLLIPOP_VERSION,
+  ROLLIPOP_VIRTUAL_BOOTSTRAP_ID,
+  ROLLIPOP_VIRTUAL_ENTRY_ID,
+} from '../../constants';
 
 const VIRTUAL_ENTRY_FILTER = [include(id(exactRegex(ROLLIPOP_VIRTUAL_ENTRY_ID)))];
-const ROLLIPOP_META = dedent`
-globalThis.__rollipop_meta__ = globalThis.__rollipop_meta__ || {
-  version: ${JSON.stringify(ROLLIPOP_VERSION)},
-};
-`;
+const VIRTUAL_BOOTSTRAP_FILTER = [include(id(exactRegex(ROLLIPOP_VIRTUAL_BOOTSTRAP_ID)))];
 
 export interface EntryPluginOptions {
+  id: string;
   entryPath: string;
   preludePaths?: string[];
 }
 
-function entryPlugin(options: EntryPluginOptions): rolldown.Plugin {
-  const { entryPath, preludePaths = [] } = options;
+function entryPlugin(options: EntryPluginOptions): rolldown.Plugin[] {
+  const { id, entryPath, preludePaths = [] } = options;
 
-  const importStatements = [...preludePaths, entryPath]
+  const importStatements = [
+    // Bootstrap Rollipop runtime metadata before evaluating prelude and app modules.
+    ROLLIPOP_VIRTUAL_BOOTSTRAP_ID,
+    ...preludePaths,
+    entryPath,
+  ]
     .map((modulePath) => `import ${JSON.stringify(modulePath)};`)
     .join('\n');
 
-  return {
+  const entryPlugin: rolldown.Plugin = {
     name: 'rollipop:entry',
     resolveId: {
       filter: VIRTUAL_ENTRY_FILTER,
@@ -35,12 +41,38 @@ function entryPlugin(options: EntryPluginOptions): rolldown.Plugin {
       filter: VIRTUAL_ENTRY_FILTER,
       handler() {
         return {
-          code: [ROLLIPOP_META, importStatements].join('\n'),
+          code: importStatements,
           moduleType: 'js',
         };
       },
     },
   };
+
+  const bootstrapPlugin: rolldown.Plugin = {
+    name: 'rollipop:bootstrap',
+    resolveId: {
+      filter: VIRTUAL_BOOTSTRAP_FILTER,
+      handler() {
+        return ROLLIPOP_VIRTUAL_BOOTSTRAP_ID;
+      },
+    },
+    load: {
+      filter: VIRTUAL_BOOTSTRAP_FILTER,
+      handler() {
+        return {
+          code: dedent`
+          globalThis.__rollipop_meta__ = globalThis.__rollipop_meta__ || {};
+          globalThis.__rollipop_meta__[${JSON.stringify(id)}] = {
+            version: ${JSON.stringify(ROLLIPOP_VERSION)},
+          };
+          `,
+          moduleType: 'js',
+        };
+      },
+    },
+  };
+
+  return [entryPlugin, bootstrapPlugin];
 }
 
 export { entryPlugin as entry };

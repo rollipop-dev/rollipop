@@ -178,7 +178,7 @@ export async function resolveRolldownOptions(
   );
   applyReactCompilerDefaults(mergedTransformOptions);
 
-  const entryPluginOptions = resolveEntryPluginOptions(config);
+  const entryPluginOptions = resolveEntryPluginOptions(config, context);
   const importGlobPluginOptions = resolveImportGlobPluginOptions(config);
   const reactNativePluginOptions = await resolveReactNativePluginOptions(
     config,
@@ -289,8 +289,12 @@ export async function resolveRolldownOptions(
 
 resolveRolldownOptions.cache = new Map<string, RolldownOptions>();
 
-function resolveEntryPluginOptions(config: ResolvedConfig): EntryPluginOptions {
+function resolveEntryPluginOptions(
+  config: ResolvedConfig,
+  context: BundlerContext,
+): EntryPluginOptions {
   return {
+    id: context.id,
     entryPath: config.entry,
     preludePaths: config.prelude,
   };

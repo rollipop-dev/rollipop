@@ -8,6 +8,7 @@ declare global {
 export const ROLLIPOP_VERSION = globalThis.__ROLLIPOP_VERSION__;
 
 export const ROLLIPOP_VIRTUAL_PREFIX = '\0rollipop/';
+export const ROLLIPOP_VIRTUAL_BOOTSTRAP_ID = `${ROLLIPOP_VIRTUAL_PREFIX}bootstrap`;
 export const ROLLIPOP_VIRTUAL_ENTRY_ID = `${ROLLIPOP_VIRTUAL_PREFIX}entry`;
 
 /**
