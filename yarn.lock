@@ -20662,9 +20662,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rolldown-analyzer@npm:0.3.0":
-  version: 0.3.0
-  resolution: "rolldown-analyzer@npm:0.3.0"
+"rolldown-analyzer@npm:0.3.1":
+  version: 0.3.1
+  resolution: "rolldown-analyzer@npm:0.3.1"
   dependencies:
     commander: "npm:^14.0.3"
     diff: "npm:^8.0.3"
@@ -20672,7 +20672,7 @@ __metadata:
     pathe: "npm:^2.0.3"
   bin:
     rolldown-analyzer: bin/cli.js
-  checksum: 10c0/277186f044c36558477efc37969548cbbb665030a3d1bf475bc3096e8aad60d1c44f21fdcb35597962aa29ef980c8a5cdb360627dd61f46eb58fd6637c0d35e7
+  checksum: 10c0/bb857f91883dd86657bc34c5b0d998dafc238adf46fb4e9230e3061d325e787d4e4ebfe2a0d690edb96cbe64c302996bc71c1c0c2f296453b8c366342e982c20
   languageName: node
   linkType: hard
 
@@ -20849,7 +20849,7 @@ __metadata:
     open: "npm:11.0.0"
     pretty-format: "npm:30.4.1"
     react-refresh: "npm:0.14.2"
-    rolldown-analyzer: "npm:0.3.0"
+    rolldown-analyzer: "npm:0.3.1"
     source-map: "npm:0.7.6"
     strip-ansi: "npm:7.2.0"
     typescript: "catalog:"

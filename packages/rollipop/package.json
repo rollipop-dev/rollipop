@@ -95,7 +95,7 @@
     "mitt": "3.0.1",
     "open": "11.0.0",
     "pretty-format": "30.4.1",
-    "rolldown-analyzer": "0.3.0",
+    "rolldown-analyzer": "0.3.1",
     "source-map": "0.7.6",
     "strip-ansi": "7.2.0",
     "wrap-ansi": "10.0.0",
