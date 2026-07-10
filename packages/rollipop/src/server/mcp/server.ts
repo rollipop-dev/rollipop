@@ -32,19 +32,6 @@ function createMcpServer(options: McpToolContext): McpServer {
 const plugin = fp<McpPluginOptions>(
   (fastify, options) => {
     const { context } = options;
-
-    if (context.options.mcp !== true) {
-      fastify.all('/mcp', async (_request, reply) => {
-        return reply.status(503).send({
-          error: {
-            code: 'MCP_DISABLED',
-            message: 'MCP server is disabled. Start Rollipop with --mcp to enable it.',
-          },
-        });
-      });
-      return;
-    }
-
     const toolContext = createMcpToolContext(context);
     const sessions = new Map<string, SessionEntry>();
 

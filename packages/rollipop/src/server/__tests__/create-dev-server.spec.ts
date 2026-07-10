@@ -214,6 +214,7 @@ describe('createDevServer', () => {
     });
     await mcpServer.instance.ready();
     const mcpRoutes = mcpServer.instance.printRoutes();
+    expect(mcpRoutes).toContain('mcp');
     expect(mcpRoutes).not.toContain('reset-cache');
     await mcpServer.instance.close();
   }, 10_000);

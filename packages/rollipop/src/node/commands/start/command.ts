@@ -1,8 +1,7 @@
 import { DEFAULT_HOST, DEFAULT_PORT } from '../../../server';
 import { UNSUPPORTED_OPTION_DESCRIPTION } from '../../constants';
-import { CommandDefinition } from '../../types';
+import type { CommandDefinition } from '../../types';
 import { parseBoolean, resolvePath } from '../../utils';
-import { action } from './action';
 
 /**
  * @see https://github.com/facebook/react-native/blob/0.83-stable/packages/community-cli-plugin/src/commands/start/runServer.js#L27-L45
@@ -25,7 +24,10 @@ export interface StartCommandOptions {
 export const command: CommandDefinition<StartCommandOptions> = {
   name: 'start',
   description: 'Start the React Native development server.',
-  action,
+  action: async function (options) {
+    const { action: startAction } = await import('./action');
+    return startAction.call(this, options);
+  },
   options: [
     {
       name: '--config <string>',

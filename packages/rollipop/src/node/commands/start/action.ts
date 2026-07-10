@@ -1,13 +1,15 @@
 import { noop } from 'es-toolkit';
 
-import * as Rollipop from '../../../index';
+import { loadConfig } from '../../../config';
+import { resetCache } from '../../../utils/reset-cache';
 import { logger } from '../../logger';
 import type { CommandAction } from '../../types';
 import type { StartCommandOptions } from './index';
+import { setupInteractiveMode } from './setup-interactive-mode';
 
 export const action: CommandAction<StartCommandOptions> = async function (options) {
   const cwd = process.cwd();
-  const config = await Rollipop.loadConfig({
+  const config = await loadConfig({
     cwd,
     mode: 'development',
     configFile: options.config,
@@ -15,7 +17,7 @@ export const action: CommandAction<StartCommandOptions> = async function (option
   });
 
   if (options.resetCache) {
-    await Rollipop.resetCache();
+    await resetCache();
     logger.info('The transform cache was reset');
   }
 
@@ -23,7 +25,8 @@ export const action: CommandAction<StartCommandOptions> = async function (option
     config.reporter = { update: noop };
   }
 
-  const devServer = await Rollipop.runServer(config, {
+  const { runServer } = await import('../../../utils/run-server');
+  const devServer = await runServer(config, {
     buildOptions: { cache: options.cache },
     port: options.port,
     host: options.host,
@@ -34,6 +37,6 @@ export const action: CommandAction<StartCommandOptions> = async function (option
   });
 
   if (options.interactive) {
-    Rollipop.setupInteractiveMode({ devServer, extraCommands: config.terminal?.extraCommands });
+    setupInteractiveMode({ devServer, extraCommands: config.terminal?.extraCommands });
   }
 };

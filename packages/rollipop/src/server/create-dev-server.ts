@@ -21,7 +21,6 @@ import { BundlerPool } from './bundler-pool';
 import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
 import { errorHandler } from './error';
 import { DevServerLogger, logger } from './logger';
-import { mcp } from './mcp/server';
 import { dashboard } from './middlewares/dashboard';
 import { requestLogger } from './middlewares/request-logger';
 import { serveAssets } from './middlewares/serve-assets';
@@ -142,9 +141,23 @@ export async function createDevServer(
     .register(serveBundle, { context })
     .register(serveAssets, { context })
     .register(rest, { context })
-    .register(sse, { context })
-    .register(mcp, { context })
-    .setErrorHandler(errorHandler);
+    .register(sse, { context });
+
+  if (options?.mcp === true) {
+    const { mcp } = await import('./mcp/server');
+    fastify.register(mcp, { context });
+  } else {
+    fastify.all('/mcp', async (_request, reply) => {
+      return reply.status(503).send({
+        error: {
+          code: 'MCP_DISABLED',
+          message: 'MCP server is disabled. Start Rollipop with --mcp to enable it.',
+        },
+      });
+    });
+  }
+
+  fastify.setErrorHandler(errorHandler);
 
   fastify.server.on(
     'upgrade',

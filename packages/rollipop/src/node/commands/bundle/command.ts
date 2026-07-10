@@ -1,7 +1,6 @@
 import { UNSUPPORTED_OPTION_DESCRIPTION } from '../../constants';
-import { CommandDefinition } from '../../types';
+import type { CommandDefinition } from '../../types';
 import { parseBoolean, resolvePath } from '../../utils';
-import { action } from './action';
 
 export interface BundleCommandArgs {
   assetsDest?: string;
@@ -23,7 +22,10 @@ export interface BundleCommandArgs {
 export const command: CommandDefinition<BundleCommandArgs> = {
   name: 'bundle',
   description: 'Build the bundle for the provided JavaScript entry file.',
-  action,
+  action: async function (options) {
+    const { action: bundleAction } = await import('./action');
+    return bundleAction.call(this, options);
+  },
   options: [
     {
       name: '--config <string>',

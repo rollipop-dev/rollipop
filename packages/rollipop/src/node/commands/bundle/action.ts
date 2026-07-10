@@ -1,6 +1,7 @@
 import path from 'node:path';
 
-import * as Rollipop from '../../../index';
+import { loadConfig } from '../../../config';
+import { resetCache } from '../../../utils/reset-cache';
 import { logger } from '../../logger';
 import type { CommandAction } from '../../types';
 import type { BundleCommandArgs } from './index';
@@ -11,7 +12,7 @@ export const action: CommandAction<BundleCommandArgs> = async function (options)
   }
 
   const cwd = process.cwd();
-  const config = await Rollipop.loadConfig({
+  const config = await loadConfig({
     cwd,
     mode: 'production',
     configFile: options.config,
@@ -19,7 +20,7 @@ export const action: CommandAction<BundleCommandArgs> = async function (options)
   });
 
   if (options.resetCache) {
-    await Rollipop.resetCache();
+    await resetCache();
     logger.info('The transform cache was reset');
   }
 
@@ -27,7 +28,8 @@ export const action: CommandAction<BundleCommandArgs> = async function (options)
     config.entry = path.resolve(cwd, options.entryFile);
   }
 
-  await Rollipop.runBuild(config, {
+  const { runBuild } = await import('../../../utils/run-build');
+  await runBuild(config, {
     platform: options.platform,
     dev: options.dev,
     minify: options.minify,

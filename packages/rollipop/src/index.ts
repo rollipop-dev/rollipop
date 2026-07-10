@@ -1,8 +1,30 @@
+import type { OutputChunk } from '@rollipop/rolldown';
+
+import type { ResolvedConfig } from './config/defaults';
+import type { BuildOptions } from './core/types';
+import type { DevServer, ServerOptions } from './server/types';
+
 // Main APIs
 export { loadConfig } from './config';
 export { resetCache } from './utils/reset-cache';
-export { runBuild } from './utils/run-build';
-export { runServer } from './utils/run-server';
+
+export async function runBuild(
+  config: ResolvedConfig,
+  options: BuildOptions,
+): Promise<OutputChunk> {
+  const { runBuild } = await import('./utils/run-build');
+
+  return runBuild(config, options);
+}
+
+export async function runServer(
+  config: ResolvedConfig,
+  options: ServerOptions,
+): Promise<DevServer> {
+  const { runServer } = await import('./utils/run-server');
+
+  return runServer(config, options);
+}
 
 // Bundler
 export { Bundler } from './core/bundler';
