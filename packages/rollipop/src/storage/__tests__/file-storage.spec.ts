@@ -82,13 +82,21 @@ describe('FileStorage', () => {
   });
 
   describe('set', () => {
-    it('should merge data and write to file', () => {
+    it('should merge data without writing to file', () => {
+      const instance = FileStorage.getInstance(basePath);
+
+      instance.set({ build: { hash1: { totalModules: 10 } } });
+
+      expect(instance.get().build).toEqual({ hash1: { totalModules: 10 } });
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
+    });
+
+    it('should write data when flushed', () => {
       const instance = FileStorage.getInstance(basePath);
 
       instance.set({ build: { hash1: { totalModules: 10 } } });
       instance.flush();
 
-      expect(instance.get().build).toEqual({ hash1: { totalModules: 10 } });
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         dataFilePath,
         JSON.stringify(
@@ -104,18 +112,17 @@ describe('FileStorage', () => {
 
       instance.set({ build: { hash1: { totalModules: 10 } } });
       instance.set({ build: { hash2: { totalModules: 20 } } });
-      instance.flush();
 
       expect(instance.get().build).toEqual({
         hash1: { totalModules: 10 },
         hash2: { totalModules: 20 },
       });
+      expect(fs.writeFileSync).not.toHaveBeenCalled();
     });
 
     it('should persist mutations visible to the same instance', () => {
       const instance1 = FileStorage.getInstance(basePath);
       instance1.set({ build: { hash1: { totalModules: 5 } } });
-      instance1.flush();
 
       const instance2 = FileStorage.getInstance(basePath);
       expect(instance2.get().build.hash1).toEqual({ totalModules: 5 });

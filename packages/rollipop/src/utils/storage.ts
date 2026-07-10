@@ -10,4 +10,5 @@ export function setBuildTotalModules(storage: FileStorage, id: string, totalModu
       [id]: { totalModules },
     },
   });
+  storage.flush();
 }

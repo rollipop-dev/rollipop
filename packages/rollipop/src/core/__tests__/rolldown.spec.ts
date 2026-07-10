@@ -385,11 +385,13 @@ describe('resolveRolldownOptions', () => {
 
     const root = process.cwd();
     const data = { build: {} as Record<string, { totalModules: number }> };
+    const flush = vi.fn();
     const storage = {
       get: () => data,
       set: (value: typeof data) => {
         data.build = { ...data.build, ...value.build };
       },
+      flush,
     } as unknown as BundlerContext['storage'];
     const createContext = () =>
       ({
@@ -427,6 +429,7 @@ describe('resolveRolldownOptions', () => {
     firstBuildEnd();
 
     expect(data.build['test-bundler']).toEqual({ totalModules: 2 });
+    expect(flush).toHaveBeenCalledOnce();
 
     resolveRolldownOptions.cache.clear();
 
