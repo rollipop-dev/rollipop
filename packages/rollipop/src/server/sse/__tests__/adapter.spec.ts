@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 
 import type { ReportableEvent } from '../../../types';
-import type { IdentifiedReportableEvent } from '../../events/types';
 import type { WebSocketClient } from '../../wss/server';
 import { toSSEClientLogEvent, toSSEEvent } from '../adapter';
 
@@ -9,7 +8,7 @@ describe('toSSEEvent', () => {
   const bundlerId = 'ios-true';
 
   it('should convert bundle_build_started with bundlerId', () => {
-    const event: IdentifiedReportableEvent = { type: 'bundle_build_started', bundlerId };
+    const event: ReportableEvent = { type: 'bundle_build_started', bundlerId };
 
     expect(toSSEEvent(event)).toEqual({
       type: 'bundle_build_started',
@@ -18,7 +17,7 @@ describe('toSSEEvent', () => {
   });
 
   it('should convert bundle_build_done with bundlerId', () => {
-    const event: IdentifiedReportableEvent = {
+    const event: ReportableEvent = {
       type: 'bundle_build_done',
       bundlerId,
       totalModules: 100,
@@ -40,7 +39,7 @@ describe('toSSEEvent', () => {
   });
 
   it('should serialize Error to string for bundle_build_failed', () => {
-    const event: IdentifiedReportableEvent = {
+    const event: ReportableEvent = {
       type: 'bundle_build_failed',
       bundlerId,
       error: new Error('SyntaxError: Unexpected token'),
@@ -54,7 +53,7 @@ describe('toSSEEvent', () => {
   });
 
   it('should serialize Error to string for hmr_failed', () => {
-    const event: IdentifiedReportableEvent = {
+    const event: ReportableEvent = {
       type: 'hmr_failed',
       bundlerId,
       error: new Error('SyntaxError: Unexpected token'),
@@ -68,7 +67,7 @@ describe('toSSEEvent', () => {
   });
 
   it('should return null for transform events', () => {
-    const event: IdentifiedReportableEvent = {
+    const event: ReportableEvent = {
       type: 'transform',
       bundlerId,
       id: 'src/App.tsx',
@@ -80,7 +79,11 @@ describe('toSSEEvent', () => {
   });
 
   it('should convert watch_change with bundlerId and rename fields', () => {
-    const event: IdentifiedReportableEvent = { type: 'watch_change', bundlerId, id: 'src/App.tsx' };
+    const event: ReportableEvent = {
+      type: 'watch_change',
+      bundlerId,
+      id: 'src/App.tsx',
+    };
 
     expect(toSSEEvent(event)).toEqual({
       type: 'watch_change',

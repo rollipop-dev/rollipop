@@ -1,14 +1,14 @@
 import type * as rolldown from '@rollipop/rolldown';
 
-import type { Reporter } from '../../types';
+import type { EventBus } from '../../events/event-bus';
 
 export interface ReporterPluginOptions {
   initialTotalModules?: number;
-  reporter?: Reporter;
+  eventBus?: EventBus;
 }
 
 function reporterPlugin(options?: ReporterPluginOptions): rolldown.Plugin | null {
-  const { reporter, initialTotalModules = 0 } = options ?? {};
+  const { eventBus, initialTotalModules = 0 } = options ?? {};
   let lastBuildTotalModules = initialTotalModules;
   let totalModules = initialTotalModules;
   let startedAt = 0;
@@ -44,7 +44,7 @@ function reporterPlugin(options?: ReporterPluginOptions): rolldown.Plugin | null
     if (!unknownTotalModules && totalModules < processedModules) {
       totalModules = processedModules;
     }
-    reporter?.update({
+    eventBus?.emit({
       type: 'transform',
       id,
       totalModules: unknownTotalModules ? undefined : totalModules,
@@ -56,7 +56,7 @@ function reporterPlugin(options?: ReporterPluginOptions): rolldown.Plugin | null
     name: 'rollipop:status',
     buildStart() {
       resetBuildProgress();
-      reporter?.update({ type: 'bundle_build_started' });
+      eventBus?.emit({ type: 'bundle_build_started' });
     },
     buildEnd(error) {
       const endedAt = performance.now();
@@ -66,7 +66,7 @@ function reporterPlugin(options?: ReporterPluginOptions): rolldown.Plugin | null
         lastBuildTotalModules = processedModules;
       }
       unknownTotalModules = false;
-      reporter?.update(
+      eventBus?.emit(
         error == null
           ? {
               type: 'bundle_build_done',
@@ -95,7 +95,7 @@ function reporterPlugin(options?: ReporterPluginOptions): rolldown.Plugin | null
     watchChange(id) {
       // HMR patches can run watchChange -> transform without buildStart.
       resetIncrementalProgress();
-      reporter?.update({ type: 'watch_change', id });
+      eventBus?.emit({ type: 'watch_change', id });
     },
   };
 }

@@ -3,9 +3,9 @@ import type { FastifyReply } from 'fastify';
 import fp from 'fastify-plugin';
 import { asConst, type FromSchema } from 'json-schema-to-ts';
 
+import { isEventForBundler } from '../../events/utils';
 import { BundleResponse } from '../../utils/response';
 import { bundleRequestSchema, type BundleRequestSchema } from '../common/schema';
-import { isBundlerEventForId } from '../events/types';
 import type { DevServerContext } from '../types';
 
 const routeParamSchema = asConst({
@@ -67,7 +67,7 @@ const plugin = fp<ServeBundlePluginOptions>(
           const bundleResponse = new BundleResponse(reply);
 
           const unsubscribe = context.eventBus.subscribe((event) => {
-            if (isBundlerEventForId(event, bundler.id) && event.type === 'transform') {
+            if (isEventForBundler(event, bundler.id) && event.type === 'transform') {
               bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
             }
           });

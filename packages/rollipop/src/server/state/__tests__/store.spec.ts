@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import { ServerEventBus } from '../../events/event-bus';
+import { EventBus } from '../../../events/event-bus';
 import { DevServerState } from '../store';
 
 describe('DevServerState', () => {
   it('ignores transform progress events', () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const state = new DevServerState({ eventBus });
 
     eventBus.emit({
@@ -21,7 +21,7 @@ describe('DevServerState', () => {
   });
 
   it('limits retained build logs to 1000 entries', () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const state = new DevServerState({ eventBus });
 
     for (let index = 0; index < 1005; index += 1) {

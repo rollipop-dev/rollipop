@@ -7,6 +7,7 @@ import { invariant } from 'es-toolkit';
 
 import { Logo } from '../common/logo';
 import type { ResolvedConfig } from '../config/defaults';
+import { EventBus } from '../events/event-bus';
 import { FileStorage } from '../storage/file-storage';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
 import { createId } from '../utils/id';
@@ -69,8 +70,9 @@ export class Bundler {
     const id = Bundler.createId(config, buildOptions);
     const root = config.root;
     const storage = FileStorage.getInstance(config.root);
+    const eventBus = new EventBus();
     const state: BundlerState = { revision: 0, latestBuildStartTime: 0 };
-    const context: BundlerContext = { id, root, storage, buildType, state };
+    const context: BundlerContext = { id, root, storage, eventBus, buildType, state };
 
     return context;
   }

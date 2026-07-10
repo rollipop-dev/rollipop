@@ -3,7 +3,10 @@ import path from 'node:path';
 import type * as rolldown from '@rollipop/rolldown';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
+import { ProgressBarStatusReporter } from '../../events/builtin-reporters';
+import { EventBus } from '../../events/event-bus';
 import { createTestConfig } from '../../testing/config';
+import type { ReportableEvent } from '../../types';
 import { resolveBuildOptions } from '../../utils/build-options';
 import { getOverrideOptionsForDevServer, resolveRolldownOptions } from '../rolldown';
 import type { BundlerContext } from '../types';
@@ -75,6 +78,7 @@ async function resolveTestRolldownOptions(
         get: () => ({ build: {} }),
         set: () => {},
       } as unknown as BundlerContext['storage'],
+      eventBus: new EventBus(),
       state: { revision: 0, latestBuildStartTime: 0 },
     },
     config,
@@ -111,6 +115,7 @@ describe('resolveRolldownOptions', () => {
           get: () => ({ build: {} }),
           set: () => {},
         } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
         state: { revision: 0, latestBuildStartTime: 0 },
       },
       config,
@@ -241,6 +246,7 @@ describe('resolveRolldownOptions', () => {
         get: () => ({ build: {} }),
         set: () => {},
       } as unknown as BundlerContext['storage'],
+      eventBus: new EventBus(),
       state: { revision: 0, latestBuildStartTime: 0 },
     } satisfies BundlerContext;
     const options = await resolveRolldownOptions(
@@ -276,6 +282,7 @@ describe('resolveRolldownOptions', () => {
         get: () => ({ build: {} }),
         set: () => {},
       } as unknown as BundlerContext['storage'],
+      eventBus: new EventBus(),
       state: { revision: 0, latestBuildStartTime: 0 },
     } satisfies BundlerContext;
     const options = await resolveRolldownOptions(
@@ -325,7 +332,55 @@ describe('resolveRolldownOptions', () => {
     expect(defaultHandler).not.toHaveBeenCalled();
   });
 
-  it('persists completed build totals for fresh progress reporter instances', async () => {
+  it('routes hmr_updates to builtin and configured reporters through the context event bus', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    const reporter = { update: vi.fn() };
+    const eventBus = new EventBus();
+    const builtinUpdate = vi
+      .spyOn(ProgressBarStatusReporter.prototype, 'update')
+      .mockImplementation(() => {});
+    config.reporter = reporter;
+    config.terminal.status = 'progress';
+    config.dev.hmr = false;
+    config.reactNative.assetRegistryPath = path.join(root, 'package.json');
+    const context = {
+      id: 'test-hmr-event-bus',
+      root,
+      buildType: 'serve',
+      storage: {
+        get: () => ({ build: {} }),
+        set: () => {},
+      } as unknown as BundlerContext['storage'],
+      eventBus,
+      state: { revision: 0, latestBuildStartTime: 0 },
+    } satisfies BundlerContext;
+    const event: ReportableEvent = {
+      type: 'hmr_updates',
+      bundlerId: context.id,
+      updates: [],
+      changedFiles: [path.join(root, 'App.tsx')],
+    };
+
+    try {
+      await resolveRolldownOptions(
+        context,
+        config,
+        resolveBuildOptions(config, { platform: 'ios', dev: true }),
+        { host: 'localhost', port: 8081 },
+      );
+      eventBus.emit(event);
+
+      expect(builtinUpdate).toHaveBeenCalledWith(event);
+      expect(reporter.update).toHaveBeenCalledWith(event);
+    } finally {
+      builtinUpdate.mockRestore();
+    }
+  });
+
+  it('persists completed build totals for fresh serve reporter instances', async () => {
     resolveRolldownOptions.cache.clear();
 
     const root = process.cwd();
@@ -340,8 +395,9 @@ describe('resolveRolldownOptions', () => {
       ({
         id: 'test-bundler',
         root,
-        buildType: 'build',
+        buildType: 'serve',
         storage,
+        eventBus: new EventBus(),
         state: { revision: 0, latestBuildStartTime: 0 },
       }) satisfies BundlerContext;
     const createConfig = () => {
@@ -356,6 +412,7 @@ describe('resolveRolldownOptions', () => {
       createContext(),
       createConfig(),
       buildOptions,
+      { host: 'localhost', port: 8081 },
     );
     const firstPlugin = findReporterPlugin(firstOptions);
     const firstBuildStart = firstPlugin.buildStart as unknown as () => void;
@@ -381,7 +438,12 @@ describe('resolveRolldownOptions', () => {
       },
     };
 
-    const secondOptions = await resolveRolldownOptions(createContext(), secondConfig, buildOptions);
+    const secondOptions = await resolveRolldownOptions(
+      createContext(),
+      secondConfig,
+      buildOptions,
+      { host: 'localhost', port: 8081 },
+    );
     const secondPlugin = findReporterPlugin(secondOptions);
     const secondBuildStart = secondPlugin.buildStart as unknown as () => void;
     const secondTransform = secondPlugin.transform as unknown as {

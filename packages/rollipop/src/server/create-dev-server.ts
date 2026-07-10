@@ -10,11 +10,16 @@ import type { ResolvedConfig } from '../config';
 import { createPluginContext } from '../core/plugins/context';
 import type { Plugin } from '../core/plugins/types';
 import type { AsyncResult } from '../core/types';
+import {
+  createDevServerEventListener,
+  createReactNativeEventListener,
+  createReporterEventListener,
+} from '../events/consumers';
+import { EventBus } from '../events/event-bus';
 import { assertDevServerStatus } from '../utils/dev-server';
 import { BundlerPool } from './bundler-pool';
 import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
 import { errorHandler } from './error';
-import { ServerEventBus } from './events/event-bus';
 import { DevServerLogger, logger } from './logger';
 import { mcp } from './mcp/server';
 import { dashboard } from './middlewares/dashboard';
@@ -49,10 +54,9 @@ export async function createDevServer(
     disableRequestLogging: true,
   });
 
-  const eventBus = new ServerEventBus();
+  const eventBus = new EventBus();
   const state = new DevServerState({ eventBus });
   const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
-  const reporter = config.reporter;
 
   const {
     middleware: communityMiddleware,
@@ -65,41 +69,9 @@ export async function createDevServer(
     watchFolders: [],
   });
 
-  eventBus.subscribe((event) => {
-    switch (event.type) {
-      case 'bundle_build_started':
-      case 'bundle_build_done':
-      case 'bundle_build_failed':
-      case 'hmr_failed':
-      case 'build_log':
-      case 'build_error':
-      case 'transform':
-      case 'watch_change':
-        reporter?.update(event);
-        break;
-
-      case 'client_log':
-        reportEvent?.(event);
-        reporter?.update(event);
-        break;
-
-      case 'client_connected':
-        emitter.emit('client.connected', { client: event.client });
-        break;
-
-      case 'client_message':
-        emitter.emit('client.message', { client: event.client, data: event.data });
-        break;
-
-      case 'client_error':
-        emitter.emit('client.error', { client: event.client, error: event.error });
-        break;
-
-      case 'client_disconnected':
-        emitter.emit('client.disconnected', { client: event.client });
-        break;
-    }
-  });
+  eventBus.subscribe(createReporterEventListener(config.reporter));
+  eventBus.subscribe(createReactNativeEventListener(reportEvent));
+  eventBus.subscribe(createDevServerEventListener(emitter));
 
   const { middleware: devMiddleware, websocketEndpoints } = createDevMiddleware({
     serverBaseUrl,

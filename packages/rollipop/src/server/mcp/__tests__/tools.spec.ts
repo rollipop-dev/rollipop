@@ -1,8 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
+import { EventBus } from '../../../events/event-bus';
 import { createTestConfig } from '../../../testing/config';
-import { ServerEventBus } from '../../events/event-bus';
 import { DevServerState } from '../../state/store';
 import type { DevServerContext } from '../../types';
 import { registerTools, type McpToolContext } from '../tools';
@@ -47,7 +47,7 @@ class FakeMcpServer {
 }
 
 function createTestContext(
-  eventBus: ServerEventBus,
+  eventBus: EventBus,
   bundlerPool: DevServerContext['bundlerPool'],
 ): DevServerContext {
   const serverBaseUrl = 'http://localhost:8081';
@@ -83,7 +83,7 @@ describe('MCP tools', () => {
   }
 
   it('returns bundler status through MCP instead of an HTTP status route', async () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const server = new FakeMcpServer();
     const devServerContext = createTestContext(eventBus, {
       getInstanceById: vi.fn((id: string) =>
@@ -105,7 +105,7 @@ describe('MCP tools', () => {
   });
 
   it('keeps MCP runtime tools scoped to HMR-forwarded console logs', async () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const server = new FakeMcpServer();
     const devServerContext = createTestContext(eventBus, {
       getInstanceById: vi.fn(),
@@ -129,7 +129,7 @@ describe('MCP tools', () => {
   });
 
   it('keeps MCP tool descriptions concise', async () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const server = new FakeMcpServer();
     const devServerContext = createTestContext(eventBus, {
       getInstanceById: vi.fn(),
@@ -148,7 +148,7 @@ describe('MCP tools', () => {
   });
 
   it('returns and clears HMR-forwarded console logs', async () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const server = new FakeMcpServer();
     const devServerContext = createTestContext(eventBus, {
       getInstanceById: vi.fn(),
@@ -194,7 +194,7 @@ describe('MCP tools', () => {
   });
 
   it('excludes client logs from get_build_events', async () => {
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const server = new FakeMcpServer();
     const devServerContext = createTestContext(eventBus, {
       getInstanceById: vi.fn(),

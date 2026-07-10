@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
-import { ServerEventBus } from '../event-bus';
-import type { ServerEvent } from '../types';
+import { EventBus } from '../event-bus';
+import type { ReportableEvent } from '../types';
 
-describe('ServerEventBus', () => {
-  let bus: ServerEventBus;
+describe('EventBus', () => {
+  let bus: EventBus;
 
   beforeEach(() => {
-    bus = new ServerEventBus();
+    bus = new EventBus();
   });
 
   it('notifies subscribed listeners', () => {
     const listener = vi.fn();
-    const event: ServerEvent = { type: 'server_ready', host: 'localhost', port: 8081 };
+    const event: ReportableEvent = { type: 'server_ready', host: 'localhost', port: 8081 };
 
     bus.subscribe(listener);
     bus.emit(event);

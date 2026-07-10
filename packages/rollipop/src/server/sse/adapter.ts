@@ -1,9 +1,21 @@
 import stripAnsi from 'strip-ansi';
 
-import type { IdentifiedReportableEvent, ServerEvent } from '../events/types';
+import type { ReportableEvent } from '../../types';
 import type { SSEBuildEvent, SSEClientLogEvent } from './types';
 
-export function toSSEEvent(event: ServerEvent): SSEBuildEvent | null {
+type SSEBundlerEvent = Extract<
+  ReportableEvent,
+  {
+    type:
+      | 'bundle_build_started'
+      | 'bundle_build_done'
+      | 'bundle_build_failed'
+      | 'hmr_failed'
+      | 'watch_change';
+  }
+>;
+
+export function toSSEEvent(event: ReportableEvent): SSEBuildEvent | null {
   switch (event.type) {
     case 'client_log':
       return null;
@@ -23,7 +35,7 @@ export function toSSEEvent(event: ServerEvent): SSEBuildEvent | null {
     case 'bundle_build_failed':
     case 'hmr_failed':
     case 'watch_change':
-      return reporterEventToSSEEvent(event);
+      return bundlerEventToSSEEvent(event);
 
     case 'hmr_updates':
     case 'client_message':
@@ -35,7 +47,7 @@ export function toSSEEvent(event: ServerEvent): SSEBuildEvent | null {
   }
 }
 
-export function toSSEClientLogEvent(event: ServerEvent): SSEClientLogEvent | null {
+export function toSSEClientLogEvent(event: ReportableEvent): SSEClientLogEvent | null {
   if (event.type !== 'client_log') {
     return null;
   }
@@ -47,7 +59,11 @@ export function toSSEClientLogEvent(event: ServerEvent): SSEClientLogEvent | nul
   };
 }
 
-function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEBuildEvent | null {
+function bundlerEventToSSEEvent(event: SSEBundlerEvent): SSEBuildEvent | null {
+  if (event.bundlerId == null) {
+    return null;
+  }
+
   switch (event.type) {
     case 'bundle_build_started':
       return { type: 'bundle_build_started', bundlerId: event.bundlerId };
@@ -79,12 +95,5 @@ function reporterEventToSSEEvent(event: IdentifiedReportableEvent): SSEBuildEven
 
     case 'watch_change':
       return { type: 'watch_change', bundlerId: event.bundlerId, file: event.id };
-
-    case 'client_log':
-    case 'transform':
-    case 'build_log':
-    case 'build_error':
-      // Intentionally excluded from /sse/events. Client logs have their own SSE stream.
-      return null;
   }
 }

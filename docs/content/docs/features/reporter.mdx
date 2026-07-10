@@ -14,8 +14,9 @@ interface Reporter {
 }
 ```
 
-The `update` method is called whenever a reportable event occurs during the build process.
-When an event comes from a dev-server bundler instance, it may include `bundlerId`, which identifies the bundler that produced the event.
+`ReportableEvent` includes every event published in the current Rollipop process. Standalone builds publish build events, while a dev server also publishes HMR, client, and server events.
+
+When an event comes from a dev-server bundler instance, it includes `bundlerId`, which identifies the bundler that produced the event.
 
 ## Event Types
 
@@ -61,6 +62,19 @@ Emitted when a bundle build fails with an error. HMR update failures are reporte
 ```
 
 ### HMR Events
+
+#### `hmr_updates`
+
+Emitted when HMR updates are ready to send to connected clients.
+
+```ts
+{
+  type: 'hmr_updates';
+  bundlerId: string;
+  updates: BindingClientHmrUpdate[];
+  changedFiles: string[];
+}
+```
 
 #### `hmr_failed`
 
@@ -119,6 +133,10 @@ Emitted when the client application logs to the console. This is compatible with
 }
 ```
 
+### Dev Server Events
+
+When running a dev server, reporters also receive client lifecycle events (`client_connected`, `client_message`, `client_error`, and `client_disconnected`) and server events (`server_ready` and `cache_reset`).
+
 ## Custom Reporter Example
 
 Here's an example of a custom reporter that sends build events to a monitoring service:
@@ -149,6 +167,13 @@ export class MonitoringReporter implements Reporter {
       case 'hmr_failed':
         this.sendMetric('hmr.failed', {
           error: event.error.message,
+        });
+        break;
+
+      case 'hmr_updates':
+        this.sendMetric('hmr.updates', {
+          updates: event.updates.length,
+          changedFiles: event.changedFiles,
         });
         break;
 

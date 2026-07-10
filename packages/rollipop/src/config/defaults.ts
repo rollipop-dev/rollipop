@@ -16,10 +16,10 @@ import {
   DEFAULT_RUNTIME_TARGET,
   DEFAULT_SOURCE_EXTENSIONS,
 } from '../constants';
+import { ClientLogReporter } from '../events/builtin-reporters';
 import { getInitializeCorePath, getPolyfillScriptPaths } from '../internal/react-native';
 import type { Reporter } from '../types';
 import { resolvePackagePath } from '../utils/node-resolve';
-import { ClientLogReporter } from '../utils/reporters';
 import type { PluginFlattenConfig } from './merge-config';
 import type {
   AnalyzerConfig,

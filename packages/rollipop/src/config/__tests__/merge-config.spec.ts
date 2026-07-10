@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vite-plus/test';
+import { describe, it, expect, vi } from 'vite-plus/test';
 
 import { mergeConfig, PluginFlattenConfig } from '../merge-config';
 
 describe('mergeConfig', () => {
   it('should merge configs', () => {
-    const reporterA = { update: () => {} };
+    const reporterA = { update: vi.fn() };
     const baseConfig: PluginFlattenConfig = {
       root: '/foo',
       resolve: {
@@ -33,7 +33,7 @@ describe('mergeConfig', () => {
       },
     };
 
-    const reporterB = { update: () => {} };
+    const reporterB = { update: vi.fn() };
     const configB: PluginFlattenConfig = {
       root: '/baz',
       resolve: {
@@ -76,7 +76,22 @@ describe('mergeConfig', () => {
       reactNative: {
         assetRegistryPath: '/path/to/AssetRegistry.js',
       },
-      reporter: reporterB,
+      reporter: expect.objectContaining({ update: expect.any(Function) }),
     });
+
+    config.reporter?.update({ type: 'bundle_build_started' });
+    expect(reporterA.update).toHaveBeenCalledWith({ type: 'bundle_build_started' });
+    expect(reporterB.update).toHaveBeenCalledWith({ type: 'bundle_build_started' });
+  });
+
+  it('does not compose the same reporter instance twice', () => {
+    const reporter = { update: vi.fn() };
+    const config = mergeConfig({ reporter }, { reporter });
+    const event = { type: 'bundle_build_started' } as const;
+
+    config.reporter?.update(event);
+
+    expect(config.reporter).toBe(reporter);
+    expect(reporter.update).toHaveBeenCalledOnce();
   });
 });

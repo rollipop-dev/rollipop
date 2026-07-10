@@ -2,6 +2,8 @@ import type * as rolldownExperimental from '@rollipop/rolldown/experimental';
 import { invariant } from 'es-toolkit';
 import type * as ws from 'ws';
 
+import type { EventBus } from '../../events/event-bus';
+import { isEventForBundler } from '../../events/utils';
 import type {
   HMRClientMessage,
   HMRCustomMessage,
@@ -9,13 +11,11 @@ import type {
   HMRServerMessage,
 } from '../../types/hmr';
 import type { BundlerDevEngine, BundlerPool } from '../bundler-pool';
-import type { ServerEventBus } from '../events/event-bus';
-import { isBundlerEventForId } from '../events/types';
 import { type WebSocketClient, WebSocketServer } from './server';
 
 export interface HMRServerOptions {
   bundlerPool: BundlerPool;
-  eventBus: ServerEventBus;
+  eventBus: EventBus;
 }
 
 interface Bindings {
@@ -24,7 +24,7 @@ interface Bindings {
 
 export class HMRServer extends WebSocketServer {
   private bundlerPool: BundlerPool;
-  private eventBus: ServerEventBus;
+  private eventBus: EventBus;
   private instances: Map<number, BundlerDevEngine> = new Map();
   private bindings: Map<number, Bindings> = new Map();
 
@@ -63,7 +63,7 @@ export class HMRServer extends WebSocketServer {
 
     if (existingBindings == null) {
       const unsubscribe = this.eventBus.subscribe((event) => {
-        if (!isBundlerEventForId(event, instance.id)) {
+        if (!isEventForBundler(event, instance.id)) {
           return;
         }
 

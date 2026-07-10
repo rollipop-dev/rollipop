@@ -1,8 +1,8 @@
 import Fastify from 'fastify';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
+import { EventBus } from '../../events/event-bus';
 import type { BundleStore } from '../bundle';
-import { ServerEventBus } from '../events/event-bus';
 import { serveBundle } from '../middlewares/serve-bundle';
 import type { DevServerContext } from '../types';
 
@@ -26,7 +26,7 @@ async function createServer(bundleStore: BundleStore) {
     context: {
       serverBaseUrl: 'http://localhost:8081',
       bundlerPool,
-      eventBus: new ServerEventBus(),
+      eventBus: new EventBus(),
     } as unknown as DevServerContext,
   });
   await app.ready();

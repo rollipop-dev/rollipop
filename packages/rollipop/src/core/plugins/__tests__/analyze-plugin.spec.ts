@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
+import { EventBus } from '../../../events/event-bus';
 import type { BundlerContext } from '../../types';
 import { analyze } from '../analyze-plugin';
 import type { Plugin } from '../types';
@@ -109,6 +110,7 @@ function createContext(
     root,
     buildType,
     storage: {} as BundlerContext['storage'],
+    eventBus: new EventBus(),
     state: { revision: 0, latestBuildStartTime: 0 },
   };
 }

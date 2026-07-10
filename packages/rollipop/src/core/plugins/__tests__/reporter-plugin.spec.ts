@@ -1,18 +1,23 @@
 import { describe, expect, it } from 'vite-plus/test';
 
-import type { ReportableEvent, Reporter } from '../../../types';
+import { EventBus } from '../../../events/event-bus';
+import type { ReportableEvent } from '../../../types';
 import { reporter } from '../reporter-plugin';
+
+function createReporterPlugin(initialTotalModules?: number) {
+  const events: ReportableEvent[] = [];
+  const eventBus = new EventBus();
+  eventBus.subscribe((event) => events.push(event));
+
+  return {
+    events,
+    plugin: reporter({ eventBus, initialTotalModules })!,
+  };
+}
 
 describe('reporter plugin', () => {
   it('counts cache hits as progress and reports final transform/cache counts', async () => {
-    const events: ReportableEvent[] = [];
-    const plugin = reporter({
-      reporter: {
-        update(event) {
-          events.push(event);
-        },
-      } satisfies Reporter,
-    })!;
+    const { events, plugin } = createReporterPlugin();
     const buildStart = plugin.buildStart as unknown as () => void;
     const buildEnd = plugin.buildEnd as unknown as (error?: Error) => void;
     const transform = plugin.transform as unknown as {
@@ -52,15 +57,7 @@ describe('reporter plugin', () => {
   });
 
   it('uses the current rebuild total after a watch change', async () => {
-    const events: ReportableEvent[] = [];
-    const plugin = reporter({
-      initialTotalModules: 4722,
-      reporter: {
-        update(event) {
-          events.push(event);
-        },
-      } satisfies Reporter,
-    })!;
+    const { events, plugin } = createReporterPlugin(4722);
     const buildStart = plugin.buildStart as unknown as () => void;
     const buildEnd = plugin.buildEnd as unknown as (error?: Error) => void;
     const transform = plugin.transform as unknown as {
@@ -100,15 +97,7 @@ describe('reporter plugin', () => {
   });
 
   it('counts cache hits in watch rebuild progress', async () => {
-    const events: ReportableEvent[] = [];
-    const plugin = reporter({
-      initialTotalModules: 1255,
-      reporter: {
-        update(event) {
-          events.push(event);
-        },
-      } satisfies Reporter,
-    })!;
+    const { events, plugin } = createReporterPlugin(1255);
     const buildStart = plugin.buildStart as unknown as () => void;
     const buildEnd = plugin.buildEnd as unknown as (error?: Error) => void;
     const transform = plugin.transform as unknown as {
@@ -151,15 +140,7 @@ describe('reporter plugin', () => {
   });
 
   it('resets progress for hmr transforms that run without a rebuild', async () => {
-    const events: ReportableEvent[] = [];
-    const plugin = reporter({
-      initialTotalModules: 1278,
-      reporter: {
-        update(event) {
-          events.push(event);
-        },
-      } satisfies Reporter,
-    })!;
+    const { events, plugin } = createReporterPlugin(1278);
     const buildStart = plugin.buildStart as unknown as () => void;
     const buildEnd = plugin.buildEnd as unknown as (error?: Error) => void;
     const transform = plugin.transform as unknown as {
@@ -187,15 +168,7 @@ describe('reporter plugin', () => {
   });
 
   it('resets progress for consecutive hmr transforms', async () => {
-    const events: ReportableEvent[] = [];
-    const plugin = reporter({
-      initialTotalModules: 1278,
-      reporter: {
-        update(event) {
-          events.push(event);
-        },
-      } satisfies Reporter,
-    })!;
+    const { events, plugin } = createReporterPlugin(1278);
     const buildStart = plugin.buildStart as unknown as () => void;
     const buildEnd = plugin.buildEnd as unknown as (error?: Error) => void;
     const transform = plugin.transform as unknown as {

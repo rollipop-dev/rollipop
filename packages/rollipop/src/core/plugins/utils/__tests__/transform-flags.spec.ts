@@ -1,6 +1,7 @@
 import type * as rolldown from '@rollipop/rolldown';
 import { describe, it, expect } from 'vite-plus/test';
 
+import { EventBus } from '../../../../events/event-bus';
 import type { BundlerContext } from '../../../types';
 import {
   setFlag,
@@ -26,6 +27,7 @@ function createBundlerContext(revision = 1): BundlerContext {
     root: '/test',
     buildType: 'serve',
     storage: {} as BundlerContext['storage'],
+    eventBus: new EventBus(),
     state: { revision, latestBuildStartTime: 0 },
   };
 }

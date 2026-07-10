@@ -9,6 +9,7 @@ import { isDebugEnabled } from '../common/env';
 import type { ResolvedConfig } from '../config';
 import { Bundler } from '../core/bundler';
 import type { BuildOptions, DevEngine } from '../core/types';
+import type { EventBus } from '../events/event-bus';
 import { FileStorage } from '../storage/file-storage';
 import type { ReportableEvent } from '../types';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
@@ -19,7 +20,6 @@ import { taskHandler } from '../utils/promise';
 import { getBaseUrl } from '../utils/server';
 import { type BundleStore, FileSystemBundleStore } from './bundle';
 import { getBundleSourceMapUrl } from './bundle-url';
-import type { ServerEventBus } from './events/event-bus';
 import { logger } from './logger';
 import type { ServerOptions } from './types';
 
@@ -50,7 +50,7 @@ export class BundlerDevEngine {
     private readonly options: BundlerDevEngineOptions,
     private readonly config: ResolvedConfig,
     readonly buildOptions: ResolvedBuildOptions,
-    private readonly eventBus: ServerEventBus,
+    private readonly eventBus: EventBus,
   ) {
     this._id = Bundler.createId(config, buildOptions);
     this.initializeHandle = taskHandler();
@@ -93,7 +93,8 @@ export class BundlerDevEngine {
     this._state = 'initializing';
 
     let pendingBuildDoneEvent: BundleBuildDoneEvent | null = null;
-    const emitReportableEvent = (event: ReportableEvent) => {
+    let bundlerEventBus: EventBus | null = null;
+    const emitEvent = (event: ReportableEvent) => {
       switch (event.type) {
         case 'bundle_build_started':
           this._status = 'building';
@@ -110,6 +111,13 @@ export class BundlerDevEngine {
 
       this.eventBus.emit({ ...event, bundlerId: this.id });
     };
+    const reportBundlerEvent = (event: ReportableEvent) => {
+      if (bundlerEventBus == null) {
+        emitEvent(event);
+        return;
+      }
+      bundlerEventBus.emit(event);
+    };
 
     const config = bindReporter(this.config, (event) => {
       if (event.type === 'bundle_build_started') {
@@ -119,7 +127,7 @@ export class BundlerDevEngine {
         pendingBuildDoneEvent = event;
         return;
       }
-      emitReportableEvent(event);
+      emitEvent(event);
     });
 
     const devEngine = await Bundler.devEngine(config, this.buildOptions, {
@@ -133,11 +141,7 @@ export class BundlerDevEngine {
             error: errorOrResult,
           });
           const normalizedError = normalizeRolldownError(errorOrResult);
-          const event: ReportableEvent = {
-            type: 'hmr_failed',
-            error: normalizedError,
-          };
-          this.eventBus.emit({ ...event, bundlerId: this.id });
+          reportBundlerEvent({ type: 'hmr_failed', error: normalizedError });
         } else if (this.isHmrEnabled) {
           if (isDebugEnabled()) {
             this.storeHmrChunk(errorOrResult.updates);
@@ -147,10 +151,11 @@ export class BundlerDevEngine {
             bundlerId: this.id,
             changedFiles: errorOrResult.changedFiles,
           });
-          this.eventBus.emit({
-            bundlerId: this.id,
+          reportBundlerEvent({
             type: 'hmr_updates',
             updates: errorOrResult.updates,
+            changedFiles: errorOrResult.changedFiles,
+            bundlerId: this.id,
           });
         }
       },
@@ -161,12 +166,11 @@ export class BundlerDevEngine {
           logger.trace('onOutput', { bundlerId: this.id });
           logger.error(errorOrResult.message);
           this.buildFailedError = normalizedError;
-          const event: ReportableEvent = {
+          emitEvent({
             type: 'bundle_build_failed',
             error: normalizedError,
-          };
-          this._status = 'build-failed';
-          this.eventBus.emit({ ...event, bundlerId: this.id });
+            bundlerId: this.id,
+          });
         } else {
           const output = errorOrResult.output[0];
           const bundleStore = this.updateBundleStore(output);
@@ -177,7 +181,7 @@ export class BundlerDevEngine {
             bundleFilePath: bundleStore.bundleFilePath,
           });
           if (pendingBuildDoneEvent != null) {
-            emitReportableEvent({
+            emitEvent({
               ...pendingBuildDoneEvent,
               bundleFilePath: bundleStore.bundleFilePath,
             });
@@ -188,6 +192,7 @@ export class BundlerDevEngine {
       rebuildStrategy: 'auto',
     });
 
+    bundlerEventBus = devEngine.getContext().eventBus;
     await devEngine.run();
     this._devEngine = devEngine;
     this._state = 'ready';
@@ -263,7 +268,7 @@ export class BundlerPool {
   constructor(
     private readonly config: ResolvedConfig,
     private readonly resolvedServerOptions: Required<Pick<ServerOptions, 'host' | 'port'>>,
-    private readonly eventBus: ServerEventBus,
+    private readonly eventBus: EventBus,
   ) {}
 
   get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev'>) {

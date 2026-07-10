@@ -10,6 +10,8 @@ import { isDebugEnabled } from '../common/env';
 import type { ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
 import { applyRolldownOptionsConfig } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
+import { CompatStatusReporter, ProgressBarStatusReporter } from '../events/builtin-reporters';
+import { createReporterEventListener } from '../events/consumers';
 import { getGlobalVariables } from '../internal/react-native';
 import type { BuildDiagnosticLog, MaybePromise, Reporter } from '../types';
 import type { ResolvedBuildOptions } from '../utils/build-options';
@@ -17,11 +19,6 @@ import { resolveHmrConfig } from '../utils/config';
 import { defineEnvFromObject } from '../utils/env';
 import { createVirtualModuleId, escapeVirtualModuleId } from '../utils/id';
 import { resolveFrom, resolvePackageJson } from '../utils/node-resolve';
-import {
-  CompatStatusReporter,
-  mergeReporters,
-  ProgressBarStatusReporter,
-} from '../utils/reporters';
 import { getBaseUrl } from '../utils/server';
 import { getBuildTotalModules, setBuildTotalModules } from '../utils/storage';
 import { transformWithRollipop } from '../utils/transform';
@@ -230,9 +227,9 @@ export async function resolveRolldownOptions(
     onLog(level, log, defaultHandler) {
       const diagnostic = toBuildDiagnosticLog(log);
       if (level === 'warn') {
-        config.reporter?.update({ type: 'build_error', level, log: diagnostic });
+        context.eventBus.emit({ type: 'build_error', level, log: diagnostic });
       } else if (isPluginLog(log)) {
-        config.reporter?.update({ type: 'build_log', level, log: diagnostic });
+        context.eventBus.emit({ type: 'build_log', level, log: diagnostic });
         printPluginLog(level, log, log.plugin);
       } else {
         defaultHandler(level, log);
@@ -441,14 +438,19 @@ function resolveReporterPluginOptions(
   context: BundlerContext,
   buildOptions: ResolvedBuildOptions,
 ): ReporterPluginOptions {
-  const statusReporter = createStatusReporter(config, context, buildOptions);
-  const buildTotalModulesReporter = createBuildTotalModulesReporter(context);
+  const builtinReporters = [
+    createBuildTotalModulesReporter(context),
+    createStatusReporter(config, context, buildOptions),
+  ];
+  const reporters = [...builtinReporters, config.reporter].filter(isNotNil);
+
+  for (const reporter of reporters) {
+    context.eventBus.subscribe(createReporterEventListener(reporter));
+  }
 
   return {
     initialTotalModules: getBuildTotalModules(context.storage, context.id),
-    reporter: mergeReporters(
-      [buildTotalModulesReporter, statusReporter, config.reporter].filter(isNotNil),
-    ),
+    eventBus: context.eventBus,
   };
 }
 
@@ -479,7 +481,7 @@ function createStatusReporter(
   config: ResolvedConfig,
   context: BundlerContext,
   buildOptions: ResolvedBuildOptions,
-) {
+): Reporter | undefined {
   switch (config.terminal.status) {
     case 'compat':
       return new CompatStatusReporter();

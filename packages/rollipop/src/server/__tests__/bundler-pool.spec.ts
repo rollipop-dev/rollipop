@@ -2,23 +2,18 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it, vi, vitest } from 'vite-plus/test';
+import { beforeEach, describe, expect, it, vi, vitest } from 'vite-plus/test';
 
 import { isDebugEnabled } from '../../common/env';
 import { Bundler } from '../../core/bundler';
+import { EventBus } from '../../events/event-bus';
 import { createTestConfig } from '../../testing/config';
 import { BundlerPool } from '../bundler-pool';
-import { ServerEventBus } from '../events/event-bus';
 
 vitest.mock('../../core/bundler', () => ({
   Bundler: {
     createId: vi.fn((_config: any, opts: any) => `${opts.platform}-${opts.dev}`),
-    devEngine: vi.fn().mockResolvedValue({
-      run: vi.fn().mockResolvedValue(undefined),
-      getBundleState: vi
-        .fn()
-        .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
-    }),
+    devEngine: vi.fn(),
   },
 }));
 
@@ -57,10 +52,29 @@ function resetPool() {
   (BundlerPool as any).instances.clear();
 }
 
+function createMockDevEngine(boundConfig: any, run = vi.fn().mockResolvedValue(undefined)) {
+  const eventBus = new EventBus();
+  eventBus.subscribe((event) => boundConfig.reporter.update(event));
+
+  return {
+    run,
+    getContext: () => ({ eventBus }),
+    getBundleState: vi
+      .fn()
+      .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
+  } as any;
+}
+
 describe('BundlerPool', () => {
   const config = createTestConfig('/root/project');
   const serverOptions = { host: 'localhost', port: 8081 };
-  const createPool = () => new BundlerPool(config, serverOptions, new ServerEventBus());
+  const createPool = () => new BundlerPool(config, serverOptions, new EventBus());
+
+  beforeEach(() => {
+    vi.mocked(Bundler).devEngine.mockImplementation(async (boundConfig) =>
+      createMockDevEngine(boundConfig),
+    );
+  });
 
   it('should return a new instance for a new bundle', () => {
     resetPool();
@@ -117,7 +131,7 @@ describe('BundlerPool', () => {
   it('emits bundle file path after writing build output', async () => {
     resetPool();
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-bundler-pool-'));
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const events: unknown[] = [];
     eventBus.subscribe((event) => {
       events.push(event);
@@ -125,8 +139,9 @@ describe('BundlerPool', () => {
 
     vi.mocked(Bundler).devEngine.mockImplementationOnce(
       async (boundConfig, _buildOptions, options) => {
-        return {
-          run: vi.fn(async () => {
+        return createMockDevEngine(
+          boundConfig,
+          vi.fn(async () => {
             boundConfig.reporter.update({ type: 'bundle_build_started' });
             boundConfig.reporter.update({
               type: 'bundle_build_done',
@@ -150,10 +165,7 @@ describe('BundlerPool', () => {
               ],
             } as any);
           }),
-          getBundleState: vi
-            .fn()
-            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
-        } as any;
+        );
       },
     );
 
@@ -199,25 +211,23 @@ describe('BundlerPool', () => {
 
   it('emits only hmr_updates for successful HMR updates', async () => {
     resetPool();
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const events: unknown[] = [];
     eventBus.subscribe((event) => {
       events.push(event);
     });
 
     vi.mocked(Bundler).devEngine.mockImplementationOnce(
-      async (_boundConfig, _buildOptions, options) => {
-        return {
-          run: vi.fn(async () => {
+      async (boundConfig, _buildOptions, options) => {
+        return createMockDevEngine(
+          boundConfig,
+          vi.fn(async () => {
             await options.onHmrUpdates?.({
               changedFiles: ['/root/project/App.tsx'],
               updates: [],
             } as any);
           }),
-          getBundleState: vi
-            .fn()
-            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
-        } as any;
+        );
       },
     );
 
@@ -228,20 +238,25 @@ describe('BundlerPool', () => {
 
     expect(instance.status).toBe('idle');
     expect(events).toEqual([
-      expect.objectContaining({ type: 'hmr_updates', bundlerId: 'ios-true' }),
+      expect.objectContaining({
+        type: 'hmr_updates',
+        bundlerId: 'ios-true',
+        changedFiles: ['/root/project/App.tsx'],
+      }),
     ]);
   });
 
   it('stores HMR patch chunks when debug mode is enabled', async () => {
     resetPool();
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-chunk-'));
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     vi.mocked(isDebugEnabled).mockReturnValue(true);
 
     vi.mocked(Bundler).devEngine.mockImplementationOnce(
-      async (_boundConfig, _buildOptions, options) => {
-        return {
-          run: vi.fn(async () => {
+      async (boundConfig, _buildOptions, options) => {
+        return createMockDevEngine(
+          boundConfig,
+          vi.fn(async () => {
             await options.onHmrUpdates?.({
               changedFiles: [path.join(projectRoot, 'App.tsx')],
               updates: [
@@ -250,10 +265,7 @@ describe('BundlerPool', () => {
               ],
             } as any);
           }),
-          getBundleState: vi
-            .fn()
-            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
-        } as any;
+        );
       },
     );
 
@@ -273,7 +285,7 @@ describe('BundlerPool', () => {
 
   it('emits hmr_failed without build lifecycle events for failed HMR updates', async () => {
     resetPool();
-    const eventBus = new ServerEventBus();
+    const eventBus = new EventBus();
     const events: unknown[] = [];
     eventBus.subscribe((event) => {
       events.push(event);
@@ -281,15 +293,13 @@ describe('BundlerPool', () => {
     const hmrError = new Error('Unexpected token');
 
     vi.mocked(Bundler).devEngine.mockImplementationOnce(
-      async (_boundConfig, _buildOptions, options) => {
-        return {
-          run: vi.fn(async () => {
+      async (boundConfig, _buildOptions, options) => {
+        return createMockDevEngine(
+          boundConfig,
+          vi.fn(async () => {
             await options.onHmrUpdates?.(hmrError);
           }),
-          getBundleState: vi
-            .fn()
-            .mockResolvedValue({ lastFullBuildFailed: false, hasStaleOutput: false }),
-        } as any;
+        );
       },
     );
 

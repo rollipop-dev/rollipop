@@ -9,7 +9,7 @@ describe('reporter', () => {
 
     await build('bundle-output/prelude', {
       reporter: {
-        update(event) {
+        update(event: ReportableEvent) {
           events.push(event);
         },
       },
@@ -18,6 +18,6 @@ describe('reporter', () => {
     expect(events[0]?.type).toBe('bundle_build_started');
     expect(events.some((event) => event.type === 'transform')).toBe(true);
     expect(events[events.length - 1]?.type).toBe('bundle_build_done');
-    expect(events.some((event) => event.bundlerId != null)).toBe(false);
+    expect(events.some((event) => 'bundlerId' in event && event.bundlerId != null)).toBe(false);
   });
 });

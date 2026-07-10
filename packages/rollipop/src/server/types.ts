@@ -10,8 +10,8 @@ import type * as ws from 'ws';
 
 import type { ResolvedConfig } from '../config';
 import type { BuildOptions } from '../core/types';
+import type { EventBus } from '../events/event-bus';
 import type { BundlerPool } from './bundler-pool';
-import type { ServerEventBus } from './events/event-bus';
 import type { DevServerState } from './state/store';
 import type { WebSocketClient } from './wss/server';
 
@@ -54,7 +54,7 @@ export interface DevServerContext {
   /**
    * The event bus.
    */
-  eventBus: ServerEventBus;
+  eventBus: EventBus;
   /**
    * Shared dev-server state for REST, MCP, and future integrations.
    */

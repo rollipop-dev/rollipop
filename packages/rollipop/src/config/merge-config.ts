@@ -1,6 +1,8 @@
-import { mergeWith } from 'es-toolkit';
+import { isNotNil, mergeWith } from 'es-toolkit';
 
 import { Plugin } from '../core/plugins/types';
+import type { Reporter } from '../types';
+import { mergeReporters } from '../utils/reporters';
 import { composeRolldownOptions } from './compose-override';
 import type { DefaultConfig, ResolvedConfig } from './defaults';
 import type { Config } from './types';
@@ -30,7 +32,12 @@ export function mergeConfig(
       }
 
       if (key === 'reporter') {
-        return source ?? target;
+        if (target === source) {
+          return target;
+        }
+
+        const reporters = [target, source].filter(isNotNil) as Reporter[];
+        return reporters.length > 0 ? mergeReporters(reporters) : undefined;
       }
 
       if (key === 'rolldownOptions') {

@@ -1,6 +1,7 @@
 import type * as rolldown from '@rollipop/rolldown';
 import type { DevEngine as BaseDevEngine, DevOptions } from '@rollipop/rolldown/experimental';
 
+import type { EventBus } from '../events/event-bus';
 import type { FileStorage } from '../storage/file-storage';
 import { ResolvedBuildOptions } from '../utils/build-options';
 import type { RolldownOptions } from './rolldown';
@@ -81,6 +82,7 @@ export interface BundlerContext {
   id: string;
   root: string;
   storage: FileStorage;
+  eventBus: EventBus;
   buildType: BuildType;
   state: BundlerState;
 }

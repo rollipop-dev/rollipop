@@ -1,6 +1,5 @@
-import type { BuildDiagnosticLog } from '../../types';
-import type { ServerEventBus } from '../events/event-bus';
-import type { ServerEvent } from '../events/types';
+import type { EventBus } from '../../events/event-bus';
+import type { BuildDiagnosticLog, ReportableEvent } from '../../types';
 
 export type BuildStateStatus = 'pending' | 'success' | 'failed';
 export type BuildStateLogLevel = 'info' | 'warn' | 'error';
@@ -36,7 +35,7 @@ interface StoredBuild extends BuildState {
 const MAX_BUILD_LOGS = 1000;
 
 export interface DevServerStateOptions {
-  eventBus: ServerEventBus;
+  eventBus: EventBus;
 }
 
 export class DevServerState {
@@ -75,7 +74,7 @@ export class DevServerState {
     this.clearBuilds();
   }
 
-  private handleEvent(event: ServerEvent): void {
+  private handleEvent(event: ReportableEvent): void {
     switch (event.type) {
       case 'bundle_build_started':
       case 'bundle_build_done':
@@ -94,27 +93,28 @@ class BuildStore {
   private order: string[] = [];
   private nextLogId = 0;
 
-  handleEvent(event: ServerEvent): void {
-    if (!('bundlerId' in event)) {
+  handleEvent(event: ReportableEvent): void {
+    const { bundlerId } = event;
+    if (bundlerId == null) {
       return;
     }
 
     switch (event.type) {
       case 'bundle_build_started':
-        this.startBuild(event.bundlerId);
+        this.startBuild(bundlerId);
         break;
 
       case 'bundle_build_done':
-        this.finishBuild(event.bundlerId, 'success', event.duration);
+        this.finishBuild(bundlerId, 'success', event.duration);
         break;
 
       case 'bundle_build_failed':
-        this.finishBuild(event.bundlerId, 'failed', undefined, event.error);
+        this.finishBuild(bundlerId, 'failed', undefined, event.error);
         break;
 
       case 'build_log':
       case 'build_error':
-        this.appendBuildLog(event.bundlerId, event.level, event.log);
+        this.appendBuildLog(bundlerId, event.level, event.log);
         break;
     }
   }

@@ -4,8 +4,8 @@ import EventEmitter from 'node:events';
 import type { Mock } from 'vite-plus/test';
 import { beforeEach, describe, expect, it, vi, vitest } from 'vite-plus/test';
 
+import { EventBus } from '../../../events/event-bus';
 import type { BundlerDevEngine, BundlerPool } from '../../bundler-pool';
-import { ServerEventBus } from '../../events/event-bus';
 import { HMRServer } from '../hmr-server';
 import type { WebSocketClient } from '../server';
 
@@ -92,12 +92,12 @@ describe('HMRServer', () => {
   let testable: TestableHMRServer;
   let bundlerPool: BundlerPool;
   let devEngine: BundlerDevEngine;
-  let eventBus: ServerEventBus;
+  let eventBus: EventBus;
 
   beforeEach(() => {
     devEngine = createMockDevEngine();
     bundlerPool = createMockBundlerPool(devEngine);
-    eventBus = new ServerEventBus();
+    eventBus = new EventBus();
     server = new HMRServer({ bundlerPool, eventBus });
     testable = asTestable(server);
   });
@@ -153,6 +153,7 @@ describe('HMRServer', () => {
         type: 'hmr_updates',
         bundlerId: 'test-engine',
         updates: [{ clientId: '1', update: { type: 'Patch', code: 'module.exports = {}' } }],
+        changedFiles: ['/index.ts'],
       } as any);
 
       const messages = getSentMessages(testable, client);
