@@ -7,6 +7,8 @@ import { Inter } from 'next/font/google';
 
 export const metadata: Metadata = {
   title: 'Rollipop',
+  description:
+    'The Build Tool for React Native. Rollipop is a modern build toolkit powered by Rolldown.',
 };
 
 const inter = Inter({
