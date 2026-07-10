@@ -8,7 +8,8 @@
     "start:host": "rollipop start --config rollipop.host.config.ts --port 8081",
     "start:remote": "rollipop start --config rollipop.remote.config.ts --port 8082",
     "bundle:host": "rollipop bundle --config rollipop.host.config.ts",
-    "bundle:remote": "rollipop bundle --config rollipop.remote.config.ts"
+    "bundle:remote": "rollipop bundle --config rollipop.remote.config.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@module-federation/runtime": "^2.4.0",
@@ -30,7 +31,7 @@
     "@types/node": "^24",
     "@types/react": "^19.2.14",
     "rollipop": "workspace:*",
-    "typescript": "^6.0.3"
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=22.11.0"

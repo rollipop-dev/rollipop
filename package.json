@@ -25,7 +25,7 @@
   "devDependencies": {
     "@types/node": "^24",
     "knip": "^6.21.0",
-    "typescript": "^6.0.3",
+    "typescript": "catalog:",
     "vite-plus": "catalog:"
   },
   "packageManager": "yarn@4.17.1"

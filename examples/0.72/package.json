@@ -7,6 +7,7 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "start": "rollipop start",
+    "typecheck": "tsc --noEmit",
     "test": "jest"
   },
   "dependencies": {
@@ -27,7 +28,7 @@
     "pretty-format": "^29.7.0",
     "react-test-renderer": "18.2.0",
     "rollipop": "workspace:*",
-    "typescript": "^6.0.3"
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=22.11.0"
