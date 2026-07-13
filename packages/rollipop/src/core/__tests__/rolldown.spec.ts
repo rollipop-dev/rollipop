@@ -129,6 +129,45 @@ describe('resolveRolldownOptions', () => {
     expect(pluginNames.some((name) => name.includes('refresh'))).toBe(false);
   });
 
+  it('uses custom React Refresh filters for both transform and wrapper plugins', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const include = [/\/app\/.*\.tsx$/];
+    const exclude = [/\/generated\//];
+    const config = createTestConfig(root);
+    config.transform.jsx = { refresh: { include, exclude } };
+    config.reactNative.assetRegistryPath = path.join(root, 'package.json');
+    config.reactNative.hmrClientPath = path.join(root, 'package.json');
+
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-dev-server-react-refresh-filter',
+        root,
+        buildType: 'serve',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'ios', dev: true }),
+      { host: 'localhost', port: 8081 },
+    );
+
+    const refresh = (options.input?.transform?.jsx as RolldownJsxOptions)?.refresh;
+    expect(refresh).toEqual(expect.objectContaining({ include, exclude }));
+
+    const wrapper = (await getResolvedPlugins(options)).find(
+      (plugin) => plugin.name === 'builtin:rollipop-react-refresh-wrapper',
+    );
+    expect(wrapper).toBeDefined();
+    const wrapperOptions = Reflect.get(wrapper!, '_options');
+    expect(wrapperOptions).toEqual(expect.objectContaining({ include, exclude }));
+  });
+
   it('keeps react compiler disabled by default', async () => {
     resolveRolldownOptions.cache.clear();
 

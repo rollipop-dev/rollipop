@@ -1,5 +1,8 @@
 import type * as rolldown from '@rollipop/rolldown';
-import { rollipopReactRefreshWrapperPlugin as reactRefresh } from '@rollipop/rolldown/experimental';
+import {
+  rollipopReactRefreshWrapperPlugin as reactRefresh,
+  type RollipopReactRefreshWrapperPluginConfig,
+} from '@rollipop/rolldown/experimental';
 import { exactRegex, id, include } from '@rollipop/rolldown/filter';
 
 import { ResolvedConfig } from '../../config';
@@ -15,8 +18,14 @@ export interface DevServerPluginOptions {
   cwd: string;
   hmrClientPath: ResolvedConfig['reactNative']['hmrClientPath'];
   hmrConfig: ResolvedHmrConfig | null;
+  reactRefreshFilter?: ReactRefreshFilter;
   sourceMapUrl?: string;
 }
+
+export type ReactRefreshFilter = Pick<
+  RollipopReactRefreshWrapperPluginConfig,
+  'include' | 'exclude'
+>;
 
 export const DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS = [/\.[tj]sx?(?:$|\?)/];
 export const DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS = [/node_modules/];
@@ -79,7 +88,16 @@ function sourceMapUrlPlugin(sourceMapUrl: string | undefined): rolldown.Plugin |
 }
 
 async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldown.Plugin[] | null> {
-  const { cwd, hmrClientPath, hmrConfig, sourceMapUrl } = options;
+  const {
+    cwd,
+    hmrClientPath,
+    hmrConfig,
+    reactRefreshFilter = {
+      include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+      exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
+    },
+    sourceMapUrl,
+  } = options;
   const plugins = [sourceMapUrlPlugin(sourceMapUrl)].filter((plugin) => plugin != null);
 
   if (hmrConfig == null) {
@@ -106,14 +124,7 @@ async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldow
     },
   };
 
-  plugins.push(
-    replaceHMRClientPlugin,
-    reactRefresh({
-      cwd,
-      include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
-      exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
-    }),
-  );
+  plugins.push(replaceHMRClientPlugin, reactRefresh({ cwd, ...reactRefreshFilter }));
 
   return plugins;
 }

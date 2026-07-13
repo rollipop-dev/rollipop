@@ -31,6 +31,7 @@ import {
   type EntryPluginOptions,
   type ImportGlobPluginOptions,
   type ReactNativePluginOptions,
+  type ReactRefreshFilter,
   type ReporterPluginOptions,
   type SwcPluginOptions,
   alias,
@@ -56,6 +57,7 @@ export interface RolldownOptions {
 
 type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
 type RolldownJsxOptions = Extract<NonNullable<RolldownTransformOptions['jsx']>, object>;
+type RolldownReactRefreshOptions = Exclude<NonNullable<RolldownJsxOptions['refresh']>, boolean>;
 
 export async function resolveRolldownOptions(
   context: BundlerContext,
@@ -172,12 +174,10 @@ export async function resolveRolldownOptions(
       mode: 'Runtime',
     },
   } satisfies RollipopTransformOptions;
-  const mergedTransformOptions = merge(
-    { ...defaultTransformOptions } as RolldownTransformOptions,
-    rolldownTransform,
-  );
-  applyReactCompilerDefaults(mergedTransformOptions);
+  const mergedTransformOptions = merge(defaultTransformOptions, rolldownTransform);
+  applyReactCompilerDefaults(merge(defaultTransformOptions, rolldownTransform));
 
+  const reactRefreshFilter = resolveReactRefreshFilter(mergedTransformOptions);
   const entryPluginOptions = resolveEntryPluginOptions(config, context);
   const importGlobPluginOptions = resolveImportGlobPluginOptions(config);
   const reactNativePluginOptions = await resolveReactNativePluginOptions(
@@ -187,7 +187,12 @@ export async function resolveRolldownOptions(
   );
   const babelPluginOptions = resolveBabelPluginOptions(config, context);
   const swcPluginOptions = resolveSwcPluginOptions(config, context);
-  const devServerPluginOptions = resolveDevServerPluginOptions(config, hmrConfig, devEngineOptions);
+  const devServerPluginOptions = resolveDevServerPluginOptions(
+    config,
+    hmrConfig,
+    reactRefreshFilter,
+    devEngineOptions,
+  );
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
 
@@ -264,7 +269,7 @@ export async function resolveRolldownOptions(
   );
 
   const overrideOptions = isDevServerMode
-    ? getOverrideOptionsForDevServer(buildOptions, hmrEnabled)
+    ? getOverrideOptionsForDevServer(buildOptions, hmrEnabled, reactRefreshFilter)
     : getOverrideOptions();
   const rolldownOptions: RolldownOptions = {
     input: merge(inputOptions, overrideOptions.input),
@@ -427,12 +432,14 @@ function resolveSwcPluginOptions(
 function resolveDevServerPluginOptions(
   config: ResolvedConfig,
   hmrConfig: ReturnType<typeof resolveHmrConfig>,
+  reactRefreshFilter: ReactRefreshFilter,
   devEngineOptions: DevEngineOptions | undefined,
 ): DevServerPluginOptions {
   return {
     cwd: config.root,
     hmrClientPath: config.reactNative.hmrClientPath,
     hmrConfig,
+    reactRefreshFilter,
     sourceMapUrl: devEngineOptions?.sourceMapUrl,
   };
 }
@@ -629,6 +636,10 @@ export function getOverrideOptions() {
 export function getOverrideOptionsForDevServer(
   buildOptions: ResolvedBuildOptions,
   hmrEnabled = true,
+  reactRefreshFilter: ReactRefreshFilter = {
+    include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+    exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
+  },
 ) {
   const overrideOptions = getOverrideOptions();
 
@@ -645,8 +656,7 @@ export function getOverrideOptionsForDevServer(
                 refreshReg: '$RefreshReg$',
                 refreshSig: '$RefreshSig$',
                 // `@rollipop/rolldown` specific options
-                include: DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
-                exclude: DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
+                ...reactRefreshFilter,
               },
             }
           : null),
@@ -671,6 +681,27 @@ export function getOverrideOptionsForDevServer(
     input: merge(overrideOptions.input, input),
     output: merge(overrideOptions.output, output),
   };
+}
+
+function resolveReactRefreshFilter(transformOptions: RolldownTransformOptions): ReactRefreshFilter {
+  const jsx = transformOptions.jsx as RolldownJsxOptions | undefined;
+  const refresh = jsx?.refresh != null && typeof jsx.refresh === 'object' ? jsx.refresh : undefined;
+
+  return {
+    include:
+      normalizeReactRefreshPatterns(refresh?.include) ?? DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
+    exclude:
+      normalizeReactRefreshPatterns(refresh?.exclude) ?? DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
+  };
+}
+
+function normalizeReactRefreshPatterns(
+  patterns: RolldownReactRefreshOptions['include'],
+): ReactRefreshFilter['include'] {
+  if (patterns == null) {
+    return undefined;
+  }
+  return Array.isArray(patterns) ? patterns : [patterns];
 }
 
 export type RolldownOptionsFunction = (
