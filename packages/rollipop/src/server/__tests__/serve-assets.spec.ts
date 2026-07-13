@@ -5,6 +5,7 @@ import path from 'node:path';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
 
+import { resolveScaledAssets } from '../../core/assets';
 import { createTestConfig } from '../../testing/config';
 import { serveAssets } from '../middlewares/serve-assets';
 import type { DevServerContext } from '../types';
@@ -42,6 +43,38 @@ describe('serve assets middleware', () => {
       expect(response.headers['content-type']).toContain('image/svg+xml');
       expect(response.headers['content-length']).toBe(String(Buffer.byteLength(svg(22, 22))));
       expect(response.body).toBe(svg(22, 22));
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('serves an encoded asset path outside the project root', async () => {
+    const fixtureRoot = await createAssetFixture({ 'icon.svg': svg(10, 10) });
+    const projectRoot = path.join(fixtureRoot, 'packages/app');
+    const asset = await resolveScaledAssets({
+      projectRoot,
+      assetPath: path.join(fixtureRoot, 'imgs/icon.svg'),
+      platform: 'ios',
+      preferNativePlatform: false,
+    });
+    const app = Fastify();
+
+    try {
+      await app.register(serveAssets, {
+        context: {
+          config: createTestConfig(projectRoot),
+          options: { host: 'localhost', port: 8081, https: false },
+        } as unknown as DevServerContext,
+      });
+      await app.ready();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `${asset.httpServerLocation}/icon.svg?platform=ios&hash=${asset.hash}`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toBe(svg(10, 10));
     } finally {
       await app.close();
     }

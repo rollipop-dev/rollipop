@@ -133,7 +133,7 @@ export async function resolveScaledAssets(options: ResolveScaledAssetsOptions): 
 function getHttpServerLocation(relativePath: string): string {
   const dirname = path.dirname(relativePath);
   const serverLocation = relativePath.startsWith('..')
-    ? `/${DEV_SERVER_ASSET_PATH}/${dirname}`
+    ? `/${DEV_SERVER_ASSET_PATH}/${encodeURIComponent(dirname)}`
     : path.join('/', DEV_SERVER_ASSET_PATH, dirname);
 
   return normalizePathSeparatorsToPosix(serverLocation);

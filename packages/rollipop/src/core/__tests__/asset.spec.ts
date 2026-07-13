@@ -157,6 +157,26 @@ describe('resolveScaledAssets', () => {
       }),
     );
   });
+
+  it('encodes asset paths outside the project root as one URL segment', async () => {
+    const root = await createTempRoot('rollipop-pnp-assets-');
+    const projectRoot = path.join(root, 'packages/app');
+    const dir = path.join(root, '.yarn/cache/package/node_modules/package');
+    const assetPath = path.join(dir, 'icon.svg');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(assetPath, svg(10, 10));
+
+    const asset = await resolveScaledAssets({
+      projectRoot,
+      assetPath,
+      platform: 'ios',
+      preferNativePlatform: false,
+    });
+
+    expect(asset.httpServerLocation).toBe(
+      '/assets/..%2F..%2F.yarn%2Fcache%2Fpackage%2Fnode_modules%2Fpackage',
+    );
+  });
 });
 
 describe('filterPlatformAssetScales', () => {

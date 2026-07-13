@@ -9,7 +9,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 const MONOREPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 const ROLLIPOP_DIR = path.resolve(import.meta.dirname, '..');
 const FIXTURE_DIR = path.resolve(import.meta.dirname, '__fixtures__/react-native-app');
+const PNP_RUNNER_FIXTURE_DIR = path.resolve(import.meta.dirname, '__fixtures__/pnp');
 const DASHBOARD_WORKSPACE_DIR = 'packages/dashboard';
+const PNP_APP_DIR = 'packages/app';
+const PNP_ASSET_PACKAGE_DIR = 'fixtures/pnp-asset-package';
+const PNP_ASSET_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 let tmpDir: string;
 
@@ -91,6 +96,24 @@ export { staticPath };
   fs.writeFileSync(path.join(dashboardDir, 'dist/404.html'), '<!doctype html>');
 }
 
+function writePnpAssetFixture() {
+  const appDir = path.join(tmpDir, PNP_APP_DIR);
+  const assetPackageDir = path.join(tmpDir, PNP_ASSET_PACKAGE_DIR);
+
+  fs.cpSync(FIXTURE_DIR, appDir, { recursive: true });
+
+  fs.mkdirSync(assetPackageDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(assetPackageDir, 'package.json'),
+    JSON.stringify({
+      name: 'pnp-asset-package',
+      version: '1.0.0',
+      main: 'icon.png',
+    }),
+  );
+  fs.writeFileSync(path.join(assetPackageDir, 'icon.png'), Buffer.from(PNP_ASSET_BASE64, 'base64'));
+}
+
 beforeAll(() => {
   const yarnVersion = getYarnVersion();
   const nodeVersion = process.version;
@@ -105,6 +128,10 @@ beforeAll(() => {
     fs.cpSync(path.join(FIXTURE_DIR, file), path.join(tmpDir, file), { recursive: true });
   }
   writeDashboardWorkspaceStub();
+  writePnpAssetFixture();
+  for (const file of fs.readdirSync(PNP_RUNNER_FIXTURE_DIR)) {
+    fs.copyFileSync(path.join(PNP_RUNNER_FIXTURE_DIR, file), path.join(tmpDir, file));
+  }
 
   // Standalone tsconfig
   fs.writeFileSync(
@@ -156,6 +183,7 @@ beforeAll(() => {
         packageManager: `yarn@${yarnVersion}`,
         workspaces: [DASHBOARD_WORKSPACE_DIR],
         dependencies: {
+          'pnp-asset-package': `file:./${PNP_ASSET_PACKAGE_DIR}`,
           react: examplePkg.dependencies['react'],
           'react-native': examplePkg.dependencies['react-native'],
         },
@@ -170,50 +198,6 @@ beforeAll(() => {
       null,
       2,
     ),
-  );
-
-  // Build script — runs under PnP context via `corepack yarn node`
-  fs.writeFileSync(
-    path.join(tmpDir, 'build-test.mjs'),
-    `
-import path from 'node:path';
-import fs from 'node:fs';
-
-async function main() {
-  const { loadConfig } = await import('rollipop');
-  const { Bundler } = await import('rollipop');
-
-  const config = await loadConfig({ cwd: process.cwd(), mode: 'production' });
-  config.entry = path.resolve(config.root, config.entry);
-
-  const bundler = new Bundler(config);
-  const chunk = await bundler.build({ platform: 'ios', dev: false, cache: false });
-
-  fs.writeFileSync('build-result.json', JSON.stringify({
-    success: true,
-    codeLength: chunk.code.length,
-    // User code
-    hasAppRegistry: chunk.code.includes('AppRegistry'),
-    // Default prelude (InitializeCore from react-native)
-    hasInitializeCore: chunk.code.includes('InitializeCore'),
-    // Built-in defines & global variables
-    hasDevFalse: chunk.code.includes('var __DEV__ = false'),
-    hasBundleStartTime: chunk.code.includes('__BUNDLE_START_TIME__'),
-    hasNodeEnv: chunk.code.includes('process.env.NODE_ENV'),
-    // Default React Native polyfills
-    hasReactNativePolyfill: chunk.code.includes('ErrorUtils'),
-  }));
-}
-
-main().catch(err => {
-  fs.writeFileSync('build-result.json', JSON.stringify({
-    success: false,
-    error: err.message,
-    stack: err.stack,
-  }));
-  process.exit(1);
-});
-`.trimStart(),
   );
 
   // Ensure corepack is enabled and yarn version is prepared (CI may not have it active)
@@ -261,5 +245,25 @@ describe('Yarn PnP', () => {
     expect(result.hasNodeEnv).toBe(true);
     // Default React Native polyfills
     expect(result.hasReactNativePolyfill).toBe(true);
+  }, 300_000);
+
+  it('serves assets from the PnP cache through the development server', () => {
+    log('Running development asset request under PnP...');
+    exec('yarn node dev-server-test.mjs', tmpDir);
+
+    const result = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, 'dev-server-result.json'), 'utf-8'),
+    );
+
+    if (!result.success) {
+      throw new Error(`Development asset request failed: ${JSON.stringify(result, null, 2)}`);
+    }
+
+    expect(result.assetLocation).toMatch(
+      /^\/assets\/\.\.%2F\.\.%2F\.yarn%2Fcache%2Fpnp-asset-package-/,
+    );
+    expect(result.assetPath).toContain('/.yarn/cache/pnp-asset-package-');
+    expect(result.assetStatus).toBe(200);
+    expect(result.assetBase64).toBe(PNP_ASSET_BASE64);
   }, 300_000);
 });

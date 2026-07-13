@@ -23,6 +23,7 @@ const queryParamSchema = asConst({
 });
 
 type QueryParams = FromSchema<typeof queryParamSchema>;
+type RouteParams = { '*': string };
 
 export interface ServeAssetPluginOptions {
   context: DevServerContext;
@@ -31,34 +32,29 @@ export interface ServeAssetPluginOptions {
 const plugin = fp<ServeAssetPluginOptions>(
   (fastify, options) => {
     const { context } = options;
-    const { host, port, https } = context.options;
-    const baseUrl = https ? `https://${host}:${port}` : `http://${host}:${port}`;
 
     function resolveAsset(asset: string) {
       return path.resolve(context.config.root, asset);
     }
 
     // TODO
-    fastify.get<{ Querystring: QueryParams }>(`/${DEV_SERVER_ASSET_PATH}/*`, {
+    fastify.get<{ Params: RouteParams; Querystring: QueryParams }>(`/${DEV_SERVER_ASSET_PATH}/*`, {
       schema: {
         querystring: queryParamSchema,
       },
       async handler(request, reply) {
-        const { url, query } = request;
-        const { pathname } = new URL(url, baseUrl);
-        const assetPath = resolveAsset(
-          pathname.replace(new RegExp(`^/${DEV_SERVER_ASSET_PATH}/?`), ''),
-        );
+        const { params, query } = request;
+        const assetPath = resolveAsset(params['*']);
 
-        let handle: fs.promises.FileHandle | null = null;
         try {
           const resolvedAssetPath = AssetUtils.resolveAssetPath(assetPath, {
             platform: query.platform,
             preferNativePlatform: context.config.resolve.preferNativePlatform,
           });
-          handle = await fs.promises.open(resolvedAssetPath, 'r');
-          const assetData = await handle.readFile();
-          const { size } = await handle.stat();
+          const [assetData, { size }] = await Promise.all([
+            fs.promises.readFile(resolvedAssetPath),
+            fs.promises.stat(resolvedAssetPath),
+          ]);
 
           await reply
             .header('Content-Type', mime.getType(resolvedAssetPath) ?? '')
@@ -67,8 +63,6 @@ const plugin = fp<ServeAssetPluginOptions>(
         } catch (error) {
           fastify.log.error(error, 'Failed to serve asset');
           await reply.status(500).send();
-        } finally {
-          await handle?.close();
         }
       },
     });
