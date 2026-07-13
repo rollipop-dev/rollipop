@@ -189,6 +189,8 @@ export async function resolveRolldownOptions(
   const swcPluginOptions = resolveSwcPluginOptions(config, context);
   const devServerPluginOptions = resolveDevServerPluginOptions(
     config,
+    context,
+    buildOptions,
     hmrConfig,
     reactRefreshFilter,
     devEngineOptions,
@@ -431,12 +433,21 @@ function resolveSwcPluginOptions(
 
 function resolveDevServerPluginOptions(
   config: ResolvedConfig,
+  context: BundlerContext,
+  buildOptions: ResolvedBuildOptions,
   hmrConfig: ReturnType<typeof resolveHmrConfig>,
   reactRefreshFilter: ReactRefreshFilter,
   devEngineOptions: DevEngineOptions | undefined,
 ): DevServerPluginOptions {
   return {
     cwd: config.root,
+    id: context.id,
+    origin:
+      devEngineOptions == null
+        ? undefined
+        : getBaseUrl(devEngineOptions.host, devEngineOptions.port, devEngineOptions.https),
+    bundleEntry: devEngineOptions?.bundleEntry,
+    platform: buildOptions.platform,
     hmrClientPath: config.reactNative.hmrClientPath,
     hmrConfig,
     reactRefreshFilter,

@@ -114,8 +114,7 @@ export class HMRServer extends WebSocketServer {
       const instance = this.instances.get(client.id);
       invariant(instance != null, `Bundler instance not found for client clientId: ${client.id}`);
 
-      await instance.ensureInitialized;
-      const updates = await instance.devEngine.invalidate(moduleId);
+      const updates = await instance.invalidate(moduleId);
       await this.handleUpdates(client, updates);
     } catch (error) {
       this.logger.error(`Failed to handle invalidate`, error);
@@ -163,6 +162,11 @@ export class HMRServer extends WebSocketServer {
     const updateMessage = {
       type: 'hmr:update',
       code: update.code,
+      sourceURL: update.filename,
+      sourceMappingURL:
+        update.sourcemap == null
+          ? undefined
+          : `data:application/json;charset=utf-8;base64,${Buffer.from(update.sourcemap).toString('base64')}`,
     } satisfies HMRServerMessage;
 
     this.send(client, JSON.stringify(updateMessage));

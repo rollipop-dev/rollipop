@@ -120,7 +120,7 @@ describe('resolveRolldownOptions', () => {
       },
       config,
       resolveBuildOptions(config, { platform: 'ios', dev: true }),
-      { host: 'localhost', port: 8081 },
+      { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
     );
 
     const pluginNames = (await getResolvedPlugins(options)).map((plugin) => plugin.name);
@@ -154,7 +154,7 @@ describe('resolveRolldownOptions', () => {
       },
       config,
       resolveBuildOptions(config, { platform: 'ios', dev: true }),
-      { host: 'localhost', port: 8081 },
+      { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
     );
 
     const refresh = (options.input?.transform?.jsx as RolldownJsxOptions)?.refresh;
@@ -408,7 +408,7 @@ describe('resolveRolldownOptions', () => {
         context,
         config,
         resolveBuildOptions(config, { platform: 'ios', dev: true }),
-        { host: 'localhost', port: 8081 },
+        { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
       );
       eventBus.emit(event);
 
@@ -453,7 +453,7 @@ describe('resolveRolldownOptions', () => {
       createContext(),
       createConfig(),
       buildOptions,
-      { host: 'localhost', port: 8081 },
+      { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
     );
     const firstPlugin = findReporterPlugin(firstOptions);
     const firstBuildStart = firstPlugin.buildStart as unknown as () => void;
@@ -484,7 +484,7 @@ describe('resolveRolldownOptions', () => {
       createContext(),
       secondConfig,
       buildOptions,
-      { host: 'localhost', port: 8081 },
+      { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
     );
     const secondPlugin = findReporterPlugin(secondOptions);
     const secondBuildStart = secondPlugin.buildStart as unknown as () => void;

@@ -3,9 +3,12 @@ import {
   rollipopReactRefreshWrapperPlugin as reactRefresh,
   type RollipopReactRefreshWrapperPluginConfig,
 } from '@rollipop/rolldown/experimental';
-import { exactRegex, id, include } from '@rollipop/rolldown/filter';
+import { exactRegex, id as idFilter, include } from '@rollipop/rolldown/filter';
+import dedent from 'dedent';
+import { isNotNil } from 'es-toolkit';
 
 import { ResolvedConfig } from '../../config';
+import { ROLLIPOP_VIRTUAL_BOOTSTRAP_ID } from '../../constants';
 import type { ResolvedHmrConfig } from '../../utils/config';
 import { resolveFrom } from '../../utils/node-resolve';
 import {
@@ -16,6 +19,10 @@ import {
 
 export interface DevServerPluginOptions {
   cwd: string;
+  id: string;
+  origin?: string;
+  bundleEntry?: string;
+  platform: string;
   hmrClientPath: ResolvedConfig['reactNative']['hmrClientPath'];
   hmrConfig: ResolvedHmrConfig | null;
   reactRefreshFilter?: ReactRefreshFilter;
@@ -90,6 +97,10 @@ function sourceMapUrlPlugin(sourceMapUrl: string | undefined): rolldown.Plugin |
 async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldown.Plugin[] | null> {
   const {
     cwd,
+    id,
+    origin,
+    bundleEntry,
+    platform,
     hmrClientPath,
     hmrConfig,
     reactRefreshFilter = {
@@ -98,35 +109,67 @@ async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldow
     },
     sourceMapUrl,
   } = options;
-  const plugins = [sourceMapUrlPlugin(sourceMapUrl)].filter((plugin) => plugin != null);
+  const plugins: (rolldown.Plugin | null)[] = [sourceMapUrlPlugin(sourceMapUrl)];
 
-  if (hmrConfig == null) {
-    // HMR Disabled
-    return plugins.length > 0 ? plugins : null;
+  if (hmrConfig != null) {
+    const resolvedHmrClientPath = resolveFrom(
+      cwd,
+      typeof hmrClientPath === 'function' ? await hmrClientPath(cwd) : hmrClientPath,
+    );
+
+    const replaceHMRClientPlugin: rolldown.Plugin = {
+      name: 'rollipop:replace-hmr-client',
+      load: {
+        filter: [include(idFilter(exactRegex(resolvedHmrClientPath)))],
+        handler(id) {
+          this.debug(`Replacing HMR client: ${id}`);
+          return {
+            code: hmrConfig.clientImplement,
+            moduleType: 'ts',
+          };
+        },
+      },
+    };
+
+    plugins.push(replaceHMRClientPlugin);
+    plugins.push(
+      reactRefresh({
+        cwd,
+        id,
+        include: reactRefreshFilter.include,
+        exclude: reactRefreshFilter.exclude,
+      }),
+    );
   }
 
-  const resolvedHmrClientPath = resolveFrom(
-    cwd,
-    typeof hmrClientPath === 'function' ? await hmrClientPath(cwd) : hmrClientPath,
-  );
-
-  const replaceHMRClientPlugin: rolldown.Plugin = {
-    name: 'rollipop:replace-hmr-client',
-    load: {
-      filter: [include(id(exactRegex(resolvedHmrClientPath)))],
-      handler(id) {
-        this.debug(`Replacing HMR client: ${id}`);
-        return {
-          code: hmrConfig.clientImplement,
-          moduleType: 'ts',
-        };
+  if (origin != null && bundleEntry != null) {
+    const registerHMRGraphPlugin: rolldown.Plugin = {
+      name: 'rollipop:register-hmr-graph',
+      transform: {
+        filter: [include(idFilter(exactRegex(ROLLIPOP_VIRTUAL_BOOTSTRAP_ID)))],
+        handler(code) {
+          return [
+            code,
+            dedent`
+            if (globalThis.__rollipop_runtime__) {
+              globalThis.__rollipop_runtime__.registerGraph({
+                id: ${JSON.stringify(id)},
+                origin: ${JSON.stringify(origin)},
+                bundleEntry: ${JSON.stringify(bundleEntry)},
+                platform: ${JSON.stringify(platform)},
+                runtime: import.meta.hot.runtime,
+              });
+            }
+            `,
+          ].join('\n');
+        },
       },
-    },
-  };
+    };
 
-  plugins.push(replaceHMRClientPlugin, reactRefresh({ cwd, ...reactRefreshFilter }));
+    plugins.push(registerHMRGraphPlugin);
+  }
 
-  return plugins;
+  return plugins.filter(isNotNil);
 }
 
 export { devServerPlugin as devServer };

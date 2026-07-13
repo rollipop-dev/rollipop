@@ -47,6 +47,8 @@ export type HMRServerMessage =
   | {
       type: 'hmr:update';
       code: string;
+      sourceURL?: string;
+      sourceMappingURL?: string;
     }
   | {
       type: 'hmr:reload';

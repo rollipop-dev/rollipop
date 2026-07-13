@@ -11,11 +11,9 @@ describe('generateRemoteProxyCode', () => {
     expect(code).toContain('const __id = "remote_app/RemoteNavigator";');
   });
 
-  it('emits a React-aware proxy that registers a hot-update subscriber', () => {
+  it('emits a React-aware proxy that renders the refresh-managed component type', () => {
     const code = generateRemoteProxyCode({ remoteId: 'remote_app', reactAware: true });
     expect(code).toContain("import * as __mfReact from 'react'");
-    expect(code).toContain('__mfReact.useState(0)');
-    expect(code).toContain('__cache.subscribers.add(listener)');
     expect(code).toContain('__mfReact.createElement(fn, props)');
   });
 

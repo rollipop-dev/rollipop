@@ -28,8 +28,7 @@ function useRuntimeSnapshot() {
     containerRegistered: g[REMOTE_NAME] != null,
     loadedRemotes: cache ? Object.keys(cache.modules) : [],
     pending: cache ? Object.keys(cache.pending).length : 0,
-    invalidated: cache ? cache.invalidatedIds.size : 0,
-    subscribers: cache ? cache.subscribers.size : 0,
+    hmrGraphs: Array.from(g.__rollipop_runtime__?.graphs?.keys?.() ?? []) as string[],
   };
 }
 
@@ -54,8 +53,8 @@ function DebugPanel() {
       />
       <DebugRow label="Shared deps" value={snap.shared.join(', ') || '—'} />
       <DebugRow label="Loaded remotes" value={snap.loadedRemotes.join(', ') || '—'} />
-      <DebugRow label="Pending / invalidated" value={`${snap.pending} / ${snap.invalidated}`} />
-      <DebugRow label="HMR subscribers" value={String(snap.subscribers)} />
+      <DebugRow label="Pending remotes" value={String(snap.pending)} />
+      <DebugRow label="HMR graphs" value={snap.hmrGraphs.join(', ') || '—'} />
     </View>
   );
 }

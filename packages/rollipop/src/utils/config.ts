@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import type { HmrConfig, ResolvedConfig } from '../config';
+import type { ResolvedConfig } from '../config';
 import type { ReportableEvent, Reporter } from '../types';
 
 export function bindReporter(
@@ -16,7 +16,10 @@ export function bindReporter(
   return { ...config, reporter };
 }
 
-export type ResolvedHmrConfig = Required<HmrConfig>;
+export interface ResolvedHmrConfig {
+  runtimeImplement: string;
+  clientImplement: string;
+}
 
 export function resolveHmrConfig(config: ResolvedConfig): ResolvedHmrConfig | null {
   if (config.mode !== 'development') {

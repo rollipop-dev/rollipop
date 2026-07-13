@@ -11,6 +11,3 @@ export const VIRTUAL_REMOTE_PROXY_PREFIX = `${VIRTUAL_PREFIX}remote:`;
 export const SCRIPT_LOADER_GLOBAL = '__rollipop_script_loader__';
 export const SHARED_REGISTRY_GLOBAL = '__rollipop_shared__';
 export const REMOTE_CACHE_GLOBAL = '__rollipop_module_federation_cache__';
-
-export const HMR_HOT_PATH = '/hot';
-export const HMR_EVENT = 'mf:remote-update';

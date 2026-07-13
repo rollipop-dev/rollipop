@@ -3,7 +3,25 @@ import type { HMRClientMessage, HMRCustomHandler } from './hmr';
 
 export interface RollipopDevRuntime {
   reactRefresh: ReactRefresh;
+  graphs: Map<string, HMRGraph>;
   customHMRHandler: HMRCustomHandler | undefined;
+  registerGraph(graph: HMRGraph): void;
+  subscribeGraph(listener: (graph: HMRGraph) => void): () => void;
+}
+
+export interface HMRGraphMetadata {
+  id: string;
+  origin: string;
+  bundleEntry: string;
+  platform: string;
+}
+
+export interface HMRGraph extends HMRGraphMetadata {
+  runtime: HMRGraphRuntime;
+}
+
+export interface HMRGraphRuntime extends DevRuntimeInterface {
+  setup(socket: WebSocket, origin: string): void;
 }
 
 export interface DevRuntimeModule {

@@ -5,7 +5,6 @@ import type { Plugin, ResolvedConfig } from 'rollipop';
 import { id, include, prefixRegex } from 'rollipop/filter';
 
 import {
-  HMR_EVENT,
   PLUGIN_NAME,
   VIRTUAL_HOST_INIT_ID,
   VIRTUAL_PREFIX,
@@ -33,12 +32,8 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
 
   let resolvedConfig: ResolvedConfig | null = null;
   let normalized: NormalizedConfig | null = null;
-  let broadcast: (() => void) | null = null;
   const exposesAbsolute: Record<string, string> = {};
   const sharedRoots = new Set(collectSharedNames(federationConfig));
-
-  // Debounce file-change broadcasts. Only used in the remote role.
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   return {
     name: PLUGIN_NAME,
@@ -160,26 +155,6 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
 
         return null;
       },
-    },
-    watchChange() {
-      if (!hasExposes || broadcast == null) {
-        return;
-      }
-      if (debounceTimer != null) {
-        clearTimeout(debounceTimer);
-      }
-      debounceTimer = setTimeout(() => {
-        debounceTimer = null;
-        broadcast?.();
-      }, 100);
-    },
-    configureServer(server) {
-      if (!hasExposes) {
-        return;
-      }
-      broadcast = () => {
-        server.hot.sendAll(HMR_EVENT, { name: federationConfig.name });
-      };
     },
   };
 }

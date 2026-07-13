@@ -36,15 +36,6 @@ export function generateRemoteProxyCode({ remoteId, reactAware }: RemoteProxyOpt
       }
 
       function __FederatedProxy(props) {
-        const [, setVersion] = __mfReact.useState(0);
-        __mfReact.useEffect(() => {
-          const listener = () => setVersion((v) => v + 1);
-          __cache.subscribers.add(listener);
-          return () => {
-            __cache.subscribers.delete(listener);
-          };
-        }, []);
-
         const mod = __getMod();
         if (mod === undefined) {
           throw __ensureLoaded();

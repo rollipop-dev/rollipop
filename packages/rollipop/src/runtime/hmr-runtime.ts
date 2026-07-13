@@ -9,16 +9,17 @@ import type {
 import type {
   DevRuntime as DefaultDevRuntime,
   DevRuntimeMessenger,
+  HMRGraph,
+  HMRGraphRuntime,
   RollipopDevRuntime,
 } from '../types/runtime';
 import { lazyReactRefresh } from './react-refresh-utils';
 
 declare global {
-  var __rolldown_runtime__: ReactNativeDevRuntime | undefined;
+  var globalEvalWithSourceUrl: ((code: string, sourceURL?: string) => void) | undefined;
   var __rollipop_runtime__: RollipopDevRuntime | undefined;
   // React native specific globals.
   var __turboModuleProxy: (moduleName: string) => any;
-  var globalEvalWithSourceUrl: (code: string, sourceURL?: string) => void;
   var nativeModuleProxy: Record<string, any>;
 }
 
@@ -34,6 +35,7 @@ class ModuleHotContext implements HMRContext {
   constructor(
     private moduleId: string,
     private socketHolder: SocketHolder,
+    readonly runtime: HMRGraphRuntime,
   ) {}
 
   accept(...args: any[]) {
@@ -160,7 +162,7 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
   }
 
   createModuleHotContext(moduleId: string) {
-    const hotContext = new ModuleHotContext(moduleId, this.socketHolder);
+    const hotContext = new ModuleHotContext(moduleId, this.socketHolder, this);
     if (this.moduleHotContexts.has(moduleId)) {
       this.moduleHotContextsToBeUpdated.set(moduleId, hotContext);
     } else {
@@ -206,7 +208,7 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
 
       switch (message.type) {
         case 'hmr:update':
-          this.evaluate(message.code);
+          this.evaluate(message.code, message.sourceURL, message.sourceMappingURL);
           break;
 
         case 'hmr:reload':
@@ -216,13 +218,25 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
     });
   }
 
-  private evaluate(code: string, sourceURL?: string) {
+  private evaluate(code: string, sourceURL?: string, sourceMappingURL?: string) {
     debug(`[HMR]: Evaluating code\n${code}`);
+    const resolvedSourceURL =
+      sourceURL == null || this.socketHolder.origin == null
+        ? sourceURL
+        : new URL(sourceURL, `${this.socketHolder.origin}/`).toString();
+    const source = [
+      code,
+      sourceMappingURL == null ? null : `//# sourceMappingURL=${sourceMappingURL}`,
+      resolvedSourceURL == null ? null : `//# sourceURL=${resolvedSourceURL}`,
+    ]
+      .filter((line) => line != null)
+      .join('\n');
+
     if (globalThis.globalEvalWithSourceUrl) {
-      globalThis.globalEvalWithSourceUrl(code, sourceURL);
+      globalThis.globalEvalWithSourceUrl(source, resolvedSourceURL);
     } else {
       // oxlint-disable-next-line no-eval
-      eval(code);
+      eval(source);
     }
   }
 
@@ -254,10 +268,41 @@ function isCustomHMRMessage(message: unknown): message is HMRCustomMessage {
   return true;
 }
 
-globalThis.__rolldown_runtime__ ??= new ReactNativeDevRuntime();
-globalThis.__rollipop_runtime__ ??= {
-  reactRefresh: lazyReactRefresh,
-  customHMRHandler: undefined,
-} satisfies RollipopDevRuntime;
+function createRollipopDevRuntime(): RollipopDevRuntime {
+  const graphs = new Map<string, HMRGraph>();
+  const graphListeners = new Set<(graph: HMRGraph) => void>();
+
+  return {
+    reactRefresh: lazyReactRefresh,
+    customHMRHandler: undefined,
+    graphs,
+    registerGraph(graph) {
+      const existing = graphs.get(graph.id);
+      if (existing != null) {
+        if (existing.runtime !== graph.runtime) {
+          throw new Error(`[HMR]: ID "${graph.id}" is already registered`);
+        }
+        return;
+      }
+
+      graphs.set(graph.id, graph);
+      for (const listener of graphListeners) {
+        listener(graph);
+      }
+    },
+    subscribeGraph(listener) {
+      graphListeners.add(listener);
+      return () => graphListeners.delete(listener);
+    },
+  };
+}
+
+// This exact binding name is used by generated main-bundle HMR calls. Each bundle owns its runtime instance.
+// Rollipop patches can select the matching instance through the graph registry.
+var __rolldown_runtime__ = new ReactNativeDevRuntime();
+
+globalThis.__rollipop_runtime__ ??= createRollipopDevRuntime();
+
+export default __rolldown_runtime__;
 
 export type { DevRuntime };

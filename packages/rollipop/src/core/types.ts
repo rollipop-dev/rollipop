@@ -58,6 +58,8 @@ export type DevEngine = BaseDevEngine & {
 };
 
 export type DevEngineOptions = Omit<DevOptions, 'watch'> & {
+  /** Bundle path sent during the HMR WebSocket handshake. */
+  bundleEntry: string;
   /**
    * The host to run the dev server on.
    */

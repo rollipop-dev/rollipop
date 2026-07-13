@@ -32,7 +32,9 @@ const transformToEs5: TsdownPlugin = {
         },
         minify: {
           // To avoid mangling the rolldown runtime variable names
-          mangle: true,
+          mangle: {
+            reserved: ['__rolldown_runtime__'],
+          },
         },
       },
       isModule: true,
@@ -60,6 +62,11 @@ const runtimePackConfig: PackUserConfig = {
   treeshake: false,
   logLevel: 'error',
   plugins: [transformToEs5],
+};
+
+const hmrRuntimePackConfig: PackUserConfig = {
+  ...runtimePackConfig,
+  globalName: '__rolldown_runtime__',
 };
 
 export default defineConfig({
@@ -93,7 +100,7 @@ export default defineConfig({
       dts: true,
     },
     {
-      ...runtimePackConfig,
+      ...hmrRuntimePackConfig,
       format: 'iife',
       entry: 'src/runtime/hmr-runtime.ts',
       deps: {

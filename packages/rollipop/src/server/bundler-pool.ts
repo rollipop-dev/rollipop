@@ -131,6 +131,7 @@ export class BundlerDevEngine {
     });
 
     const devEngine = await Bundler.devEngine(config, this.buildOptions, {
+      bundleEntry: `${this.bundleName}.bundle`,
       host: this.options.server.host,
       port: this.options.server.port,
       sourceMapUrl: this.buildOptions.sourcemap === 'inline' ? undefined : this.getSourceMapUrl(),
@@ -143,8 +144,10 @@ export class BundlerDevEngine {
           const normalizedError = normalizeRolldownError(errorOrResult);
           reportBundlerEvent({ type: 'hmr_failed', error: normalizedError });
         } else if (this.isHmrEnabled) {
+          const updates = this.wrapHmrUpdates(errorOrResult.updates);
+
           if (isDebugEnabled()) {
-            this.storeHmrChunk(errorOrResult.updates);
+            this.storeHmrChunk(updates);
           }
 
           logger.trace('Detected changed files', {
@@ -153,7 +156,7 @@ export class BundlerDevEngine {
           });
           reportBundlerEvent({
             type: 'hmr_updates',
-            updates: errorOrResult.updates,
+            updates,
             changedFiles: errorOrResult.changedFiles,
             bundlerId: this.id,
           });
@@ -240,6 +243,30 @@ export class BundlerDevEngine {
     logger.debug(`HMR chunk file stored at ${chunkFilePath}`);
   }
 
+  private wrapHmrUpdates(updates: rolldownExperimental.BindingClientHmrUpdate[]) {
+    return updates.map((clientUpdate) => {
+      const update = clientUpdate.update;
+
+      if (update.type !== 'Patch') {
+        return clientUpdate;
+      }
+
+      return {
+        ...clientUpdate,
+        update: {
+          ...update,
+          // In Hermes, `eval` is evaluated globally, so we need to pass the runtime
+          // as an explicit function argument to ensure it has access to the correct runtime instance.
+          code: [
+            '(function (__rolldown_runtime__) {',
+            update.code,
+            `})(globalThis.__rollipop_runtime__.graphs.get(${JSON.stringify(this.id)}).runtime);`,
+          ].join('\n'),
+        },
+      };
+    });
+  }
+
   async getBundle() {
     await this.ensureInitialized;
 
@@ -259,6 +286,11 @@ export class BundlerDevEngine {
   async triggerFullBuild() {
     await this.ensureInitialized;
     this.devEngine.triggerFullBuild();
+  }
+
+  async invalidate(moduleId: string) {
+    await this.ensureInitialized;
+    return this.wrapHmrUpdates(await this.devEngine.invalidate(moduleId));
   }
 }
 

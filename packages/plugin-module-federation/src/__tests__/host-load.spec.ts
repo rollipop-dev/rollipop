@@ -39,26 +39,10 @@ describe('loadVirtualModule', () => {
     expect(code).toContain(`"react": require("react")`);
   });
 
-  it('emits a remote module cache with load/invalidate API', () => {
+  it('emits a remote module cache without a whole-bundle invalidation path', () => {
     const code = loadVirtualModule(VIRTUAL_HOST_INIT_ID, baseConfig);
-    expect(code).toContain('subscribers: new Set()');
-    expect(code).toContain('invalidatedIds: new Set()');
     expect(code).toContain('load(id)');
-    expect(code).toContain('invalidate(remoteName)');
     expect(code).toContain('instance.loadRemote(id)');
-  });
-
-  it('logs an error when a remote bundle fails to reload during HMR', () => {
-    const code = loadVirtualModule(VIRTUAL_HOST_INIT_ID, baseConfig);
-    expect(code).toContain('failed to reload remote');
-    expect(code).toContain('console.error');
-  });
-
-  it('emits a websocket subscriber that listens to each remote dev server', () => {
-    const code = loadVirtualModule(VIRTUAL_HOST_INIT_ID, baseConfig);
-    expect(code).toContain('"/hot"');
-    expect(code).toContain('"mf:remote-update"');
-    expect(code).toContain('new WebSocket(wsUrl)');
   });
 
   it('emits share scope re-exports', () => {

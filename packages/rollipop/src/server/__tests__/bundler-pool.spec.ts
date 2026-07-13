@@ -209,7 +209,7 @@ describe('BundlerPool', () => {
     );
   });
 
-  it('emits only hmr_updates for successful HMR updates', async () => {
+  it('wraps patches with the matching runtime before emitting HMR updates', async () => {
     resetPool();
     const eventBus = new EventBus();
     const events: unknown[] = [];
@@ -224,7 +224,10 @@ describe('BundlerPool', () => {
           vi.fn(async () => {
             await options.onHmrUpdates?.({
               changedFiles: ['/root/project/App.tsx'],
-              updates: [],
+              updates: [
+                { clientId: '1', update: { type: 'Patch', code: 'applyPatch();' } },
+                { clientId: '1', update: { type: 'Noop' } },
+              ],
             } as any);
           }),
         );
@@ -242,7 +245,53 @@ describe('BundlerPool', () => {
         type: 'hmr_updates',
         bundlerId: 'ios-true',
         changedFiles: ['/root/project/App.tsx'],
+        updates: [
+          {
+            clientId: '1',
+            update: {
+              type: 'Patch',
+              code: [
+                '(function (__rolldown_runtime__) {',
+                'applyPatch();', // code
+                '})(globalThis.__rollipop_runtime__.graphs.get("ios-true").runtime);',
+              ].join('\n'),
+            },
+          },
+          { clientId: '1', update: { type: 'Noop' } },
+        ],
       }),
+    ]);
+  });
+
+  it('wraps patches returned by explicit invalidation', async () => {
+    resetPool();
+    const invalidate = vi
+      .fn()
+      .mockResolvedValue([
+        { clientId: '1', update: { type: 'Patch', code: 'applyInvalidation();' } },
+      ]);
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(async (boundConfig) => ({
+      ...createMockDevEngine(boundConfig),
+      invalidate,
+    }));
+
+    const pool = createPool();
+    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+    const updates = await instance.invalidate('/root/project/App.tsx');
+
+    expect(invalidate).toHaveBeenCalledWith('/root/project/App.tsx');
+    expect(updates).toEqual([
+      {
+        clientId: '1',
+        update: {
+          type: 'Patch',
+          code: [
+            '(function (__rolldown_runtime__) {',
+            'applyInvalidation();', // code
+            '})(globalThis.__rollipop_runtime__.graphs.get("ios-true").runtime);',
+          ].join('\n'),
+        },
+      },
     ]);
   });
 
@@ -276,7 +325,13 @@ describe('BundlerPool', () => {
       await instance.ensureInitialized;
 
       const chunkFilePath = path.join(projectRoot, '.rollipop', 'ios-true-hmr-chunk.js');
-      expect(fs.readFileSync(chunkFilePath, 'utf-8')).toBe('console.log("patch");\n\n// Noop');
+      expect(fs.readFileSync(chunkFilePath, 'utf-8')).toMatchInlineSnapshot(`
+        "(function (__rolldown_runtime__) {
+        console.log("patch");
+        })(globalThis.__rollipop_runtime__.graphs.get("ios-true").runtime);
+
+        // Noop"
+      `);
     } finally {
       vi.mocked(isDebugEnabled).mockReturnValue(false);
       fs.rmSync(projectRoot, { recursive: true, force: true });

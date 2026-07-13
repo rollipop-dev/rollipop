@@ -48,7 +48,10 @@ vitest.mock('../server', async () => {
  */
 interface TestableHMRServer {
   onMessage(client: WebSocketClient, data: Buffer): void;
-  sendUpdateToClient(client: WebSocketClient, update: { type: string; code?: string }): void;
+  sendUpdateToClient(
+    client: WebSocketClient,
+    update: { type: string; code?: string; filename?: string; sourcemap?: string },
+  ): void;
   sendReloadToClient(client: WebSocketClient): void;
   cleanup(client: WebSocketClient): void;
   send: Mock;
@@ -69,9 +72,9 @@ function createMockDevEngine(): BundlerDevEngine {
   return {
     id: 'test-engine',
     ensureInitialized: Promise.resolve(),
+    invalidate: vi.fn().mockResolvedValue([]),
     devEngine: {
       registerModules: vi.fn().mockResolvedValue(undefined),
-      invalidate: vi.fn().mockResolvedValue([]),
       removeClient: vi.fn().mockResolvedValue(undefined),
     },
   } as unknown as BundlerDevEngine;
@@ -251,6 +254,25 @@ describe('HMRServer', () => {
       const messages = getSentMessages(testable, client);
       expect(messages).toContainEqual({ type: 'hmr:update', code: 'module.exports = {}' });
       expect(messages.filter((m) => m.type === 'hmr:update-done')).toHaveLength(1);
+    });
+
+    it('should attach the patch filename and inline sourcemap', () => {
+      const client = createMockClient(1);
+      const sourcemap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
+
+      testable.sendUpdateToClient(client, {
+        type: 'Patch',
+        code: 'module.exports = {}',
+        filename: 'patch-1.js',
+        sourcemap,
+      });
+
+      expect(getSentMessages(testable, client)).toContainEqual({
+        type: 'hmr:update',
+        code: 'module.exports = {}',
+        sourceURL: 'patch-1.js',
+        sourceMappingURL: `data:application/json;charset=utf-8;base64,${Buffer.from(sourcemap).toString('base64')}`,
+      });
     });
   });
 
