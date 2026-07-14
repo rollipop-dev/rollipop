@@ -297,12 +297,27 @@ function createRollipopDevRuntime(): RollipopDevRuntime {
   };
 }
 
-// This exact binding name is used by generated main-bundle HMR calls. Each bundle owns its runtime instance.
-// Rollipop patches can select the matching instance through the graph registry.
-var __rolldown_runtime__ = new ReactNativeDevRuntime();
-
 globalThis.__rollipop_runtime__ ??= createRollipopDevRuntime();
 
-export default __rolldown_runtime__;
-
+/**
+ * This exact binding name is used by generated main-bundle HMR calls. Each bundle owns its runtime instance.
+ * Rollipop patches can select the matching instance through the graph registry.
+ *
+ * @see vite.config.ts
+ *
+ * **Build options**
+ *
+ * ```ts
+ * { globalName: '__rolldown_runtime__' }
+ * ```
+ * 
+ * **Bundle**
+ *
+ * ```ts
+ * var __rolldown_runtime__ = (function () {
+ *   return new ReactNativeDevRuntime(); // <- Default exported instance
+ * })();
+ * ```
+ */
+export default new ReactNativeDevRuntime();
 export type { DevRuntime };

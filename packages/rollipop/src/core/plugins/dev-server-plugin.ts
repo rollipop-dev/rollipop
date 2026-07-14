@@ -151,7 +151,7 @@ async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldow
           return [
             code,
             dedent`
-            if (globalThis.__rollipop_runtime__) {
+            if (import.meta.hot && globalThis.__rollipop_runtime__) {
               globalThis.__rollipop_runtime__.registerGraph({
                 id: ${JSON.stringify(id)},
                 origin: ${JSON.stringify(origin)},
