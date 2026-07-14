@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vite-plus/test';
 
+import type { ResolvedConfig } from '../../config';
 import { createTestConfig } from '../../testing/config';
 import type { ResolvedBuildOptions } from '../build-options';
 import { createId } from '../id';
@@ -42,10 +43,45 @@ describe('createId', () => {
     expect(idA === idC).toBe(false);
     expect([idA, idB, idC]).toMatchInlineSnapshot(`
       [
-        "758c7ccdd69a8c6bb0725e6fef25f9ac",
-        "6c631621bffdcc5e05ea02659b4df7c5",
-        "14a7aa2e4813504a70aca675c3646b4e",
+        "ced3fc6a99712672db3303fbd827e4a1",
+        "9d9e3706cdff3a6b033a7e47875d6164",
+        "04fe5f1b00e4247c752be0abfa9f9f63",
       ]
     `);
+  });
+
+  it.each([
+    ['mode', (config) => (config.mode = 'production')],
+    ['output.keepNames', (config) => (config.output.keepNames = true)],
+    ['treeshake', (config) => (config.treeshake = false)],
+    ['moduleTypes', (config) => (config.moduleTypes = { '.foo': 'text' })],
+    ['tsconfig', (config) => (config.tsconfig = false)],
+    [
+      'reactNative.codegen',
+      (config) => (config.reactNative.codegen = { filter: { code: /codegenNativeCommands/ } }),
+    ],
+    ['envDir', (config) => (config.envDir = '/env')],
+    ['envFile', (config) => (config.envFile = '.env.rollipop')],
+    ['envPrefix', (config) => (config.envPrefix = 'APP_')],
+    ['runtimeTarget', (config) => (config.runtimeTarget = 'hermes')],
+    [
+      'experimental',
+      (config) => {
+        config.experimental.nativeTransformPipeline = true;
+        config.experimental.flow = { requireDirective: true };
+        config.experimental.worklets = { strictGlobal: true };
+      },
+    ],
+    [
+      'rolldownOptions',
+      (config) => (config.rolldownOptions = { input: { transform: { jsx: 'preserve' } } }),
+    ],
+  ] satisfies [string, (config: ResolvedConfig) => void][])('%s should affect id', (_, mutate) => {
+    const config = createTestConfig('/root');
+    const originalId = createId(config, BUILD_OPTIONS);
+
+    mutate(config);
+
+    expect(createId(config, BUILD_OPTIONS)).not.toBe(originalId);
   });
 });

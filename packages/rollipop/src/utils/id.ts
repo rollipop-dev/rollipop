@@ -21,13 +21,26 @@ function filterTransformAffectedOptions(buildOptions: ResolvedBuildOptions) {
 }
 
 function filterTransformAffectedConfig(config: ResolvedConfig) {
-  const { transform, prelude, polyfills, reactNative, dev, plugins = [] } = config;
+  const { plugins = [] } = config;
   return [
-    transform,
-    prelude,
-    polyfills,
-    reactNative.assetRegistryPath,
-    pick(dev, ['hmr']),
+    pick(config, [
+      'mode',
+      'transform',
+      'output',
+      'treeshake',
+      'moduleTypes',
+      'tsconfig',
+      'prelude',
+      'polyfills',
+      'reactNative',
+      'dev',
+      'envDir',
+      'envFile',
+      'envPrefix',
+      'runtimeTarget',
+      'experimental',
+      'rolldownOptions',
+    ]),
     plugins.map((plugin, index) => `${plugin.name}#${index}`),
   ];
 }
