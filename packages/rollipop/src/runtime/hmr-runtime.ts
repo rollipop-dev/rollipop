@@ -310,7 +310,7 @@ globalThis.__rollipop_runtime__ ??= createRollipopDevRuntime();
  * ```ts
  * { globalName: '__rolldown_runtime__' }
  * ```
- * 
+ *
  * **Bundle**
  *
  * ```ts
