@@ -45,10 +45,14 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
         pluginConfig.polyfills = [];
 
         return {
-          rolldownOptions: (opts) => ({
+          rolldownOptions: (opts, context) => ({
             input: opts.input,
-            // Output as IIFE — the bundle is a script that dynamically runs on the runtime.
-            output: { ...opts.output, format: 'iife' },
+            // Static remote bundles are scripts evaluated by the host. Dev servers keep the
+            // Rollipop format so their HMR patches use the graph-specific runtime wrapper.
+            output: {
+              ...opts.output,
+              format: context.buildType === 'serve' ? 'rollipop' : 'iife',
+            },
           }),
         };
       }

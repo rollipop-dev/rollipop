@@ -50,6 +50,7 @@ interface TestableHMRServer {
   onMessage(client: WebSocketClient, data: Buffer): void;
   sendUpdateToClient(
     client: WebSocketClient,
+    id: string,
     update: { type: string; code?: string; filename?: string; sourcemap?: string },
   ): void;
   sendReloadToClient(client: WebSocketClient): void;
@@ -249,18 +250,18 @@ describe('HMRServer', () => {
       const client = createMockClient(1);
       const update = { type: 'Patch' as const, code: 'module.exports = {}' };
 
-      testable.sendUpdateToClient(client, update);
+      testable.sendUpdateToClient(client, 'test-engine', update);
 
       const messages = getSentMessages(testable, client);
       expect(messages).toContainEqual({ type: 'hmr:update', code: 'module.exports = {}' });
       expect(messages.filter((m) => m.type === 'hmr:update-done')).toHaveLength(1);
     });
 
-    it('should attach the patch filename and inline sourcemap', () => {
+    it('should attach the stored patch URL without duplicating the sourcemap', () => {
       const client = createMockClient(1);
       const sourcemap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
 
-      testable.sendUpdateToClient(client, {
+      testable.sendUpdateToClient(client, 'test-engine', {
         type: 'Patch',
         code: 'module.exports = {}',
         filename: 'patch-1.js',
@@ -270,8 +271,7 @@ describe('HMRServer', () => {
       expect(getSentMessages(testable, client)).toContainEqual({
         type: 'hmr:update',
         code: 'module.exports = {}',
-        sourceURL: 'patch-1.js',
-        sourceMappingURL: `data:application/json;charset=utf-8;base64,${Buffer.from(sourcemap).toString('base64')}`,
+        sourceURL: '/hot/test-engine/patch-1.js',
       });
     });
   });

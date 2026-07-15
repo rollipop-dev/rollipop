@@ -6,6 +6,7 @@ import { isDebugEnabled } from '../../common/env';
 import { getBaseBundleName } from '../../utils/bundle';
 import { parseUrl, type Query } from '../../utils/url';
 import type { BundleStore } from '../bundle';
+import { parseHotUpdatePath } from '../hot-update-store';
 import type { StackFrameInput } from '../symbolicate';
 import { symbolicateWithBundleResolver, type SymbolicateResult } from '../symbolicate';
 import type { DevServerContext } from '../types';
@@ -73,8 +74,8 @@ const plugin = fp<SymbolicatePluginOptions>(
 function getBundleStoresByFrameUrl(
   stack: StackFrameInput[],
   context: DevServerContext,
-): Map<string, Promise<BundleStore>> {
-  const bundleStores = new Map<string, Promise<BundleStore>>();
+): Map<string, Promise<BundleStore | undefined>> {
+  const bundleStores = new Map<string, Promise<BundleStore | undefined>>();
 
   for (const frame of stack) {
     const file = frame.file;
@@ -83,6 +84,18 @@ function getBundleStoresByFrameUrl(
     }
 
     const parsed = parseStackFrameFile(file);
+    if (parsed != null) {
+      const hotUpdate = parseHotUpdatePath(parsed.pathname);
+      if (hotUpdate != null) {
+        bundleStores.set(
+          file,
+          Promise.resolve(
+            context.bundlerPool.hotUpdateStore.resolve(hotUpdate.id, hotUpdate.filename),
+          ),
+        );
+        continue;
+      }
+    }
     if (parsed?.query.platform == null) {
       continue;
     }

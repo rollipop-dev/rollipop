@@ -4,7 +4,6 @@ import path from 'node:path';
 
 import { beforeEach, describe, expect, it, vi, vitest } from 'vite-plus/test';
 
-import { isDebugEnabled } from '../../common/env';
 import { Bundler } from '../../core/bundler';
 import { EventBus } from '../../events/event-bus';
 import { createTestConfig } from '../../testing/config';
@@ -15,10 +14,6 @@ vitest.mock('../../core/bundler', () => ({
     createId: vi.fn((_config: any, opts: any) => `${opts.platform}-${opts.dev}`),
     devEngine: vi.fn(),
   },
-}));
-
-vitest.mock('../../common/env', () => ({
-  isDebugEnabled: vi.fn().mockReturnValue(false),
 }));
 
 vitest.mock('../../utils/config', () => ({
@@ -209,10 +204,19 @@ describe('BundlerPool', () => {
     );
   });
 
-  it('wraps patches with the matching runtime before emitting HMR updates', async () => {
+  it('stores generated patches without rewriting them before emitting HMR updates', async () => {
     resetPool();
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-update-'));
     const eventBus = new EventBus();
     const events: unknown[] = [];
+    const sourceMap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
+    const patch = {
+      type: 'Patch',
+      code: 'applyPatch();\n//# sourceMappingURL=hmr_patch_0.js.map',
+      filename: 'hmr_patch_0.js',
+      sourcemap: sourceMap,
+      sourcemapFilename: 'hmr_patch_0.js.map',
+    } as const;
     eventBus.subscribe((event) => {
       events.push(event);
     });
@@ -223,94 +227,10 @@ describe('BundlerPool', () => {
           boundConfig,
           vi.fn(async () => {
             await options.onHmrUpdates?.({
-              changedFiles: ['/root/project/App.tsx'],
-              updates: [
-                { clientId: '1', update: { type: 'Patch', code: 'applyPatch();' } },
-                { clientId: '1', update: { type: 'Noop' } },
-              ],
-            } as any);
-          }),
-        );
-      },
-    );
-
-    const pool = new BundlerPool(config, serverOptions, eventBus);
-    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
-
-    await instance.ensureInitialized;
-
-    expect(instance.status).toBe('idle');
-    expect(events).toEqual([
-      expect.objectContaining({
-        type: 'hmr_updates',
-        bundlerId: 'ios-true',
-        changedFiles: ['/root/project/App.tsx'],
-        updates: [
-          {
-            clientId: '1',
-            update: {
-              type: 'Patch',
-              code: [
-                '(function (__rolldown_runtime__) {',
-                'applyPatch();', // code
-                '})(globalThis.__rollipop_runtime__.graphs.get("ios-true").runtime);',
-              ].join('\n'),
-            },
-          },
-          { clientId: '1', update: { type: 'Noop' } },
-        ],
-      }),
-    ]);
-  });
-
-  it('wraps patches returned by explicit invalidation', async () => {
-    resetPool();
-    const invalidate = vi
-      .fn()
-      .mockResolvedValue([
-        { clientId: '1', update: { type: 'Patch', code: 'applyInvalidation();' } },
-      ]);
-    vi.mocked(Bundler).devEngine.mockImplementationOnce(async (boundConfig) => ({
-      ...createMockDevEngine(boundConfig),
-      invalidate,
-    }));
-
-    const pool = createPool();
-    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
-    const updates = await instance.invalidate('/root/project/App.tsx');
-
-    expect(invalidate).toHaveBeenCalledWith('/root/project/App.tsx');
-    expect(updates).toEqual([
-      {
-        clientId: '1',
-        update: {
-          type: 'Patch',
-          code: [
-            '(function (__rolldown_runtime__) {',
-            'applyInvalidation();', // code
-            '})(globalThis.__rollipop_runtime__.graphs.get("ios-true").runtime);',
-          ].join('\n'),
-        },
-      },
-    ]);
-  });
-
-  it('stores HMR patch chunks when debug mode is enabled', async () => {
-    resetPool();
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-chunk-'));
-    const eventBus = new EventBus();
-    vi.mocked(isDebugEnabled).mockReturnValue(true);
-
-    vi.mocked(Bundler).devEngine.mockImplementationOnce(
-      async (boundConfig, _buildOptions, options) => {
-        return createMockDevEngine(
-          boundConfig,
-          vi.fn(async () => {
-            await options.onHmrUpdates?.({
               changedFiles: [path.join(projectRoot, 'App.tsx')],
               updates: [
-                { update: { type: 'Patch', code: 'console.log("patch");' } },
-                { update: { type: 'Noop' } },
+                { clientId: '1', update: patch },
+                { clientId: '1', update: { type: 'Noop' } },
               ],
             } as any);
           }),
@@ -324,16 +244,54 @@ describe('BundlerPool', () => {
 
       await instance.ensureInitialized;
 
-      const chunkFilePath = path.join(projectRoot, '.rollipop', 'ios-true-hmr-chunk.js');
-      expect(fs.readFileSync(chunkFilePath, 'utf-8')).toMatchInlineSnapshot(`
-        "(function (__rolldown_runtime__) {
-        console.log("patch");
-        })(globalThis.__rollipop_runtime__.graphs.get("ios-true").runtime);
-
-        // Noop"
-      `);
+      expect(instance.status).toBe('idle');
+      expect(events).toEqual([
+        expect.objectContaining({
+          type: 'hmr_updates',
+          bundlerId: 'ios-true',
+          changedFiles: [path.join(projectRoot, 'App.tsx')],
+          updates: [
+            { clientId: '1', update: patch },
+            { clientId: '1', update: { type: 'Noop' } },
+          ],
+        }),
+      ]);
+      const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
+      expect(fs.readFileSync(path.join(hotPath, patch.filename), 'utf8')).toBe(patch.code);
+      expect(fs.readFileSync(path.join(hotPath, patch.sourcemapFilename), 'utf8')).toBe(sourceMap);
     } finally {
-      vi.mocked(isDebugEnabled).mockReturnValue(false);
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('stores patches returned by explicit invalidation without rewriting them', async () => {
+    resetPool();
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-invalidate-'));
+    const sourceMap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
+    const patch = {
+      type: 'Patch',
+      code: 'applyInvalidation();\n//# sourceMappingURL=hmr_patch_1.js.map',
+      filename: 'hmr_patch_1.js',
+      sourcemap: sourceMap,
+      sourcemapFilename: 'hmr_patch_1.js.map',
+    } as const;
+    const invalidate = vi.fn().mockResolvedValue([{ clientId: '1', update: patch }]);
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(async (boundConfig) => ({
+      ...createMockDevEngine(boundConfig),
+      invalidate,
+    }));
+
+    try {
+      const pool = new BundlerPool(createTestConfig(projectRoot), serverOptions, new EventBus());
+      const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+      const updates = await instance.invalidate(path.join(projectRoot, 'App.tsx'));
+
+      expect(invalidate).toHaveBeenCalledWith(path.join(projectRoot, 'App.tsx'));
+      expect(updates).toEqual([{ clientId: '1', update: patch }]);
+      const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
+      expect(fs.readFileSync(path.join(hotPath, patch.filename), 'utf8')).toBe(patch.code);
+      expect(fs.readFileSync(path.join(hotPath, patch.sourcemapFilename), 'utf8')).toBe(sourceMap);
+    } finally {
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
   });

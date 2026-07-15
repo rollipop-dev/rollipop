@@ -1,16 +1,11 @@
-import * as fs from 'node:fs';
-import path from 'node:path';
-
 import type { OutputChunk } from '@rollipop/rolldown';
 import type * as rolldownExperimental from '@rollipop/rolldown/experimental';
 import { invariant } from 'es-toolkit';
 
-import { isDebugEnabled } from '../common/env';
 import type { ResolvedConfig } from '../config';
 import { Bundler } from '../core/bundler';
 import type { BuildOptions, DevEngine } from '../core/types';
 import type { EventBus } from '../events/event-bus';
-import { FileStorage } from '../storage/file-storage';
 import type { ReportableEvent } from '../types';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
 import { getBaseBundleName } from '../utils/bundle';
@@ -20,6 +15,7 @@ import { taskHandler } from '../utils/promise';
 import { getBaseUrl } from '../utils/server';
 import { type BundleStore, FileSystemBundleStore } from './bundle';
 import { getBundleSourceMapUrl } from './bundle-url';
+import { HotUpdateStore } from './hot-update-store';
 import { logger } from './logger';
 import type { ServerOptions } from './types';
 
@@ -51,10 +47,14 @@ export class BundlerDevEngine {
     private readonly config: ResolvedConfig,
     readonly buildOptions: ResolvedBuildOptions,
     private readonly eventBus: EventBus,
+    private readonly hotUpdateStore: HotUpdateStore,
   ) {
     this._id = Bundler.createId(config, buildOptions);
     this.initializeHandle = taskHandler();
     this.isHmrEnabled = Boolean(buildOptions.dev && config.dev.hmr);
+    if (this.isHmrEnabled) {
+      this.hotUpdateStore.prepare(this.id);
+    }
 
     void this.initialize();
   }
@@ -144,11 +144,7 @@ export class BundlerDevEngine {
           const normalizedError = normalizeRolldownError(errorOrResult);
           reportBundlerEvent({ type: 'hmr_failed', error: normalizedError });
         } else if (this.isHmrEnabled) {
-          const updates = this.wrapHmrUpdates(errorOrResult.updates);
-
-          if (isDebugEnabled()) {
-            this.storeHmrChunk(updates);
-          }
+          const updates = this.storeHmrUpdates(errorOrResult.updates);
 
           logger.trace('Detected changed files', {
             bundlerId: this.id,
@@ -220,51 +216,13 @@ export class BundlerDevEngine {
     ).toString();
   }
 
-  private storeHmrChunk(updates: rolldownExperimental.BindingClientHmrUpdate[]) {
-    let isFullReload = false;
-
-    const chunkCodes = updates.map(({ update }) => {
-      switch (update.type) {
-        case 'Patch':
-          return update.code;
-        case 'FullReload':
-          isFullReload = true;
-          return '';
-        case 'Noop':
-          return '// Noop';
+  private storeHmrUpdates(updates: rolldownExperimental.BindingClientHmrUpdate[]) {
+    for (const { update } of updates) {
+      if (update.type === 'Patch') {
+        this.hotUpdateStore.write(this.id, update);
       }
-    });
-
-    const code = isFullReload ? '// FullReload' : chunkCodes.join('\n\n');
-    const sharedDataPath = FileStorage.getPath(this.config.root, { prepare: true });
-    const chunkFilePath = path.join(sharedDataPath, `${this.id}-hmr-chunk.js`);
-
-    fs.writeFileSync(chunkFilePath, code, { encoding: 'utf-8' });
-    logger.debug(`HMR chunk file stored at ${chunkFilePath}`);
-  }
-
-  private wrapHmrUpdates(updates: rolldownExperimental.BindingClientHmrUpdate[]) {
-    return updates.map((clientUpdate) => {
-      const update = clientUpdate.update;
-
-      if (update.type !== 'Patch') {
-        return clientUpdate;
-      }
-
-      return {
-        ...clientUpdate,
-        update: {
-          ...update,
-          // In Hermes, `eval` is evaluated globally, so we need to pass the runtime
-          // as an explicit function argument to ensure it has access to the correct runtime instance.
-          code: [
-            '(function (__rolldown_runtime__) {',
-            update.code,
-            `})(globalThis.__rollipop_runtime__.graphs.get(${JSON.stringify(this.id)}).runtime);`,
-          ].join('\n'),
-        },
-      };
-    });
+    }
+    return updates;
   }
 
   async getBundle() {
@@ -290,18 +248,21 @@ export class BundlerDevEngine {
 
   async invalidate(moduleId: string) {
     await this.ensureInitialized;
-    return this.wrapHmrUpdates(await this.devEngine.invalidate(moduleId));
+    return this.storeHmrUpdates(await this.devEngine.invalidate(moduleId));
   }
 }
 
 export class BundlerPool {
   private static readonly instances: Map<string, BundlerDevEngine> = new Map();
+  readonly hotUpdateStore: HotUpdateStore;
 
   constructor(
     private readonly config: ResolvedConfig,
     private readonly resolvedServerOptions: Required<Pick<ServerOptions, 'host' | 'port'>>,
     private readonly eventBus: EventBus,
-  ) {}
+  ) {
+    this.hotUpdateStore = new HotUpdateStore(config.root);
+  }
 
   get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev'>) {
     const baseBundleName = getBaseBundleName(bundleName);
@@ -322,6 +283,7 @@ export class BundlerPool {
         this.config,
         resolvedBuildOptions,
         this.eventBus,
+        this.hotUpdateStore,
       );
       logger.debug('Setting new bundler instance', { key });
       BundlerPool.instances.set(key, instance);

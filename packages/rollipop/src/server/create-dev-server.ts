@@ -25,6 +25,7 @@ import { dashboard } from './middlewares/dashboard';
 import { requestLogger } from './middlewares/request-logger';
 import { serveAssets } from './middlewares/serve-assets';
 import { serveBundle } from './middlewares/serve-bundle';
+import { serveHotUpdates } from './middlewares/serve-hot-updates';
 import { sse } from './middlewares/sse';
 import { symbolicate } from './middlewares/symbolicate';
 import { rest } from './rest';
@@ -137,6 +138,7 @@ export async function createDevServer(
     .use(communityMiddleware)
     .use(devMiddleware)
     .register(dashboard, { context })
+    .register(serveHotUpdates, { hotUpdateStore: bundlerPool.hotUpdateStore })
     .register(symbolicate, { context })
     .register(serveBundle, { context })
     .register(serveAssets, { context })

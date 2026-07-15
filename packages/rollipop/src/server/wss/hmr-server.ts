@@ -11,6 +11,7 @@ import type {
   HMRServerMessage,
 } from '../../types/hmr';
 import type { BundlerDevEngine, BundlerPool } from '../bundler-pool';
+import { getHotUpdatePath } from '../hot-update-store';
 import { type WebSocketClient, WebSocketServer } from './server';
 
 export interface HMRServerOptions {
@@ -69,7 +70,7 @@ export class HMRServer extends WebSocketServer {
 
         switch (event.type) {
           case 'hmr_updates':
-            void this.handleUpdates(client, event.updates);
+            void this.handleUpdates(client, instance, event.updates);
             break;
 
           case 'hmr_failed':
@@ -115,7 +116,7 @@ export class HMRServer extends WebSocketServer {
       invariant(instance != null, `Bundler instance not found for client clientId: ${client.id}`);
 
       const updates = await instance.invalidate(moduleId);
-      await this.handleUpdates(client, updates);
+      await this.handleUpdates(client, instance, updates);
     } catch (error) {
       this.logger.error(`Failed to handle invalidate`, error);
     }
@@ -123,6 +124,7 @@ export class HMRServer extends WebSocketServer {
 
   private async handleUpdates(
     client: WebSocketClient,
+    instance: BundlerDevEngine,
     updates: rolldownExperimental.BindingClientHmrUpdate[],
   ) {
     this.logger.trace(`HMR updates found (clientId: ${client.id})`, {
@@ -140,7 +142,7 @@ export class HMRServer extends WebSocketServer {
       const update = clientUpdate.update;
       switch (update.type) {
         case 'Patch':
-          this.sendUpdateToClient(client, update);
+          this.sendUpdateToClient(client, instance.id, update);
           break;
 
         case 'FullReload':
@@ -155,6 +157,7 @@ export class HMRServer extends WebSocketServer {
 
   private sendUpdateToClient(
     client: WebSocketClient,
+    id: string,
     update: rolldownExperimental.BindingClientHmrUpdate['update'],
   ) {
     invariant(update.type === 'Patch', 'Invalid HMR update type');
@@ -162,11 +165,7 @@ export class HMRServer extends WebSocketServer {
     const updateMessage = {
       type: 'hmr:update',
       code: update.code,
-      sourceURL: update.filename,
-      sourceMappingURL:
-        update.sourcemap == null
-          ? undefined
-          : `data:application/json;charset=utf-8;base64,${Buffer.from(update.sourcemap).toString('base64')}`,
+      sourceURL: update.filename == null ? undefined : getHotUpdatePath(id, update.filename),
     } satisfies HMRServerMessage;
 
     this.send(client, JSON.stringify(updateMessage));
