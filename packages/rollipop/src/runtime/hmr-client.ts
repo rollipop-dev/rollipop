@@ -182,6 +182,7 @@ class HMRClient implements HMRClientNativeInterface {
       socket.send(
         JSON.stringify({
           type: 'hmr:connected',
+          clientId: graph.runtime.clientId,
           bundleEntry: graph.bundleEntry,
           platform: graph.platform,
         } satisfies HMRClientMessage),

@@ -202,6 +202,7 @@ describe('BundlerPool', () => {
         sourceMapUrl: 'http://localhost:8081/index.map?platform=ios&dev=true&minify=false',
       }),
     );
+    expect(vi.mocked(Bundler).devEngine.mock.lastCall?.[2]).not.toHaveProperty('rebuildStrategy');
   });
 
   it('stores generated patches without rewriting them before emitting HMR updates', async () => {
@@ -216,6 +217,8 @@ describe('BundlerPool', () => {
       filename: 'hmr_patch_0.js',
       sourcemap: sourceMap,
       sourcemapFilename: 'hmr_patch_0.js.map',
+      changedIds: ['/App.tsx'],
+      seq: 1,
     } as const;
     eventBus.subscribe((event) => {
       events.push(event);
@@ -256,38 +259,6 @@ describe('BundlerPool', () => {
           ],
         }),
       ]);
-      const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
-      expect(fs.readFileSync(path.join(hotPath, patch.filename), 'utf8')).toBe(patch.code);
-      expect(fs.readFileSync(path.join(hotPath, patch.sourcemapFilename), 'utf8')).toBe(sourceMap);
-    } finally {
-      fs.rmSync(projectRoot, { recursive: true, force: true });
-    }
-  });
-
-  it('stores patches returned by explicit invalidation without rewriting them', async () => {
-    resetPool();
-    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-invalidate-'));
-    const sourceMap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
-    const patch = {
-      type: 'Patch',
-      code: 'applyInvalidation();\n//# sourceMappingURL=hmr_patch_1.js.map',
-      filename: 'hmr_patch_1.js',
-      sourcemap: sourceMap,
-      sourcemapFilename: 'hmr_patch_1.js.map',
-    } as const;
-    const invalidate = vi.fn().mockResolvedValue([{ clientId: '1', update: patch }]);
-    vi.mocked(Bundler).devEngine.mockImplementationOnce(async (boundConfig) => ({
-      ...createMockDevEngine(boundConfig),
-      invalidate,
-    }));
-
-    try {
-      const pool = new BundlerPool(createTestConfig(projectRoot), serverOptions, new EventBus());
-      const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
-      const updates = await instance.invalidate(path.join(projectRoot, 'App.tsx'));
-
-      expect(invalidate).toHaveBeenCalledWith(path.join(projectRoot, 'App.tsx'));
-      expect(updates).toEqual([{ clientId: '1', update: patch }]);
       const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
       expect(fs.readFileSync(path.join(hotPath, patch.filename), 'utf8')).toBe(patch.code);
       expect(fs.readFileSync(path.join(hotPath, patch.sourcemapFilename), 'utf8')).toBe(sourceMap);

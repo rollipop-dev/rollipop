@@ -8,7 +8,6 @@ import type {
 } from '../types/hmr';
 import type {
   DevRuntime as DefaultDevRuntime,
-  DevRuntimeMessenger,
   HMRGraph,
   HMRGraphRuntime,
   RollipopDevRuntime,
@@ -28,38 +27,60 @@ declare const DevRuntime: typeof DefaultDevRuntime;
 
 var BaseDevRuntime = DevRuntime;
 
+interface AcceptCallback {
+  deps: string[];
+  fn: (moduleExports: any[]) => void;
+}
+
+type HMRUpdate =
+  | { type: 'noop' }
+  | { type: 'full-reload'; reason: string }
+  | {
+      type: 'boundaries';
+      boundaries: [string, string][];
+      updateSet: string[];
+    };
+
 class ModuleHotContext implements HMRContext {
   private readonly removeListeners: (() => void)[] = [];
-  acceptCallbacks: { deps: string[]; fn: (moduleExports: Record<string, any>[]) => void }[] = [];
+  private disposeCallback: ((data: any) => void) | undefined;
+  acceptCallbacks: AcceptCallback[] = [];
 
   constructor(
     private moduleId: string,
     private socketHolder: SocketHolder,
     readonly runtime: HMRGraphRuntime,
+    readonly data: any,
+    private invalidateModule: (moduleId: string) => void,
   ) {}
 
-  accept(...args: any[]) {
-    if (args.length === 1) {
-      const [cb] = args;
-      const acceptingPath = this.moduleId;
+  accept(deps?: string | string[] | ((module: any) => void), callback?: (module: any) => void) {
+    if (typeof deps === 'function' || deps == null) {
       this.acceptCallbacks.push({
-        deps: [acceptingPath],
-        fn: cb,
+        deps: [this.moduleId],
+        fn: ([module]) => deps?.(module),
       });
-    } else if (args.length === 0) {
-      // noop
+    } else if (typeof deps === 'string') {
+      this.acceptCallbacks.push({
+        deps: [deps],
+        fn: ([module]) => callback?.(module),
+      });
+    } else if (Array.isArray(deps)) {
+      this.acceptCallbacks.push({
+        deps,
+        fn: callback ?? (() => {}),
+      });
     } else {
       throw new Error('Invalid arguments for `import.meta.hot.accept`');
     }
   }
 
   invalidate() {
-    this.socketHolder.send(
-      JSON.stringify({
-        type: 'hmr:invalidate',
-        moduleId: this.moduleId,
-      } satisfies HMRClientMessage),
-    );
+    this.invalidateModule(this.moduleId);
+  }
+
+  dispose(callback: (data: any) => void) {
+    this.disposeCallback = callback;
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -80,6 +101,10 @@ class ModuleHotContext implements HMRContext {
       removeListener();
     }
     this.removeListeners.length = 0;
+  }
+
+  runDispose(data: any) {
+    this.disposeCallback?.(data);
   }
 }
 
@@ -148,22 +173,34 @@ class SocketHolder {
 }
 
 class ReactNativeDevRuntime extends BaseDevRuntime {
-  socketHolder: SocketHolder;
-  moduleHotContexts = new Map<string, ModuleHotContext>();
-  moduleHotContextsToBeUpdated = new Map<string, ModuleHotContext>();
+  private readonly socketHolder: SocketHolder;
+  private readonly moduleHotContexts = new Map<string, ModuleHotContext>();
+  private readonly moduleHotContextsToBeUpdated = new Map<string, ModuleHotContext | null>();
+  private readonly moduleHotData = new Map<string, any>();
+  private applyQueue = Promise.resolve();
+  private currentFirstInvalidatedBy: string | undefined;
+  private lastSeq = 0;
 
   constructor() {
     const socketHolder = new SocketHolder();
-    const messenger: DevRuntimeMessenger = {
-      send: (message) => socketHolder.send(JSON.stringify(message)),
-    };
-    super(messenger);
+    super(createClientId());
     this.socketHolder = socketHolder;
+    this.hooks = {
+      createModuleHotContext: (moduleId) => this.createHotContext(moduleId),
+      onModuleCacheRemoval: (moduleId) => this.handleModuleCacheRemoval(moduleId),
+    };
   }
 
-  createModuleHotContext(moduleId: string) {
-    const hotContext = new ModuleHotContext(moduleId, this.socketHolder, this);
-    if (this.moduleHotContexts.has(moduleId)) {
+  private createHotContext(moduleId: string) {
+    let data = this.moduleHotData.get(moduleId);
+    if (data == null) {
+      data = {};
+      this.moduleHotData.set(moduleId, data);
+    }
+    const hotContext = new ModuleHotContext(moduleId, this.socketHolder, this, data, (id) =>
+      this.invalidateLocally(id),
+    );
+    if (this.moduleHotContexts.has(moduleId) || this.moduleHotContextsToBeUpdated.has(moduleId)) {
       this.moduleHotContextsToBeUpdated.set(moduleId, hotContext);
     } else {
       this.moduleHotContexts.set(moduleId, hotContext);
@@ -171,21 +208,13 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
     return hotContext;
   }
 
-  applyUpdates(boundaries: [string, string][]) {
-    for (let [moduleId, _acceptedVia] of boundaries) {
-      const hotContext = this.moduleHotContexts.get(moduleId);
-      if (hotContext) {
-        const acceptCallbacks = hotContext.acceptCallbacks;
-        acceptCallbacks.filter((cb) => {
-          cb.fn(this.modules[moduleId].exports);
-        });
-        hotContext.cleanup();
-      }
-    }
-    this.moduleHotContextsToBeUpdated.forEach((hotContext, moduleId) => {
-      this.moduleHotContexts.set(moduleId, hotContext);
-    });
-    this.moduleHotContextsToBeUpdated.clear();
+  private handleModuleCacheRemoval(moduleId: string) {
+    const data = {};
+    const hotContext = this.moduleHotContexts.get(moduleId);
+    hotContext?.runDispose(data);
+    hotContext?.cleanup();
+    this.moduleHotData.set(moduleId, data);
+    this.moduleHotContextsToBeUpdated.set(moduleId, null);
   }
 
   setup(socket: WebSocket, origin: string) {
@@ -208,7 +237,7 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
 
       switch (message.type) {
         case 'hmr:update':
-          this.evaluate(message.code, message.sourceURL, message.sourceMappingURL);
+          this.enqueueUpdate(message);
           break;
 
         case 'hmr:reload':
@@ -218,17 +247,228 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
     });
   }
 
-  private evaluate(code: string, sourceURL?: string, sourceMappingURL?: string) {
+  private enqueueUpdate(message: Extract<HMRServerMessage, { type: 'hmr:update' }>) {
+    this.applyQueue = this.applyQueue
+      .then(() => this.applyPush(message))
+      .catch((error) => {
+        console.error('[HMR]: Failed to apply update', error);
+        this.reload();
+      });
+  }
+
+  private invalidateLocally(moduleId: string) {
+    const firstInvalidatedBy = this.currentFirstInvalidatedBy ?? moduleId;
+    this.applyQueue = this.applyQueue
+      .then(() => this.applyInvalidate(moduleId, firstInvalidatedBy))
+      .catch((error) => {
+        console.error(`[HMR]: Failed to invalidate ${moduleId}`, error);
+        this.reload();
+      });
+  }
+
+  private applyPush({
+    changedIds,
+    code,
+    filename,
+    seq,
+    sourceURL,
+  }: Extract<HMRServerMessage, { type: 'hmr:update' }>) {
+    if (seq !== this.lastSeq + 1) {
+      this.reload(`HMR update sequence gap (expected ${this.lastSeq + 1}, got ${seq})`);
+      return;
+    }
+    this.lastSeq = seq;
+
+    const update = this.computeHmrUpdate(changedIds);
+    if (update.type === 'noop') {
+      return;
+    }
+    if (update.type === 'full-reload') {
+      this.reload(update.reason);
+      return;
+    }
+
+    this.evaluate(code, sourceURL);
+    this.socketHolder.send(
+      JSON.stringify({ type: 'hmr:payload-delivered', filename } satisfies HMRClientMessage),
+    );
+    this.applyUpdate(update);
+  }
+
+  private applyInvalidate(moduleId: string, firstInvalidatedBy: string) {
+    const importers = this.getImporters(moduleId).filter((id) => this.isExecuted(id));
+    if (importers.length === 0) {
+      this.reload(`No importers to handle invalidate from ${moduleId}`);
+      return;
+    }
+
+    const update = this.computeHmrUpdate(importers, firstInvalidatedBy);
+    if (update.type === 'noop') {
+      return;
+    }
+    if (update.type === 'full-reload') {
+      this.reload(update.reason);
+      return;
+    }
+    this.applyUpdate(update, firstInvalidatedBy);
+  }
+
+  private computeHmrUpdate(changedIds: string[], firstInvalidatedBy?: string): HMRUpdate {
+    const boundaries: [string, string][] = [];
+    const updateSet = new Set<string>();
+    const traversedModules = new Set<string>();
+
+    for (const changedId of changedIds) {
+      if (!this.isExecuted(changedId)) {
+        continue;
+      }
+      const fullReload = this.bubble(
+        changedId,
+        [changedId],
+        updateSet,
+        boundaries,
+        traversedModules,
+        firstInvalidatedBy,
+      );
+      if (fullReload != null) {
+        return fullReload;
+      }
+    }
+
+    return boundaries.length === 0
+      ? { type: 'noop' }
+      : { type: 'boundaries', boundaries, updateSet: [...updateSet] };
+  }
+
+  private bubble(
+    moduleId: string,
+    stack: string[],
+    updateSet: Set<string>,
+    boundaries: [string, string][],
+    traversedModules: Set<string>,
+    firstInvalidatedBy?: string,
+  ): Extract<HMRUpdate, { type: 'full-reload' }> | undefined {
+    if (traversedModules.has(moduleId)) {
+      return;
+    }
+    traversedModules.add(moduleId);
+    updateSet.add(moduleId);
+
+    if (firstInvalidatedBy != null && moduleId === firstInvalidatedBy) {
+      return {
+        type: 'full-reload',
+        reason: `Update propagated back to ${firstInvalidatedBy}`,
+      };
+    }
+
+    if (this.isSelfAccepted(moduleId)) {
+      boundaries.push([moduleId, moduleId]);
+      return;
+    }
+
+    const importers = this.getImporters(moduleId).filter((id) => this.isExecuted(id));
+    if (importers.length === 0) {
+      return {
+        type: 'full-reload',
+        reason: `No HMR boundary found for ${moduleId}`,
+      };
+    }
+
+    for (const importer of importers) {
+      if (this.acceptsDependency(importer, moduleId)) {
+        boundaries.push([importer, moduleId]);
+        continue;
+      }
+      if (stack.includes(importer)) {
+        return {
+          type: 'full-reload',
+          reason: `Circular import chain between ${moduleId} and ${importer}`,
+        };
+      }
+      const fullReload = this.bubble(
+        importer,
+        [...stack, importer],
+        updateSet,
+        boundaries,
+        traversedModules,
+        firstInvalidatedBy,
+      );
+      if (fullReload != null) {
+        return fullReload;
+      }
+    }
+  }
+
+  private isSelfAccepted(moduleId: string) {
+    return (
+      this.moduleHotContexts
+        .get(moduleId)
+        ?.acceptCallbacks.some((callback) => callback.deps.includes(moduleId)) ?? false
+    );
+  }
+
+  private acceptsDependency(importer: string, dependency: string) {
+    return (
+      this.moduleHotContexts
+        .get(importer)
+        ?.acceptCallbacks.some((callback) => callback.deps.includes(dependency)) ?? false
+    );
+  }
+
+  private applyUpdate(
+    update: Extract<HMRUpdate, { type: 'boundaries' }>,
+    firstInvalidatedBy?: string,
+  ) {
+    for (const moduleId of update.updateSet) {
+      if (!this.hasFactory(moduleId)) {
+        this.reload(`No factory registered for ${moduleId}`);
+        return;
+      }
+    }
+
+    const applies = update.boundaries.map(([boundary, acceptedVia]) => ({
+      acceptedVia,
+      callbacks:
+        this.moduleHotContexts
+          .get(boundary)
+          ?.acceptCallbacks.filter((callback) => callback.deps.includes(acceptedVia)) ?? [],
+    }));
+
+    for (const moduleId of update.updateSet) {
+      this.removeModuleCache(moduleId);
+    }
+
+    for (const { acceptedVia, callbacks } of applies) {
+      this.initModule(acceptedVia);
+      const freshExports = this.loadExports(acceptedVia);
+      try {
+        this.currentFirstInvalidatedBy = firstInvalidatedBy;
+        for (const { deps, fn } of callbacks) {
+          fn(deps.map((dependency) => (dependency === acceptedVia ? freshExports : undefined)));
+        }
+      } finally {
+        this.currentFirstInvalidatedBy = undefined;
+      }
+    }
+
+    for (const [moduleId, hotContext] of this.moduleHotContextsToBeUpdated) {
+      this.moduleHotContexts.get(moduleId)?.cleanup();
+      if (hotContext == null) {
+        this.moduleHotContexts.delete(moduleId);
+      } else {
+        this.moduleHotContexts.set(moduleId, hotContext);
+      }
+    }
+    this.moduleHotContextsToBeUpdated.clear();
+  }
+
+  private evaluate(code: string, sourceURL?: string) {
     debug(`[HMR]: Evaluating code\n${code}`);
     const resolvedSourceURL =
       sourceURL == null || this.socketHolder.origin == null
         ? sourceURL
         : new URL(sourceURL, `${this.socketHolder.origin}/`).toString();
-    const source = [
-      code,
-      sourceMappingURL == null ? null : `//# sourceMappingURL=${sourceMappingURL}`,
-      resolvedSourceURL == null ? null : `//# sourceURL=${resolvedSourceURL}`,
-    ]
+    const source = [code, resolvedSourceURL == null ? null : `//# sourceURL=${resolvedSourceURL}`]
       .filter((line) => line != null)
       .join('\n');
 
@@ -240,14 +480,18 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
     }
   }
 
-  private reload() {
-    debug(`[HMR]: Reloading`);
+  private reload(reason?: string) {
+    debug(`[HMR]: Reloading${reason == null ? '' : ` (${reason})`}`);
     const moduleName = 'DevSettings';
     (globalThis.__turboModuleProxy
       ? globalThis.__turboModuleProxy(moduleName)
       : globalThis.nativeModuleProxy[moduleName]
     ).reload();
   }
+}
+
+function createClientId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 function debug(...args: any[]) {
