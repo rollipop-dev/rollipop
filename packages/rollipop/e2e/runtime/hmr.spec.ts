@@ -24,6 +24,8 @@ export function App() {
   );
 }
 
+// Explicit HMR boundary so rolldown can emit a Patch (hmr:update) for
+// edits to this file regardless of React Refresh wrapper heuristics.
 if (import.meta.hot) {
   import.meta.hot.accept();
 }
@@ -37,12 +39,6 @@ import { name as appName } from './app.json';
 AppRegistry.registerComponent(appName, () => App);
 `;
 
-// Module IDs the rolldown dev engine uses internally are paths relative to
-// the project root, not absolute paths — see the register calls emitted in
-// the dev bundle (e.g. `__rolldown_runtime__.registerModule("App.tsx", ...)`).
-// If we register absolute paths here the dev engine fails to match and
-// returns `Patch` with empty `applyUpdates([])`, so no concrete update or
-// reload message is dispatched.
 const APP_MODULE_ID = 'App.tsx';
 const INDEX_MODULE_ID = 'index.js';
 
@@ -50,6 +46,7 @@ let fixture: { dir: string; cleanup: () => void };
 let ts: TestServer;
 let sse: SSESubscription;
 let client: FakeClient;
+let lastPatchSeq = 0;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -58,10 +55,13 @@ function resetObservedEvents() {
   client.messages.length = 0;
 }
 
-async function prepareClientForHMR() {
+function prepareClientForHMR() {
   resetObservedEvents();
-  client.registerModules([INDEX_MODULE_ID, APP_MODULE_ID]);
-  await sleep(1000);
+}
+
+function acknowledgePatch(filename: string, seq: number) {
+  lastPatchSeq = Math.max(lastPatchSeq, seq);
+  client.sendRaw({ type: 'hmr:payload-delivered', filename });
 }
 
 beforeAll(async () => {
@@ -81,12 +81,8 @@ beforeAll(async () => {
 
   client = await createFakeClient({ baseUrl: ts.baseUrl, platform: 'ios' });
 
-  // Register modules with their rolldown-internal IDs so the dev engine
-  // recognises them when files change.
-  client.registerModules([INDEX_MODULE_ID, APP_MODULE_ID]);
-
-  // registerModules is fire-and-forget over WS; give the server a moment to
-  // call devEngine.registerModules before the first file-change test runs.
+  // The handshake registers this fake client's stable ID with the dev engine.
+  // Give the asynchronous registration time to finish before changing files.
   await sleep(1000);
 }, 300_000);
 
@@ -98,12 +94,28 @@ afterAll(async () => {
 }, 60_000);
 
 afterEach(async () => {
+  await sleep(200);
+
   if (readFixtureFile(fixture.dir, 'App.tsx') !== APP_TSX_ORIGINAL) {
+    const restorePatchPromise = client.waitForMessage(
+      'hmr:update',
+      (message) => message.seq > lastPatchSeq,
+      60_000,
+    );
     writeFixtureFile(fixture.dir, 'App.tsx', APP_TSX_ORIGINAL);
+    const update = await restorePatchPromise;
+    acknowledgePatch(update.filename, update.seq);
   }
 
   if (readFixtureFile(fixture.dir, 'index.js') !== INDEX_JS_ORIGINAL) {
+    const restorePatchPromise = client.waitForMessage(
+      'hmr:update',
+      (message) => message.seq > lastPatchSeq,
+      60_000,
+    );
     writeFixtureFile(fixture.dir, 'index.js', INDEX_JS_ORIGINAL);
+    const update = await restorePatchPromise;
+    acknowledgePatch(update.filename, update.seq);
   }
 
   await sleep(200);
@@ -111,7 +123,7 @@ afterEach(async () => {
 
 describe('runtime e2e: HMR', () => {
   it('dispatches a Patch (hmr:update) that invalidates non-component refresh boundaries', async () => {
-    await prepareClientForHMR();
+    prepareClientForHMR();
 
     const watchPromise = sse.waitFor('watch_change', (e) => e.file.includes('index.js'), 60_000);
     const updateStartPromise = client.waitForMessage('hmr:update-start', undefined, 60_000);
@@ -134,8 +146,15 @@ describe('runtime e2e: HMR', () => {
 
     await updateStartPromise;
     const update = await updatePromise;
+    acknowledgePatch(update.filename, update.seq);
     await updateDonePromise;
 
+    expect(update.filename).toMatch(/^hmr_patch_\d+\.js$/);
+    expect(update.sourceURL).toBe(`/hot/${watch.bundlerId}/${update.filename}`);
+    expect(update.changedIds).toContain(INDEX_MODULE_ID);
+    expect(update.seq).toBeGreaterThan(0);
+    expect(update.code).toContain('registerGraph');
+    expect(update.code).toContain('registerFactory');
     expect(update.code).toContain('invalidate');
 
     const newMessages = client.messages.map((m) => m.type);
@@ -144,7 +163,7 @@ describe('runtime e2e: HMR', () => {
   }, 60_000);
 
   it('dispatches a Patch (hmr:update) when a module with import.meta.hot.accept changes', async () => {
-    await prepareClientForHMR();
+    prepareClientForHMR();
 
     const watchPromise = sse.waitFor('watch_change', (e) => e.file.includes('App.tsx'), 60_000);
     const updateStartPromise = client.waitForMessage('hmr:update-start', undefined, 60_000);
@@ -163,23 +182,24 @@ describe('runtime e2e: HMR', () => {
 
     await updateStartPromise;
     const update = await updatePromise;
+    acknowledgePatch(update.filename, update.seq);
     await updateDonePromise;
 
-    // The Patch body is the rolldown runtime's `applyUpdates(...)` call.
-    // A healthy Patch for a registered + accepted module contains non-empty
-    // update arguments — not just `applyUpdates([])`, which is what you get
-    // when registration misses.
+    expect(update.filename).toMatch(/^hmr_patch_\d+\.js$/);
+    expect(update.sourceURL).toBe(`/hot/${watch.bundlerId}/${update.filename}`);
+    expect(update.changedIds).toContain(APP_MODULE_ID);
+    expect(update.seq).toBeGreaterThan(0);
     expect(typeof update.code).toBe('string');
     expect(update.code).toContain('__rolldown_runtime__');
-    expect(update.code).toContain('applyUpdates');
-    expect(update.code).not.toMatch(/applyUpdates\(\s*\[\s*\]\s*\)/);
+    expect(update.code).toContain('registerGraph');
+    expect(update.code).toContain('registerFactory');
 
     const newMessages = client.messages.map((m) => m.type);
     expect(newMessages).not.toContain('hmr:reload');
   }, 180_000);
 
   it('reports an HMR error via SSE hmr_failed and WS hmr:error', async () => {
-    await prepareClientForHMR();
+    prepareClientForHMR();
 
     const failedPromise = sse.waitFor('hmr_failed', undefined, 60_000);
     const errorPromise = client.waitForMessage('hmr:error', undefined, 60_000);

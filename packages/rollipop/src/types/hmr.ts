@@ -1,5 +1,7 @@
 export interface HMRContext {
+  readonly data: any;
   accept(...args: any[]): void;
+  dispose(callback: (data: any) => void): void;
   invalidate(): void;
   on(event: string, listener: (...args: any[]) => void): void;
   off(event: string, listener: (...args: any[]) => void): void;
@@ -20,21 +22,18 @@ export type HMRClientLogLevel =
 export type HMRClientMessage =
   | {
       type: 'hmr:connected';
+      clientId: string;
       bundleEntry: string;
       platform: string;
     }
   | {
-      type: 'hmr:module-registered';
-      modules: string[];
+      type: 'hmr:payload-delivered';
+      filename: string;
     }
   | {
       type: 'hmr:log';
       level: HMRClientLogLevel;
       data: any[];
-    }
-  | {
-      type: 'hmr:invalidate';
-      moduleId: string;
     };
 
 export type HMRServerMessage =
@@ -47,8 +46,10 @@ export type HMRServerMessage =
   | {
       type: 'hmr:update';
       code: string;
-      sourceURL?: string;
-      sourceMappingURL?: string;
+      filename: string;
+      sourceURL: string;
+      changedIds: string[];
+      seq: number;
     }
   | {
       type: 'hmr:reload';

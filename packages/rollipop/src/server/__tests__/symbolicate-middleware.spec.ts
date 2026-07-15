@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import Fastify from 'fastify';
 import { SourceMapGenerator } from 'source-map';
+import stripAnsi from 'strip-ansi';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
 import type { BundleStore } from '../bundle';
@@ -153,7 +154,7 @@ describe('symbolicate middleware', () => {
       expect(result.codeFrame).toEqual(
         expect.objectContaining({ fileName: 'App.tsx', location: { row: 2, column: 0 } }),
       );
-      expect(result.codeFrame.content).toContain(`throw new Error('boom');`);
+      expect(stripAnsi(result.codeFrame.content)).toContain(`throw new Error('boom');`);
     } finally {
       await app.close();
       fs.rmSync(projectRoot, { recursive: true, force: true });

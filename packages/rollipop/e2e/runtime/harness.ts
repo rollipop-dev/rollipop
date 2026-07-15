@@ -247,18 +247,11 @@ export interface FakeClientOptions {
 }
 
 export interface FakeClient {
+  clientId: string;
   ws: WebSocket;
   messages: HMRServerMessage[];
   sendLog: (level: HMRClientLogLevel, ...data: unknown[]) => void;
   sendRaw: (message: HMRClientMessage) => void;
-  invalidate: (moduleId: string) => void;
-  /**
-   * Register module IDs (absolute file paths) with the server so rolldown's
-   * dev engine knows which modules this fake client has "loaded". Without
-   * this, incremental updates collapse to `Noop` and the dev engine never
-   * dispatches a concrete Patch or FullReload to the socket.
-   */
-  registerModules: (modules: string[]) => void;
   waitForMessage<T extends HMRServerMessage['type']>(
     type: T,
     predicate?: (message: Extract<HMRServerMessage, { type: T }>) => boolean,
@@ -267,6 +260,8 @@ export interface FakeClient {
   close: () => Promise<void>;
 }
 
+let nextFakeClientId = 1;
+
 export async function createFakeClient({
   baseUrl,
   platform,
@@ -274,6 +269,7 @@ export async function createFakeClient({
 }: FakeClientOptions): Promise<FakeClient> {
   const wsUrl = baseUrl.replace(/^http/, 'ws') + '/hot';
   const ws = new WebSocket(wsUrl);
+  const clientId = `rollipop-e2e-${process.pid}-${nextFakeClientId++}`;
 
   const messages: HMRServerMessage[] = [];
   const listeners = new Set<(message: HMRServerMessage) => void>();
@@ -314,18 +310,10 @@ export async function createFakeClient({
   };
 
   // Handshake
-  sendRaw({ type: 'hmr:connected', platform, bundleEntry });
+  sendRaw({ type: 'hmr:connected', clientId, platform, bundleEntry });
 
   const sendLog: FakeClient['sendLog'] = (level, ...data) => {
     sendRaw({ type: 'hmr:log', level, data });
-  };
-
-  const invalidate: FakeClient['invalidate'] = (moduleId) => {
-    sendRaw({ type: 'hmr:invalidate', moduleId });
-  };
-
-  const registerModules: FakeClient['registerModules'] = (modules) => {
-    sendRaw({ type: 'hmr:module-registered', modules });
   };
 
   const waitForMessage: FakeClient['waitForMessage'] = (type, predicate, timeoutMs = 30_000) => {
@@ -366,12 +354,11 @@ export async function createFakeClient({
   };
 
   return {
+    clientId,
     ws,
     messages,
     sendLog,
     sendRaw,
-    invalidate,
-    registerModules,
     waitForMessage,
     close,
   };

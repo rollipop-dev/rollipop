@@ -23,11 +23,16 @@ interface Bindings {
   unsubscribe: () => void;
 }
 
+const MAX_PENDING_PAYLOADS_PER_CLIENT = 8;
+
 export class HMRServer extends WebSocketServer {
   private bundlerPool: BundlerPool;
   private eventBus: EventBus;
   private instances: Map<number, BundlerDevEngine> = new Map();
   private bindings: Map<number, Bindings> = new Map();
+  private runtimeClientIds: Map<number, string> = new Map();
+  private connectionTokens: Map<number, symbol> = new Map();
+  private pendingPayloads: Map<number, Set<string>> = new Map();
 
   constructor({ bundlerPool, eventBus }: HMRServerOptions) {
     super('hmr', { noServer: true });
@@ -43,18 +48,46 @@ export class HMRServer extends WebSocketServer {
     return clientMessage;
   }
 
-  private async handleConnected(client: WebSocketClient, platform: string, bundleEntry: string) {
+  private async handleConnected(
+    client: WebSocketClient,
+    runtimeClientId: string,
+    platform: string,
+    bundleEntry: string,
+  ) {
+    const connectionToken = Symbol();
+    this.connectionTokens.set(client.id, connectionToken);
+
     try {
-      this.logger.trace(`HMR client connected (clientId: ${client.id})`, { platform, bundleEntry });
+      this.logger.trace(`HMR client connected (clientId: ${runtimeClientId})`, {
+        platform,
+        bundleEntry,
+      });
       const devEngineInstance = this.bundlerPool.get(bundleEntry, {
         platform,
         dev: true,
       });
-
-      this.bindEvents(client, devEngineInstance);
       this.instances.set(client.id, devEngineInstance);
+
+      await devEngineInstance.ensureInitialized;
+      if (this.connectionTokens.get(client.id) !== connectionToken) {
+        return;
+      }
+
+      await devEngineInstance.devEngine.registerClient(runtimeClientId);
+      if (this.connectionTokens.get(client.id) !== connectionToken) {
+        await devEngineInstance.devEngine.removeClient(runtimeClientId);
+        return;
+      }
+
+      this.runtimeClientIds.set(client.id, runtimeClientId);
+      this.pendingPayloads.set(client.id, new Set());
+      this.bindEvents(client, devEngineInstance);
       this.logger.trace(`Bundler instance prepared (bundlerId: ${devEngineInstance.id})`);
     } catch (error) {
+      if (this.connectionTokens.get(client.id) === connectionToken) {
+        this.connectionTokens.delete(client.id);
+        this.instances.delete(client.id);
+      }
       this.logger.error(`Failed to prepare bundler instance`, error);
     }
   }
@@ -98,40 +131,24 @@ export class HMRServer extends WebSocketServer {
     );
   }
 
-  private async handleModuleRegistered(client: WebSocketClient, modules: string[]) {
-    try {
-      const instance = this.instances.get(client.id);
-      invariant(instance != null, `Bundler instance not found for client clientId: ${client.id}`);
-
-      await instance.ensureInitialized;
-      await instance.devEngine.registerModules(client.id.toString(), modules);
-    } catch (error) {
-      this.logger.error(`Failed to handle module registered`, error);
-    }
-  }
-
-  private async handleInvalidate(client: WebSocketClient, moduleId: string) {
-    try {
-      const instance = this.instances.get(client.id);
-      invariant(instance != null, `Bundler instance not found for client clientId: ${client.id}`);
-
-      const updates = await instance.invalidate(moduleId);
-      await this.handleUpdates(client, instance, updates);
-    } catch (error) {
-      this.logger.error(`Failed to handle invalidate`, error);
-    }
-  }
-
   private async handleUpdates(
     client: WebSocketClient,
     instance: BundlerDevEngine,
     updates: rolldownExperimental.BindingClientHmrUpdate[],
   ) {
+    const runtimeClientId = this.runtimeClientIds.get(client.id);
+    if (runtimeClientId == null) {
+      return;
+    }
+
     this.logger.trace(`HMR updates found (clientId: ${client.id})`, {
       updatesCount: updates.length,
     });
 
-    const actionableUpdates = updates.filter((clientUpdate) => clientUpdate.update.type !== 'Noop');
+    const actionableUpdates = updates.filter(
+      (clientUpdate) =>
+        clientUpdate.clientId === runtimeClientId && clientUpdate.update.type !== 'Noop',
+    );
     if (actionableUpdates.length === 0) {
       return;
     }
@@ -153,6 +170,8 @@ export class HMRServer extends WebSocketServer {
           break;
       }
     }
+
+    this.done(client);
   }
 
   private sendUpdateToClient(
@@ -162,14 +181,27 @@ export class HMRServer extends WebSocketServer {
   ) {
     invariant(update.type === 'Patch', 'Invalid HMR update type');
 
+    const pendingPayloads = this.pendingPayloads.get(client.id);
+    invariant(pendingPayloads != null, `Pending payloads not found for client: ${client.id}`);
+    pendingPayloads.add(update.filename);
+    while (pendingPayloads.size > MAX_PENDING_PAYLOADS_PER_CLIENT) {
+      const oldestFilename = pendingPayloads.values().next().value;
+      if (oldestFilename == null) {
+        break;
+      }
+      pendingPayloads.delete(oldestFilename);
+    }
+
     const updateMessage = {
       type: 'hmr:update',
       code: update.code,
-      sourceURL: update.filename == null ? undefined : getHotUpdatePath(id, update.filename),
+      filename: update.filename,
+      sourceURL: getHotUpdatePath(id, update.filename),
+      changedIds: update.changedIds,
+      seq: update.seq,
     } satisfies HMRServerMessage;
 
     this.send(client, JSON.stringify(updateMessage));
-    this.done(client);
   }
 
   private sendReloadToClient(client: WebSocketClient) {
@@ -179,7 +211,27 @@ export class HMRServer extends WebSocketServer {
     } satisfies HMRServerMessage;
 
     this.send(client, JSON.stringify(reloadMessage));
-    this.done(client);
+  }
+
+  private async handlePayloadDelivered(client: WebSocketClient, filename: string) {
+    const pendingPayloads = this.pendingPayloads.get(client.id);
+    if (pendingPayloads == null || !pendingPayloads.delete(filename)) {
+      this.logger.trace(`Ignored unknown HMR payload delivery (clientId: ${client.id})`, {
+        filename,
+      });
+      return;
+    }
+
+    const instance = this.instances.get(client.id);
+    if (instance == null) {
+      return;
+    }
+
+    try {
+      await instance.devEngine.notifyPayloadDelivered(filename);
+    } catch (error) {
+      this.logger.error(`Failed to handle HMR payload delivery`, error);
+    }
   }
 
   private done(client: WebSocketClient) {
@@ -204,20 +256,25 @@ export class HMRServer extends WebSocketServer {
     this.logger.trace(`HMR client cleanup (clientId: ${client.id})`);
     const binding = this.bindings.get(client.id);
     const instance = this.instances.get(client.id);
+    const runtimeClientId = this.runtimeClientIds.get(client.id);
+
+    this.connectionTokens.delete(client.id);
 
     if (binding != null) {
       binding.unsubscribe();
     }
 
-    if (instance != null) {
+    if (instance != null && runtimeClientId != null) {
       try {
-        void instance.devEngine.removeClient(String(client.id));
+        void instance.devEngine.removeClient(runtimeClientId).catch((error) => {
+          this.logger.warn(
+            `Failed to remove HMR client ${runtimeClientId}: ` +
+              (error instanceof Error ? error.message : String(error)),
+          );
+        });
       } catch (error) {
-        // `devEngine` throws an invariant error if the client disconnects
-        // before the underlying bundler finishes initializing. Log and
-        // continue so the cleanup path isn't left half-done.
         this.logger.warn(
-          `Skipped devEngine.removeClient for client ${client.id}: ` +
+          `Failed to remove HMR client ${runtimeClientId}: ` +
             (error instanceof Error ? error.message : String(error)),
         );
       }
@@ -225,6 +282,8 @@ export class HMRServer extends WebSocketServer {
 
     this.bindings.delete(client.id);
     this.instances.delete(client.id);
+    this.runtimeClientIds.delete(client.id);
+    this.pendingPayloads.delete(client.id);
   }
 
   protected onMessage(client: WebSocketClient, data: ws.RawData): void {
@@ -234,9 +293,7 @@ export class HMRServer extends WebSocketServer {
       message = this.parseClientMessage(data);
 
       let traceMessage: any = message;
-      if (message.type === 'hmr:module-registered') {
-        traceMessage = { ...message, modules: `[${message.modules.length} modules]` };
-      } else if (message.type === 'hmr:log') {
+      if (message.type === 'hmr:log') {
         traceMessage = { ...message, data: `(${message.data.length} items)` };
       }
       this.logger.trace('HMR client message received', traceMessage);
@@ -258,15 +315,11 @@ export class HMRServer extends WebSocketServer {
 
     switch (message.type) {
       case 'hmr:connected':
-        void this.handleConnected(client, message.platform, message.bundleEntry);
+        void this.handleConnected(client, message.clientId, message.platform, message.bundleEntry);
         break;
 
-      case 'hmr:module-registered':
-        void this.handleModuleRegistered(client, message.modules);
-        break;
-
-      case 'hmr:invalidate':
-        void this.handleInvalidate(client, message.moduleId);
+      case 'hmr:payload-delivered':
+        void this.handlePayloadDelivered(client, message.filename);
         break;
 
       case 'hmr:log': {

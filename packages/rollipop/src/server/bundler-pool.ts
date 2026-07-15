@@ -188,7 +188,6 @@ export class BundlerDevEngine {
           }
         }
       },
-      rebuildStrategy: 'auto',
     });
 
     bundlerEventBus = devEngine.getContext().eventBus;
@@ -244,11 +243,6 @@ export class BundlerDevEngine {
   async triggerFullBuild() {
     await this.ensureInitialized;
     this.devEngine.triggerFullBuild();
-  }
-
-  async invalidate(moduleId: string) {
-    await this.ensureInitialized;
-    return this.storeHmrUpdates(await this.devEngine.invalidate(moduleId));
   }
 }
 

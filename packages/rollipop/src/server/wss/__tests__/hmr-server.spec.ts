@@ -23,10 +23,6 @@ vitest.mock('../server', async () => {
       error: vi.fn(),
     };
 
-    constructor() {
-      super();
-    }
-
     send = vi.fn();
     sendAll = vi.fn();
 
@@ -41,24 +37,15 @@ vitest.mock('../server', async () => {
   };
 });
 
-/**
- * Exposes private/protected members of `HMRServer` for test assertions.
- * The mock replaces `WebSocketServer` with a plain `EventEmitter`, so
- * `send` is a `vi.fn()` and the internal maps are directly accessible.
- */
 interface TestableHMRServer {
   onMessage(client: WebSocketClient, data: Buffer): void;
-  sendUpdateToClient(
-    client: WebSocketClient,
-    id: string,
-    update: { type: string; code?: string; filename?: string; sourcemap?: string },
-  ): void;
-  sendReloadToClient(client: WebSocketClient): void;
   cleanup(client: WebSocketClient): void;
   send: Mock;
   wss: EventEmitter;
   instances: Map<number, BundlerDevEngine>;
   bindings: Map<number, unknown>;
+  runtimeClientIds: Map<number, string>;
+  pendingPayloads: Map<number, Set<string>>;
 }
 
 function asTestable(server: HMRServer): TestableHMRServer {
@@ -69,13 +56,13 @@ function createMockClient(id: number): WebSocketClient {
   return { id, readyState: 1 } as WebSocketClient;
 }
 
-function createMockDevEngine(): BundlerDevEngine {
+function createMockDevEngine(ensureInitialized: Promise<unknown> = Promise.resolve()) {
   return {
     id: 'test-engine',
-    ensureInitialized: Promise.resolve(),
-    invalidate: vi.fn().mockResolvedValue([]),
+    ensureInitialized,
     devEngine: {
-      registerModules: vi.fn().mockResolvedValue(undefined),
+      registerClient: vi.fn().mockResolvedValue(undefined),
+      notifyPayloadDelivered: vi.fn().mockResolvedValue(undefined),
       removeClient: vi.fn().mockResolvedValue(undefined),
     },
   } as unknown as BundlerDevEngine;
@@ -89,6 +76,18 @@ function getSentMessages(testable: TestableHMRServer, client: WebSocketClient) {
   return testable.send.mock.calls
     .filter((call: unknown[]) => call[0] === client)
     .map((call: unknown[]) => JSON.parse(call[1] as string) as Record<string, unknown>);
+}
+
+function createDeferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+async function flushPromises() {
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe('HMRServer', () => {
@@ -106,209 +105,315 @@ describe('HMRServer', () => {
     testable = asTestable(server);
   });
 
-  describe('onMessage', () => {
-    it('should handle hmr:connected message', () => {
-      const client = createMockClient(1);
-      const message = JSON.stringify({
-        type: 'hmr:connected',
-        platform: 'ios',
-        bundleEntry: 'index.bundle',
-      });
+  async function connect(client: WebSocketClient, runtimeClientId = 'runtime-1') {
+    testable.onMessage(
+      client,
+      Buffer.from(
+        JSON.stringify({
+          type: 'hmr:connected',
+          clientId: runtimeClientId,
+          platform: 'ios',
+          bundleEntry: 'index.bundle',
+        }),
+      ),
+    );
+    await flushPromises();
+  }
 
-      testable.onMessage(client, Buffer.from(message));
+  it('registers the runtime client after the bundler is initialized', async () => {
+    const client = createMockClient(1);
 
-      expect(bundlerPool.get).toHaveBeenCalledWith('index.bundle', {
-        platform: 'ios',
-        dev: true,
-      });
+    await connect(client);
+
+    expect(bundlerPool.get).toHaveBeenCalledWith('index.bundle', {
+      platform: 'ios',
+      dev: true,
+    });
+    expect(devEngine.devEngine.registerClient).toHaveBeenCalledWith('runtime-1');
+    expect(testable.instances.get(client.id)).toBe(devEngine);
+    expect(testable.runtimeClientIds.get(client.id)).toBe('runtime-1');
+    expect(testable.bindings.get(client.id)).toBeDefined();
+  });
+
+  it('associates client logs while the bundler is initializing', async () => {
+    const deferred = createDeferred();
+    devEngine = createMockDevEngine(deferred.promise);
+    server = new HMRServer({ bundlerPool: createMockBundlerPool(devEngine), eventBus });
+    testable = asTestable(server);
+    const client = createMockClient(1);
+    const emit = vi.spyOn(eventBus, 'emit');
+
+    void connect(client);
+    testable.onMessage(
+      client,
+      Buffer.from(JSON.stringify({ type: 'hmr:log', level: 'info', data: ['test log'] })),
+    );
+
+    expect(emit).toHaveBeenCalledWith({
+      type: 'client_log',
+      bundlerId: 'test-engine',
+      level: 'info',
+      data: ['test log'],
     });
 
-    it('should ignore watch_change events until HMR updates are available', async () => {
-      const client = createMockClient(1);
-      const message = JSON.stringify({
-        type: 'hmr:connected',
-        platform: 'ios',
-        bundleEntry: 'index.bundle',
-      });
+    deferred.resolve();
+    await flushPromises();
+  });
 
-      testable.onMessage(client, Buffer.from(message));
-      await new Promise((resolve) => setTimeout(resolve, 10));
+  it('filters updates by runtime client and sends the complete patch envelope', async () => {
+    const client = createMockClient(1);
+    await connect(client);
+    testable.send.mockClear();
 
-      eventBus.emit({ type: 'watch_change', bundlerId: 'other-engine', id: '/other.ts' });
-      expect(testable.send).not.toHaveBeenCalled();
+    eventBus.emit({
+      type: 'hmr_updates',
+      bundlerId: 'test-engine',
+      updates: [
+        {
+          clientId: 'other-runtime',
+          update: {
+            type: 'Patch',
+            code: 'other();',
+            filename: 'hmr_patch_0.js',
+            changedIds: ['/other.ts'],
+            seq: 1,
+          },
+        },
+        {
+          clientId: 'runtime-1',
+          update: {
+            type: 'Patch',
+            code: 'applyPatch();',
+            filename: 'hmr_patch_1.js',
+            changedIds: ['/App.tsx'],
+            seq: 2,
+          },
+        },
+      ],
+      changedFiles: ['/App.tsx'],
+    } as any);
 
-      eventBus.emit({ type: 'watch_change', bundlerId: 'test-engine', id: '/index.ts' });
+    expect(getSentMessages(testable, client)).toEqual([
+      { type: 'hmr:update-start' },
+      {
+        type: 'hmr:update',
+        code: 'applyPatch();',
+        filename: 'hmr_patch_1.js',
+        sourceURL: '/hot/test-engine/hmr_patch_1.js',
+        changedIds: ['/App.tsx'],
+        seq: 2,
+      },
+      { type: 'hmr:update-done' },
+    ]);
+    expect(testable.pendingPayloads.get(client.id)).toEqual(new Set(['hmr_patch_1.js']));
+  });
 
-      expect(testable.send).not.toHaveBeenCalled();
-    });
+  it('does not send messages for Noop or another runtime client', async () => {
+    const client = createMockClient(1);
+    await connect(client);
+    testable.send.mockClear();
 
-    it('should send update-start when matching HMR updates are available', async () => {
-      const client = createMockClient(1);
-      const message = JSON.stringify({
-        type: 'hmr:connected',
-        platform: 'ios',
-        bundleEntry: 'index.bundle',
-      });
+    eventBus.emit({
+      type: 'hmr_updates',
+      bundlerId: 'test-engine',
+      updates: [
+        { clientId: 'runtime-1', update: { type: 'Noop' } },
+        { clientId: 'other-runtime', update: { type: 'FullReload' } },
+      ],
+      changedFiles: ['/App.tsx'],
+    } as any);
 
-      testable.onMessage(client, Buffer.from(message));
-      await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(testable.send).not.toHaveBeenCalled();
+  });
 
+  it('sends a full reload as one update batch', async () => {
+    const client = createMockClient(1);
+    await connect(client);
+    testable.send.mockClear();
+
+    eventBus.emit({
+      type: 'hmr_updates',
+      bundlerId: 'test-engine',
+      updates: [{ clientId: 'runtime-1', update: { type: 'FullReload', reason: 'no boundary' } }],
+      changedFiles: ['/App.tsx'],
+    } as any);
+
+    expect(getSentMessages(testable, client)).toEqual([
+      { type: 'hmr:update-start' },
+      { type: 'hmr:reload' },
+      { type: 'hmr:update-done' },
+    ]);
+  });
+
+  it('notifies payload delivery exactly once for a pending filename', async () => {
+    const client = createMockClient(1);
+    await connect(client);
+
+    eventBus.emit({
+      type: 'hmr_updates',
+      bundlerId: 'test-engine',
+      updates: [
+        {
+          clientId: 'runtime-1',
+          update: {
+            type: 'Patch',
+            code: 'applyPatch();',
+            filename: 'hmr_patch_1.js',
+            changedIds: ['/App.tsx'],
+            seq: 1,
+          },
+        },
+      ],
+      changedFiles: ['/App.tsx'],
+    } as any);
+
+    for (const filename of ['unknown.js', 'hmr_patch_1.js', 'hmr_patch_1.js']) {
+      testable.onMessage(
+        client,
+        Buffer.from(JSON.stringify({ type: 'hmr:payload-delivered', filename })),
+      );
+    }
+    await flushPromises();
+
+    expect(devEngine.devEngine.notifyPayloadDelivered).toHaveBeenCalledTimes(1);
+    expect(devEngine.devEngine.notifyPayloadDelivered).toHaveBeenCalledWith('hmr_patch_1.js');
+    expect(testable.pendingPayloads.get(client.id)).toEqual(new Set());
+  });
+
+  it('bounds pending payload validation state per client', async () => {
+    const client = createMockClient(1);
+    await connect(client);
+
+    for (let index = 1; index <= 9; index++) {
       eventBus.emit({
         type: 'hmr_updates',
         bundlerId: 'test-engine',
-        updates: [{ clientId: '1', update: { type: 'Patch', code: 'module.exports = {}' } }],
-        changedFiles: ['/index.ts'],
+        updates: [
+          {
+            clientId: 'runtime-1',
+            update: {
+              type: 'Patch',
+              code: 'applyPatch();',
+              filename: `hmr_patch_${index}.js`,
+              changedIds: ['/App.tsx'],
+              seq: index,
+            },
+          },
+        ],
+        changedFiles: ['/App.tsx'],
       } as any);
+    }
 
-      const messages = getSentMessages(testable, client);
-      expect(messages).toContainEqual({ type: 'hmr:update-start' });
-      expect(messages).toContainEqual({ type: 'hmr:update', code: 'module.exports = {}' });
-      expect(messages).toContainEqual({ type: 'hmr:update-done' });
+    expect(testable.pendingPayloads.get(client.id)).toEqual(
+      new Set(Array.from({ length: 8 }, (_, index) => `hmr_patch_${index + 2}.js`)),
+    );
+
+    for (const filename of ['hmr_patch_1.js', 'hmr_patch_9.js']) {
+      testable.onMessage(
+        client,
+        Buffer.from(JSON.stringify({ type: 'hmr:payload-delivered', filename })),
+      );
+    }
+    await flushPromises();
+
+    expect(devEngine.devEngine.notifyPayloadDelivered).toHaveBeenCalledOnce();
+    expect(devEngine.devEngine.notifyPayloadDelivered).toHaveBeenCalledWith('hmr_patch_9.js');
+  });
+
+  it('sends hmr:error for matching hmr_failed events', async () => {
+    const client = createMockClient(1);
+    await connect(client);
+    testable.send.mockClear();
+
+    eventBus.emit({
+      type: 'hmr_failed',
+      bundlerId: 'test-engine',
+      error: new Error('Unexpected token'),
     });
 
-    it('should send hmr:error for matching hmr_failed events', async () => {
-      const client = createMockClient(1);
-      const message = JSON.stringify({
-        type: 'hmr:connected',
-        platform: 'ios',
-        bundleEntry: 'index.bundle',
-      });
-
-      testable.onMessage(client, Buffer.from(message));
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      eventBus.emit({
-        type: 'hmr_failed',
-        bundlerId: 'test-engine',
-        error: new Error('Unexpected token'),
-      });
-
-      const messages = getSentMessages(testable, client);
-      expect(messages).toContainEqual({
+    expect(getSentMessages(testable, client)).toEqual([
+      {
         type: 'hmr:error',
         payload: {
           type: 'BuildError',
           errors: [{ description: 'Unexpected token' }],
           message: 'Unexpected token',
         },
-      });
-    });
+      },
+    ]);
+  });
 
-    it('should handle hmr:log message and emit client log event', async () => {
-      const client = createMockClient(1);
-      const emit = vi.spyOn(eventBus, 'emit');
-      const connectedMessage = JSON.stringify({
-        type: 'hmr:connected',
-        platform: 'ios',
-        bundleEntry: 'index.bundle',
-      });
-      const message = JSON.stringify({
-        type: 'hmr:log',
-        level: 'info',
-        data: ['test log'],
-      });
+  it('emits client logs with the bundler id', async () => {
+    const client = createMockClient(1);
+    const emit = vi.spyOn(eventBus, 'emit');
+    await connect(client);
 
-      testable.onMessage(client, Buffer.from(connectedMessage));
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      testable.onMessage(client, Buffer.from(message));
+    testable.onMessage(
+      client,
+      Buffer.from(JSON.stringify({ type: 'hmr:log', level: 'info', data: ['test log'] })),
+    );
 
-      expect(emit).toHaveBeenCalledWith({
-        type: 'client_log',
-        bundlerId: 'test-engine',
-        level: 'info',
-        data: ['test log'],
-      });
-    });
-
-    it('should send error when message parsing fails', () => {
-      const client = createMockClient(1);
-
-      testable.onMessage(client, Buffer.from('invalid json'));
-
-      expect(testable.send).toHaveBeenCalledWith(
-        client,
-        expect.stringContaining('"type":"InternalError"'),
-      );
-    });
-
-    it('should emit custom (non-hmr prefixed) messages on wss', () => {
-      const client = createMockClient(1);
-      const wssEmitSpy = vi.spyOn(testable.wss, 'emit');
-      const message = JSON.stringify({
-        type: 'custom:event',
-        payload: { data: 'test' },
-      });
-
-      testable.onMessage(client, Buffer.from(message));
-
-      expect(wssEmitSpy).toHaveBeenCalledWith('custom:event', { data: 'test' });
+    expect(emit).toHaveBeenCalledWith({
+      type: 'client_log',
+      bundlerId: 'test-engine',
+      level: 'info',
+      data: ['test log'],
     });
   });
 
-  describe('sendUpdateToClient', () => {
-    it('should send update and update-done messages', () => {
-      const client = createMockClient(1);
-      const update = { type: 'Patch' as const, code: 'module.exports = {}' };
+  it('sends an error when message parsing fails', () => {
+    const client = createMockClient(1);
 
-      testable.sendUpdateToClient(client, 'test-engine', update);
+    testable.onMessage(client, Buffer.from('invalid json'));
 
-      const messages = getSentMessages(testable, client);
-      expect(messages).toContainEqual({ type: 'hmr:update', code: 'module.exports = {}' });
-      expect(messages.filter((m) => m.type === 'hmr:update-done')).toHaveLength(1);
-    });
-
-    it('should attach the stored patch URL without duplicating the sourcemap', () => {
-      const client = createMockClient(1);
-      const sourcemap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
-
-      testable.sendUpdateToClient(client, 'test-engine', {
-        type: 'Patch',
-        code: 'module.exports = {}',
-        filename: 'patch-1.js',
-        sourcemap,
-      });
-
-      expect(getSentMessages(testable, client)).toContainEqual({
-        type: 'hmr:update',
-        code: 'module.exports = {}',
-        sourceURL: '/hot/test-engine/patch-1.js',
-      });
-    });
+    expect(testable.send).toHaveBeenCalledWith(
+      client,
+      expect.stringContaining('"type":"InternalError"'),
+    );
   });
 
-  describe('sendReloadToClient', () => {
-    it('should send reload and update-done messages', () => {
-      const client = createMockClient(1);
+  it('emits custom messages on the websocket server', () => {
+    const client = createMockClient(1);
+    const wssEmitSpy = vi.spyOn(testable.wss, 'emit');
 
-      testable.sendReloadToClient(client);
+    testable.onMessage(
+      client,
+      Buffer.from(JSON.stringify({ type: 'custom:event', payload: { data: 'test' } })),
+    );
 
-      const messages = getSentMessages(testable, client);
-      expect(messages).toContainEqual({ type: 'hmr:reload' });
-      expect(messages).toContainEqual({ type: 'hmr:update-done' });
-    });
+    expect(wssEmitSpy).toHaveBeenCalledWith('custom:event', { data: 'test' });
   });
 
-  describe('cleanup', () => {
-    it('should remove event listeners and clear maps on cleanup', async () => {
-      const client = createMockClient(1);
+  it('removes the runtime client and clears state on cleanup', async () => {
+    const client = createMockClient(1);
+    await connect(client);
 
-      const message = JSON.stringify({
-        type: 'hmr:connected',
-        platform: 'ios',
-        bundleEntry: 'index.bundle',
-      });
-      testable.onMessage(client, Buffer.from(message));
+    testable.cleanup(client);
+    await flushPromises();
 
-      // Wait for async handleConnected
-      await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(devEngine.devEngine.removeClient).toHaveBeenCalledWith('runtime-1');
+    expect(testable.instances.get(client.id)).toBeUndefined();
+    expect(testable.bindings.get(client.id)).toBeUndefined();
+    expect(testable.runtimeClientIds.get(client.id)).toBeUndefined();
+    expect(testable.pendingPayloads.get(client.id)).toBeUndefined();
+  });
 
-      expect(testable.instances.get(client.id)).toBeDefined();
-      expect(testable.bindings.get(client.id)).toBeDefined();
+  it('removes a runtime client that closes while registration is pending', async () => {
+    const client = createMockClient(1);
+    const registerClient = createDeferred();
+    vi.mocked(devEngine.devEngine.registerClient).mockReturnValueOnce(registerClient.promise);
 
-      testable.cleanup(client);
+    const connecting = connect(client);
+    await flushPromises();
+    expect(devEngine.devEngine.registerClient).toHaveBeenCalledWith('runtime-1');
 
-      expect(testable.instances.get(client.id)).toBeUndefined();
-      expect(testable.bindings.get(client.id)).toBeUndefined();
-    });
+    testable.cleanup(client);
+    registerClient.resolve();
+    await connecting;
+    await flushPromises();
+
+    expect(devEngine.devEngine.removeClient).toHaveBeenCalledWith('runtime-1');
+    expect(testable.instances.get(client.id)).toBeUndefined();
+    expect(testable.bindings.get(client.id)).toBeUndefined();
   });
 });
