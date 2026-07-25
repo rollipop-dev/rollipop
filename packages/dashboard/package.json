@@ -47,7 +47,7 @@
     "radix-ui": "^1.6.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router": "7.17.0",
+    "react-router": "8.3.0",
     "rolldown": "^1",
     "shadcn": "^4.11.0",
     "sonner": "^2.0.7",
