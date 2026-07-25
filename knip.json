@@ -10,12 +10,8 @@
     "packages/plugin-rozenite/src/patch.ts": ["unlisted"]
   },
   "workspaces": {
-    ".": {
-      "entry": ["vite.config.ts"]
-    },
     "docs": {
       "entry": [
-        "source.config.ts",
         "src/app/**/*.{ts,tsx}",
         "src/mdx-components.tsx",
         "src/components/mdx/**/*.{ts,tsx}",
@@ -52,34 +48,28 @@
       "ignoreDependencies": ["shadcn", "tailwindcss", "tw-animate-css"]
     },
     "packages/init": {
-      "entry": ["vite.config.ts", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
+      "entry": ["src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/jest-preset": {
-      "entry": ["vite.config.ts", "src/index.ts", "src/transformer.ts", "src/mock.ts"],
+      "entry": ["src/index.ts", "src/transformer.ts", "src/mock.ts"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/plugin-module-federation": {
-      "entry": [
-        "vite.config.ts",
-        "src/index.ts",
-        "src/runtime.ts",
-        "src/**/__tests__/**/*.{js,jsx,ts,tsx}"
-      ],
+      "entry": ["src/index.ts", "src/runtime.ts", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"],
       "ignoreDependencies": ["@module-federation/runtime"]
     },
     "packages/plugin-rozenite": {
-      "entry": ["vite.config.ts", "src/index.ts"],
+      "entry": ["src/index.ts"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/plugin-svg": {
-      "entry": ["vite.config.ts", "src/index.ts"],
+      "entry": ["src/index.ts"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/rollipop": {
       "entry": [
-        "vite.config.ts",
         "src/index.ts",
         "src/commands.ts",
         "src/filter.ts",

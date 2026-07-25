@@ -37,14 +37,16 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@module-federation/runtime": "2.5.1",
+    "@module-federation/runtime": "2.8.0",
     "dedent": "1.7.2",
     "es-toolkit": "catalog:"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.10",
     "rollipop": "workspace:*",
     "typescript": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vitest": "4.1.10"
   },
   "peerDependencies": {
     "rollipop": "workspace:*"
