@@ -62,24 +62,30 @@ describe('HotUpdateStore', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
-  it('clears only its id the first time it is prepared', () => {
+  it('clears the entire hot directory without removing other storage', () => {
     const idPath = path.join(hotPath, ID);
     const otherIdPath = path.join(hotPath, 'android-dev');
+    const bundlePath = path.join(projectRoot, '.rollipop', 'bundles', 'ios-dev.bundle');
     fs.mkdirSync(idPath, { recursive: true });
     fs.mkdirSync(otherIdPath, { recursive: true });
+    fs.mkdirSync(path.dirname(bundlePath), { recursive: true });
     fs.writeFileSync(path.join(idPath, 'stale.js'), 'stale');
-    fs.writeFileSync(path.join(otherIdPath, 'keep.js'), 'keep');
+    fs.writeFileSync(path.join(otherIdPath, 'stale.js'), 'stale');
+    fs.writeFileSync(bundlePath, 'bundle');
 
     const store = new HotUpdateStore(projectRoot);
-    store.prepare(ID);
+    store.clear();
 
-    expect(fs.existsSync(path.join(idPath, 'stale.js'))).toBe(false);
-    expect(fs.readFileSync(path.join(otherIdPath, 'keep.js'), 'utf-8')).toBe('keep');
+    expect(fs.existsSync(hotPath)).toBe(false);
+    expect(fs.readFileSync(bundlePath, 'utf-8')).toBe('bundle');
+  });
 
-    store.write(ID, { code: 'current', filename: 'current.js' });
-    store.prepare(ID);
+  it('ignores errors while clearing', () => {
+    vi.spyOn(fs, 'rmSync').mockImplementationOnce(() => {
+      throw new Error('Failed to remove hot updates');
+    });
 
-    expect(fs.readFileSync(path.join(idPath, 'current.js'), 'utf-8')).toBe('current');
+    expect(() => new HotUpdateStore(projectRoot).clear()).not.toThrow();
   });
 
   it('does not clear existing files when writing an update', () => {
@@ -170,7 +176,6 @@ describe('HotUpdateStore', () => {
   it('rejects path traversal in storage operations', () => {
     const store = new HotUpdateStore(projectRoot);
 
-    expect(() => store.prepare('../ios-dev')).toThrow('expected a single path segment');
     expect(() => store.write(ID, { code: '', filename: '../patch.js' })).toThrow(
       'expected a single path segment',
     );

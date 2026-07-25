@@ -87,6 +87,31 @@ describe('BundlerPool', () => {
     expect(instance.id).toBeDefined();
   });
 
+  it('clears all stored HMR updates when the pool is created', () => {
+    const hotPath = path.join(projectRoot, '.rollipop', 'hot');
+    fs.mkdirSync(path.join(hotPath, 'ios-dev'), { recursive: true });
+    fs.mkdirSync(path.join(hotPath, 'android-dev'), { recursive: true });
+    fs.writeFileSync(path.join(hotPath, 'ios-dev', 'stale.js'), 'stale');
+    fs.writeFileSync(path.join(hotPath, 'android-dev', 'stale.js'), 'stale');
+
+    createPool();
+
+    expect(fs.existsSync(hotPath)).toBe(false);
+  });
+
+  it('does not clear stored HMR updates when a dev engine is created', async () => {
+    resetPool();
+    const pool = createPool();
+    const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
+    fs.mkdirSync(hotPath, { recursive: true });
+    fs.writeFileSync(path.join(hotPath, 'current.js'), 'current');
+
+    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+    await instance.ensureInitialized;
+
+    expect(fs.readFileSync(path.join(hotPath, 'current.js'), 'utf-8')).toBe('current');
+  });
+
   it('should return the same instance for identical bundle + build options', () => {
     resetPool();
     const pool = createPool();

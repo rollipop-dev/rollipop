@@ -45,20 +45,17 @@ export function parseHotUpdatePath(pathname: string): { id: string; filename: st
 
 export class HotUpdateStore {
   private readonly hotPath: string;
-  private readonly preparedIds = new Set<string>();
 
   constructor(projectRoot: string) {
     this.hotPath = path.join(FileStorage.getPath(projectRoot), 'hot');
   }
 
-  prepare(id: string) {
-    assertPathSegment(id, 'id');
-    if (this.preparedIds.has(id)) {
-      return;
+  clear() {
+    try {
+      fs.rmSync(this.hotPath, { recursive: true, force: true });
+    } catch {
+      // Hot update cleanup is best-effort.
     }
-
-    this.clearFiles(id);
-    this.preparedIds.add(id);
   }
 
   write(id: string, patch: HotUpdatePatch) {
@@ -106,10 +103,6 @@ export class HotUpdateStore {
 
     const filePath = this.getFilePath(id, filename);
     return isFile(filePath) ? fs.readFileSync(filePath) : undefined;
-  }
-
-  private clearFiles(id: string) {
-    fs.rmSync(this.getDirectoryPath(id), { recursive: true, force: true });
   }
 
   private getDirectoryPath(id: string) {

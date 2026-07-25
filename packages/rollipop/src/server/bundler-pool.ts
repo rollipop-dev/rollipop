@@ -53,9 +53,6 @@ export class BundlerDevEngine {
     this._id = Bundler.createId(config, buildOptions);
     this.initializeHandle = taskHandler();
     this.isHmrEnabled = Boolean(buildOptions.dev && config.dev.hmr);
-    if (this.isHmrEnabled) {
-      this.hotUpdateStore.prepare(this.id);
-    }
 
     void this.initialize();
   }
@@ -276,6 +273,7 @@ export class BundlerPool {
     private readonly eventBus: EventBus,
   ) {
     this.hotUpdateStore = new HotUpdateStore(config.root);
+    this.hotUpdateStore.clear();
   }
 
   get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev'>) {
