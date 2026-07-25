@@ -13,9 +13,10 @@ import { bindReporter } from '../utils/config';
 import { normalizeRolldownError } from '../utils/errors';
 import { taskHandler } from '../utils/promise';
 import { getBaseUrl } from '../utils/server';
+import { replaceSourceMappingUrl } from '../utils/source-map';
 import { type BundleStore, FileSystemBundleStore } from './bundle';
 import { getBundleSourceMapUrl } from './bundle-url';
-import { HotUpdateStore } from './hot-update-store';
+import { getHotUpdatePath, HotUpdateStore } from './hot-update-store';
 import { logger } from './logger';
 import type { ServerOptions } from './types';
 
@@ -216,12 +217,31 @@ export class BundlerDevEngine {
   }
 
   private storeHmrUpdates(updates: rolldownExperimental.BindingClientHmrUpdate[]) {
-    for (const { update } of updates) {
-      if (update.type === 'Patch') {
-        this.hotUpdateStore.write(this.id, update);
+    return updates.map((clientUpdate) => {
+      const { update } = clientUpdate;
+      if (update.type !== 'Patch') {
+        return clientUpdate;
       }
-    }
-    return updates;
+
+      const rewrittenUpdate =
+        update.sourcemapFilename == null
+          ? update
+          : {
+              ...update,
+              code: replaceSourceMappingUrl(
+                update.code,
+                new URL(
+                  getHotUpdatePath(this.id, update.sourcemapFilename),
+                  getBaseUrl(this.options.server.host, this.options.server.port),
+                ).toString(),
+              ),
+            };
+
+      this.hotUpdateStore.write(this.id, rewrittenUpdate);
+      return rewrittenUpdate === update
+        ? clientUpdate
+        : { ...clientUpdate, update: rewrittenUpdate };
+    });
   }
 
   async getBundle() {

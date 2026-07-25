@@ -212,7 +212,7 @@ describe('BundlerPool', () => {
     expect(vi.mocked(Bundler).devEngine.mock.lastCall?.[2]).not.toHaveProperty('rebuildStrategy');
   });
 
-  it('stores generated patches without rewriting them before emitting HMR updates', async () => {
+  it('rewrites the last sourceMappingURL to the stored map URL before emitting HMR updates', async () => {
     resetPool();
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-update-'));
     const eventBus = new EventBus();
@@ -220,7 +220,10 @@ describe('BundlerPool', () => {
     const sourceMap = '{"version":3,"sources":["App.tsx"],"mappings":"AAAA"}';
     const patch = {
       type: 'Patch',
-      code: 'applyPatch();\n//# sourceMappingURL=hmr_patch_0.js.map',
+      code:
+        '//# sourceMappingURL=previous.js.map\n' +
+        'applyPatch();\n' +
+        '//@ sourceMappingURL=/hmr_patch_0.js.map\n\n',
       filename: 'hmr_patch_0.js',
       sourcemap: sourceMap,
       sourcemapFilename: 'hmr_patch_0.js.map',
@@ -255,19 +258,23 @@ describe('BundlerPool', () => {
       await instance.ensureInitialized;
 
       expect(instance.status).toBe('idle');
+      const rewrittenCode =
+        '//# sourceMappingURL=previous.js.map\n' +
+        'applyPatch();\n' +
+        '//# sourceMappingURL=http://localhost:8081/hot/ios-true/hmr_patch_0.js.map';
       expect(events).toEqual([
         expect.objectContaining({
           type: 'hmr_updates',
           bundlerId: 'ios-true',
           changedFiles: [path.join(projectRoot, 'App.tsx')],
           updates: [
-            { clientId: '1', update: patch },
+            { clientId: '1', update: { ...patch, code: rewrittenCode } },
             { clientId: '1', update: { type: 'Noop' } },
           ],
         }),
       ]);
       const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
-      expect(fs.readFileSync(path.join(hotPath, patch.filename), 'utf8')).toBe(patch.code);
+      expect(fs.readFileSync(path.join(hotPath, patch.filename), 'utf8')).toBe(rewrittenCode);
       expect(fs.readFileSync(path.join(hotPath, patch.sourcemapFilename), 'utf8')).toBe(sourceMap);
     } finally {
       fs.rmSync(projectRoot, { recursive: true, force: true });
