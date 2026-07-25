@@ -2,7 +2,7 @@ import url from 'node:url';
 
 import { createDevServerMiddleware } from '@react-native-community/cli-server-api';
 import { createDevMiddleware } from '@react-native/dev-middleware';
-import Fastify from 'fastify';
+import Fastify, { LogController } from 'fastify';
 import mitt from 'mitt';
 import type * as ws from 'ws';
 
@@ -51,7 +51,7 @@ export async function createDevServer(
   const emitter = mitt<DevServerEvents>();
   const fastify = Fastify({
     loggerInstance: new DevServerLogger(),
-    disableRequestLogging: true,
+    logController: new LogController({ disableRequestLogging: true }),
   });
 
   const eventBus = new EventBus();

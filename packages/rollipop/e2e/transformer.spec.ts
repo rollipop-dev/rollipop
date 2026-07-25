@@ -148,7 +148,7 @@ describe('transformer', () => {
                 filter: { id: /\.ts$/ },
                 options: {
                   plugins: [
-                    function (): import('@babel/core').PluginObj {
+                    function (): import('@babel/core').PluginObject {
                       return {
                         visitor: {
                           StringLiteral(path) {
@@ -205,7 +205,7 @@ describe('transformer', () => {
                 filter: { id: /\.ts$/ },
                 options: {
                   plugins: [
-                    function (): import('@babel/core').PluginObj {
+                    function (): import('@babel/core').PluginObject {
                       return {
                         visitor: {
                           Program() {
@@ -221,7 +221,7 @@ describe('transformer', () => {
                 filter: { id: /\.ts$/ },
                 options: {
                   plugins: [
-                    function (): import('@babel/core').PluginObj {
+                    function (): import('@babel/core').PluginObject {
                       return {
                         visitor: {
                           Program() {

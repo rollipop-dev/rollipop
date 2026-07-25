@@ -1,6 +1,7 @@
+import type { InputOptions } from '@babel/core';
 import { mergeWith } from 'es-toolkit';
 
-export function mergeBabelOptions(options: babel.TransformOptions[]) {
+export function mergeBabelOptions(options: InputOptions[]) {
   return options.reduce((acc, options) => mergeWith(acc, options, merge), {});
 }
 

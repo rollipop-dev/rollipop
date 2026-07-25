@@ -25,7 +25,7 @@ function babelPlugin({
   transformConfig,
 }: BabelPluginOptions): rolldown.Plugin[] {
   const { rules = [] } = transformConfig ?? {};
-  const babelOptionsById: Map<string, babel.TransformOptions[]> = new Map();
+  const babelOptionsById: Map<string, babel.InputOptions[]> = new Map();
 
   const babelRules = rules.map(({ filter, options }, index) => {
     return {
@@ -73,7 +73,13 @@ function babelPlugin({
         });
         invariant(result?.code, `Failed to transform with babel: ${id}`);
 
-        return { code: result.code, map: result.map };
+        const map = result.map && {
+          ...result.map,
+          names: [...result.map.names],
+          sources: [...result.map.sources],
+          sourcesContent: result.map.sourcesContent ? [...result.map.sourcesContent] : undefined,
+        };
+        return { code: result.code, map };
       },
     },
   };
@@ -81,10 +87,10 @@ function babelPlugin({
   return [...babelRules, babelPlugin];
 }
 
-function getPreset(flags: TransformFlag, id: string): babel.TransformOptions {
-  const presets: babel.PluginItem[] = [];
+function getPreset(flags: TransformFlag, id: string): babel.InputOptions {
+  const presets: babel.PresetItem[] = [];
   const plugins: babel.PluginItem[] = [];
-  let parserOpts: babel.ParserOptions | null = null;
+  let parserOpts: NonNullable<babel.InputOptions['parserOpts']> | null = null;
 
   if (flags & TransformFlag.STRIP_FLOW_REQUIRED) {
     parserOpts = { flow: 'all' } as any;
@@ -109,10 +115,10 @@ function getPreset(flags: TransformFlag, id: string): babel.TransformOptions {
   }
 
   if (flags & TransformFlag.CODEGEN_REQUIRED) {
-    plugins.push([require.resolve('@react-native/babel-plugin-codegen')]);
+    plugins.push(reactNativeCodegenPlugin);
   }
 
-  const options: babel.TransformOptions = {
+  const options: babel.InputOptions = {
     presets,
     plugins,
   };
@@ -122,6 +128,15 @@ function getPreset(flags: TransformFlag, id: string): babel.TransformOptions {
   }
 
   return options;
+}
+
+function reactNativeCodegenPlugin(): babel.PluginObject {
+  const codegenPlugin = require(require.resolve('@react-native/babel-plugin-codegen')) as (api: {
+    parse: typeof babel.parseSync;
+    types: typeof babel.types;
+  }) => babel.PluginObject;
+
+  return codegenPlugin({ parse: babel.parseSync, types: babel.types });
 }
 
 export { babelPlugin as babel };

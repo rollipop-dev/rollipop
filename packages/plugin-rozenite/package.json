@@ -32,7 +32,7 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@rozenite/middleware": "1.12.0"
+    "@rozenite/middleware": "1.13.0"
   },
   "devDependencies": {
     "rollipop": "workspace:*",

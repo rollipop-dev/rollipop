@@ -77,7 +77,7 @@ describe('stripFlowTypes', () => {
       "  4 |     console.log('no boom');
         5 |   } else {
       > 6 |     throw new Error('boom');
-          |          ^
+          |           ^
         7 |   }
         8 | }
         9 | boom();"

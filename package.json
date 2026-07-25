@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^24",
-    "knip": "^6.21.0",
+    "knip": "^6.27.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },

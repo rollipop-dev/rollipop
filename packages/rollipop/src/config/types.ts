@@ -238,7 +238,7 @@ export type TransformConfig = Omit<
   swc?: SwcTransformConfig;
 };
 
-export type BabelTransformConfig = { rules?: TransformRule<babel.TransformOptions>[] };
+export type BabelTransformConfig = { rules?: TransformRule<babel.InputOptions>[] };
 export type SwcTransformConfig = { rules?: TransformRule<swc.Options>[] };
 
 export interface TransformRule<T = unknown> {
