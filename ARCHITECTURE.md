@@ -344,7 +344,7 @@ The dev server adapts React Native device communication to a Rolldown-backed dev
 
 React Native's default `HMRClient` module is implemented for Metro's runtime and server protocol. Rollipop replaces that module through a filtered plugin load hook that targets React Native's configured `react-native/Libraries/Utilities/HMRClient.js` path and returns Rollipop's own HMR client implementation. The replacement still follows the React Native `HMRClient` interface because the import surface must stay identical for React Native internals. Only the transport and runtime integration behind that surface are Rollipop-specific.
 
-Rollipop also does not use Rolldown's default HMR runtime as-is. Rolldown's HMR plugin provides a default runtime around the global `__rolldown_runtime__`, but that runtime assumes a browser-like update transport. Rollipop passes its own runtime implementation into Rolldown dev mode, keeps the same global runtime slot, and adapts it to React Native's WebSocket client, evaluation path, reload behavior, and `import.meta.hot` contexts.
+Rollipop also does not use Rolldown's default HMR runtime as-is. Rolldown's HMR plugin assumes a browser-like update transport, so Rollipop passes a React Native-specific implementation into Rolldown dev mode. Rolldown instantiates that implementation for each development bundle and exposes the instance through the bundle-local `__rolldown_runtime__` binding. The binding is intentionally not stored on `globalThis`: an application can load multiple independently built graphs, and each graph must keep its own module cache, HMR contexts, client ID, and update state.
 
 ```ts
 const config = {
@@ -356,15 +356,7 @@ const config = {
 };
 ```
 
-The Rollipop HMR client connects the React Native-side client module to the runtime:
-
-```ts
-if (globalThis.__rolldown_runtime__ != null) {
-  globalThis.__rolldown_runtime__.setup(socket, origin);
-}
-```
-
-The runtime itself subclasses `DevRuntime`, which is injected by Rolldown's HMR runtime, but installs a React Native-specific runtime instance:
+The runtime implementation subclasses the `DevRuntime` injected by Rolldown and exports a new React Native-specific instance. Rolldown then assigns that exported instance to the bundle-local runtime binding:
 
 ```ts
 declare const DevRuntime: typeof DefaultDevRuntime;
@@ -372,12 +364,53 @@ declare const DevRuntime: typeof DefaultDevRuntime;
 var BaseDevRuntime = DevRuntime;
 
 class ReactNativeDevRuntime extends BaseDevRuntime {
-  // React Native-specific messenger, evaluation, reload, and `import.meta.hot` behavior.
+  // React Native-specific transport, evaluation, reload, and `import.meta.hot` behavior.
 }
 
-globalThis.__rolldown_runtime__ ??= new ReactNativeDevRuntime();
+export default new ReactNativeDevRuntime();
 ```
+
+Rollipop uses the separate global `__rollipop_runtime__` as a graph registry and shared integration surface. Loading the runtime implementation initializes this registry once, while every bundle still receives its own `ReactNativeDevRuntime` instance:
+
+```ts
+globalThis.__rollipop_runtime__ ??= createRollipopDevRuntime();
+```
+
+The dev-server bootstrap registers each bundle's metadata together with the runtime exposed by that bundle's `import.meta.hot` context:
+
+```ts
+if (import.meta.hot && globalThis.__rollipop_runtime__) {
+  globalThis.__rollipop_runtime__.registerGraph({
+    id,
+    origin,
+    bundleEntry,
+    platform,
+    runtime: import.meta.hot.runtime,
+  });
+}
+```
+
+The replacement HMR client connects every registered graph independently. During setup it connects the graphs already in the registry and subscribes for graphs loaded later:
+
+```ts
+const runtime = globalThis.__rollipop_runtime__;
+if (runtime == null) {
+  throw new Error('Rollipop dev runtime is not initialized');
+}
+
+for (const graph of runtime.graphs.values()) {
+  connectGraph(graph);
+}
+runtime.subscribeGraph((graph) => connectGraph(graph));
+
+function connectGraph(graph: HMRGraph) {
+  const socket = new WebSocket(`${graph.origin}/hot`);
+  graph.runtime.setup(socket, graph.origin);
+}
+```
+
+Each graph connection identifies the graph runtime by its client ID, so the server sends updates only to the matching runtime. Generated HMR patches execute against that graph's runtime instance instead of depending on one process-wide Rolldown runtime.
 
 The native React Refresh wrapper plugin (`rollipopReactRefreshWrapperPlugin`) makes modules participate in HMR boundaries. It applies React Refresh handling and inserts `import.meta.hot` accept logic so refreshable modules are visible to the HMR runtime.
 
-The design intent is to keep module graph invalidation and update generation in Rolldown while keeping React Native device protocol and runtime semantics in Rollipop.
+The design intent is to keep module graph invalidation and update generation in Rolldown, preserve runtime isolation between bundles, and keep React Native device protocol and runtime semantics in Rollipop.
