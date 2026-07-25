@@ -1,4 +1,74 @@
 
+## [1.0.0-alpha.29] - 2026-07-25
+
+### 💥 BREAKING CHANGES
+
+- unify `rolldownOptions` override API by @leegeunhyeok
+- revamp config surface (#132) by @leegeunhyeok
+
+### 🚀 Features
+
+- clear HMR updates when initializing the dev server by @leegeunhyeok
+- update client HMR handling by @leegeunhyeok
+- persist HMR patches for symbolication by @leegeunhyeok
+- add HMR context guard by @leegeunhyeok
+- support multi-runtime HMR by @leegeunhyeok
+- add runtime bootstrap module by @leegeunhyeok
+- inject metadata into bundle by @leegeunhyeok
+- dashboard: fullscreen analyze report by @leegeunhyeok
+- dashboard: show final rolldown options by @leegeunhyeok
+- jest-preset: add glob import mock support by @leegeunhyeok
+- expose sse types by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- rewrite HMR sourcemap URLs to dev server URLs by @leegeunhyeok
+- include transform options in cache id by @leegeunhyeok
+- sync react refresh filters by @leegeunhyeok
+- support PnP assets in dev server by @leegeunhyeok
+- flush persisted build totals by @leegeunhyeok
+- rewrite dev `sourceMappingURL` at bundle emit by @leegeunhyeok
+- disable react refresh when hmr is off by @leegeunhyeok
+- jest-preset: preset resolution by @leegeunhyeok
+
+### 🚜 Refactor
+
+- update file system bundle messages by @leegeunhyeok
+- unify reporter events through shared event bus by @leegeunhyeok
+
+### 📚 Documentation
+
+- fix fmt by @leegeunhyeok
+- update ARCHITECTURE.md by @leegeunhyeok
+- add page description by @leegeunhyeok
+- fix formatting by @leegeunhyeok
+- add glob import and alias docs by @leegeunhyeok
+- add agent guide by @leegeunhyeok
+
+### ⚡ Performance
+
+- reduce startup cost with dynamic imports by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump packages by @leegeunhyeok
+- deps: bump fast-uri from 3.1.0 to 3.1.3 (#136) by @dependabot[bot]
+- deps: bump next from 16.2.6 to 16.2.11 (#135) by @dependabot[bot]
+- deps: bump body-parser from 1.20.4 to 1.20.6 (#134) by @dependabot[bot]
+- deps: bump brace-expansion from 1.1.12 to 1.1.16 (#133) by @dependabot[bot]
+- format hmr runtime by @leegeunhyeok
+- fix typescript compatibility (viteplus) by @leegeunhyeok
+- deps: bump rolldown-analyzer@0.3.1 by @leegeunhyeok
+- deps: bump up typescript@7 by @leegeunhyeok
+- bump yarn to 4.17.1 by @leegeunhyeok
+- avoid npm publish issue by @leegeunhyeok
+- bump `@rollipop/rolldown` to 1.0.22 by @leegeunhyeok
+- fmt by @leegeunhyeok
+- remove experimental field by @leegeunhyeok
+- setup knip by @leegeunhyeok
+- plugin-rozenite: remove unused bin field by @leegeunhyeok
+
+
 ## [1.0.0-alpha.28] - 2026-07-02
 
 ### 🚀 Features
