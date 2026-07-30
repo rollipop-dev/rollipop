@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
-import { cli } from '../dist/index.js';
+import module from 'node:module';
 
-cli.run(process.argv);
+if (typeof module.enableCompileCache === 'function') {
+  // Available in Node.js >=22.8.0
+  module.enableCompileCache();
+}
+
+(await import('../dist/index.js')).cli.run(process.argv);
