@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 
-import { getServerUrl } from './api';
+import {
+  subscribeDashboardSharedState,
+  type DashboardEvent,
+  type DashboardSharedState,
+} from './api';
 
 const BUILD_EVENT_TYPES = [
   'bundle_build_started',
@@ -15,62 +19,73 @@ const SNAPSHOT_EVENT_TYPES = [
   'client_disconnected',
 ] as const;
 
-interface DashboardSSEEvent {
-  type: string;
-  bundlerId?: string;
-}
-
 export function useDashboardEvents({
+  onState,
   onBuildEvent,
   onDataEvent,
+  onConnectionChange,
 }: {
-  onBuildEvent?: (event: DashboardSSEEvent) => void;
-  onDataEvent?: (event: DashboardSSEEvent) => void;
+  onState?: (state: DashboardSharedState) => void;
+  onBuildEvent?: (event: DashboardEvent) => void;
+  onDataEvent?: (event: DashboardEvent) => void;
+  onConnectionChange?: (connected: boolean) => void;
 } = {}) {
   useEffect(() => {
-    if (__ROLLIPOP_MOCK__ || typeof EventSource === 'undefined') {
+    if (__ROLLIPOP_MOCK__) {
       return;
     }
 
-    const source = new EventSource(getServerUrl('/sse/events'));
+    let disposed = false;
+    let unsubscribe: (() => void) | undefined;
+    let lastSequence: number | undefined;
 
-    const handleBuildEvent = (message: MessageEvent<string>) => {
-      const event = parseSSEEvent(message.data);
-      if (event != null) onBuildEvent?.(event);
-    };
+    void subscribeDashboardSharedState({
+      onConnectionStatus(status) {
+        if (status === 'connected') {
+          onConnectionChange?.(true);
+        } else if (status !== 'connecting') {
+          onConnectionChange?.(false);
+        }
+      },
+      onState(state) {
+        if (disposed) return;
 
-    const handleDataEvent = (message: MessageEvent<string>) => {
-      const event = parseSSEEvent(message.data);
-      if (event != null) onDataEvent?.(event);
-    };
+        onState?.(state);
 
-    for (const type of BUILD_EVENT_TYPES) {
-      source.addEventListener(type, handleBuildEvent);
-    }
+        const event = state.lastEvent;
+        if (lastSequence == null) {
+          lastSequence = event?.sequence ?? 0;
+          return;
+        }
+        if (event == null || event.sequence <= lastSequence) return;
 
-    for (const type of SNAPSHOT_EVENT_TYPES) {
-      source.addEventListener(type, handleDataEvent);
-    }
+        lastSequence = event.sequence;
+        if (isEventType(event.data.type, BUILD_EVENT_TYPES)) {
+          onBuildEvent?.(event.data);
+        }
+        if (isEventType(event.data.type, SNAPSHOT_EVENT_TYPES)) {
+          onDataEvent?.(event.data);
+        }
+      },
+    })
+      .then((dispose) => {
+        if (disposed) {
+          dispose();
+        } else {
+          unsubscribe = dispose;
+        }
+      })
+      .catch(() => {
+        onConnectionChange?.(false);
+      });
 
     return () => {
-      for (const type of BUILD_EVENT_TYPES) {
-        source.removeEventListener(type, handleBuildEvent);
-      }
-
-      for (const type of SNAPSHOT_EVENT_TYPES) {
-        source.removeEventListener(type, handleDataEvent);
-      }
-
-      source.close();
+      disposed = true;
+      unsubscribe?.();
     };
-  }, [onBuildEvent, onDataEvent]);
+  }, [onBuildEvent, onConnectionChange, onDataEvent, onState]);
 }
 
-function parseSSEEvent(data: string): DashboardSSEEvent | null {
-  try {
-    const event = JSON.parse(data) as DashboardSSEEvent;
-    return typeof event.type === 'string' ? event : null;
-  } catch {
-    return null;
-  }
+function isEventType(type: string, eventTypes: readonly string[]): boolean {
+  return eventTypes.includes(type);
 }

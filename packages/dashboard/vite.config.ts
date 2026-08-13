@@ -5,14 +5,12 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 const rollipopDevServerTarget =
-  process.env.ROLLIPOP_DEV_SERVER_PROXY_TARGET ??
-  process.env.ROLLIPOP_API_PROXY_TARGET ??
-  'http://127.0.0.1:8081';
+  process.env.ROLLIPOP_DEV_SERVER_PROXY_TARGET ?? 'http://127.0.0.1:8081';
 
 const mockEnabled = process.env.MOCK === '1';
 
 if (mockEnabled) {
-  console.log('[dev] API mocking enabled');
+  console.log('[dev] Dashboard mocking enabled');
 }
 
 export default defineConfig({
@@ -38,18 +36,7 @@ export default defineConfig({
     proxy: mockEnabled
       ? undefined
       : {
-          '/api': {
-            target: rollipopDevServerTarget,
-            changeOrigin: true,
-            secure: false,
-            ws: true,
-          },
-          '/sse': {
-            target: rollipopDevServerTarget,
-            changeOrigin: true,
-            secure: false,
-          },
-          '/symbolicate': {
+          '/__rollipop': {
             target: rollipopDevServerTarget,
             changeOrigin: true,
             secure: false,

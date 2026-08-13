@@ -1,13 +1,14 @@
 import fs from 'node:fs';
-import http from 'node:http';
 import net from 'node:net';
 import path from 'node:path';
 
+import { connectDevframe, type DevframeConnection, type DevframeRpcClient } from 'devframe/client';
 import WebSocket from 'ws';
 
 import { loadConfig } from '../../src/config';
 import type { ResolvedConfig } from '../../src/config/defaults';
-import type { SSEEvent } from '../../src/server/sse/types';
+import type { DashboardSharedState } from '../../src/server/devframe';
+import type { DevframeEvent } from '../../src/server/devframe/events';
 import type { DevServer } from '../../src/server/types';
 import type { HMRClientLogLevel, HMRClientMessage, HMRServerMessage } from '../../src/types/hmr';
 import { runServer } from '../../src/utils/run-server';
@@ -109,112 +110,83 @@ export async function startTestServer(fixtureDir: string): Promise<TestServer> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* SSE subscriber                                                             */
+/* Devframe event subscription                                                */
 /* -------------------------------------------------------------------------- */
 
-export interface SSESubscription {
-  events: SSEEvent[];
+export interface DevframeEventSubscription {
+  events: DevframeEvent[];
   /** Resolves when a matching event arrives, or rejects on timeout. */
-  waitFor<T extends SSEEvent['type']>(
+  waitFor<T extends DevframeEvent['type']>(
     type: T,
-    predicate?: (event: Extract<SSEEvent, { type: T }>) => boolean,
+    predicate?: (event: Extract<DevframeEvent, { type: T }>) => boolean,
     timeoutMs?: number,
-  ): Promise<Extract<SSEEvent, { type: T }>>;
+  ): Promise<Extract<DevframeEvent, { type: T }>>;
   close: () => void;
 }
 
-/**
- * Subscribe to one of the dev server's SSE endpoints using `http.get`. We
- * use the raw http module (rather than global fetch) because its streaming
- * semantics for `text/event-stream` are predictable across Node versions —
- * `res` is a Readable that emits `data` events immediately as the server
- * flushes writes.
- */
-export async function subscribeSSE(
-  baseUrl: string,
-  endpoint = '/sse/events',
-): Promise<SSESubscription> {
-  const url = new URL(endpoint, baseUrl);
+export async function subscribeDevframeEvents(baseUrl: string): Promise<DevframeEventSubscription> {
+  const restoreGlobals = installDevframeClientGlobals(baseUrl);
+  let client: DevframeRpcClient;
 
-  const events: SSEEvent[] = [];
-  const listeners = new Set<(event: SSEEvent) => void>();
-  let buffer = '';
-  let closed = false;
+  try {
+    const response = await fetch(new URL('/__rollipop/__connection.json', baseUrl));
+    const connection: DevframeConnection = {
+      connectionMeta: (await response.json()) as DevframeConnection['connectionMeta'],
+      metaBaseUrl: response.url,
+    };
+    client = await connectDevframe({
+      connection,
+      transport: 'sse',
+      simpleAuth: false,
+      otpParam: false,
+      callTimeout: 30_000,
+    });
+  } catch (error) {
+    restoreGlobals();
+    throw error;
+  }
 
-  const processChunk = () => {
-    let idx: number;
-    while ((idx = buffer.indexOf('\n\n')) !== -1) {
-      const raw = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 2);
+  const events: DevframeEvent[] = [];
+  const listeners = new Set<(event: DevframeEvent) => void>();
+  await client.ensureTrusted();
+  const state = await client.scope('rollipop').rpc.sharedState<DashboardSharedState>('dashboard');
+  let lastSequence = state.value().lastEvent?.sequence ?? 0;
+  const unsubscribe = state.on('updated', (value) => {
+    const next = value.lastEvent;
+    if (next == null || next.sequence <= lastSequence) return;
 
-      const dataLine = raw.split('\n').find((line) => line.startsWith('data:'));
-      if (!dataLine) continue;
-
-      try {
-        const parsed = JSON.parse(dataLine.slice(5).trim()) as SSEEvent;
-        events.push(parsed);
-        for (const l of listeners) l(parsed);
-      } catch {
-        // ignore non-JSON comments / heartbeats
-      }
-    }
-  };
-
-  const response = await new Promise<http.IncomingMessage>((resolve, reject) => {
-    const req = http.get(
-      {
-        hostname: url.hostname,
-        port: url.port,
-        path: url.pathname + url.search,
-        headers: { accept: 'text/event-stream' },
-      },
-      (res) => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Failed to open SSE stream: ${res.statusCode}`));
-          res.resume();
-          return;
-        }
-        res.setEncoding('utf8');
-        res.on('data', (chunk: string) => {
-          buffer += chunk;
-          processChunk();
-        });
-        res.on('error', () => {
-          closed = true;
-        });
-        res.on('close', () => {
-          closed = true;
-        });
-        resolve(res);
-      },
-    );
-    req.on('error', reject);
+    lastSequence = next.sequence;
+    events.push(next.data);
+    for (const listener of listeners) listener(next.data);
   });
 
-  const waitFor: SSESubscription['waitFor'] = (type, predicate, timeoutMs = 30_000) => {
-    // Check already-received events first.
+  const waitFor: DevframeEventSubscription['waitFor'] = (type, predicate, timeoutMs = 30_000) => {
     const existing = events.find(
-      (e) => e.type === type && (predicate ? predicate(e as any) : true),
+      (event) => event.type === type && (predicate ? predicate(event as never) : true),
     );
-    if (existing) return Promise.resolve(existing as any);
+    if (existing) return Promise.resolve(existing as never);
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         listeners.delete(onEvent);
         reject(
           new Error(
-            `Timed out after ${timeoutMs}ms waiting for SSE event "${type}". ` +
-              `Received: ${events.map((e) => e.type).join(', ') || '(none)'}`,
+            'Timed out after ' +
+              timeoutMs +
+              'ms waiting for Devframe event "' +
+              type +
+              '". Received: ' +
+              (events.map((event) => event.type).join(', ') || '(none)'),
           ),
         );
       }, timeoutMs);
 
-      const onEvent = (event: SSEEvent) => {
+      const onEvent = (event: DevframeEvent) => {
         if (event.type !== type) return;
-        if (predicate && !predicate(event as any)) return;
+        if (predicate && !predicate(event as never)) return;
         clearTimeout(timer);
         listeners.delete(onEvent);
-        resolve(event as any);
+        resolve(event as never);
       };
 
       listeners.add(onEvent);
@@ -222,12 +194,46 @@ export async function subscribeSSE(
   };
 
   const close = () => {
-    if (closed) return;
-    closed = true;
-    response.destroy();
+    unsubscribe();
+    client.close?.();
+    restoreGlobals();
   };
 
   return { events, waitFor, close };
+}
+
+function installDevframeClientGlobals(baseUrl: string): () => void {
+  const locationDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'location');
+  const broadcastChannelDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    'BroadcastChannel',
+  );
+
+  Object.defineProperty(globalThis, 'location', {
+    configurable: true,
+    value: new URL(baseUrl),
+  });
+  Object.defineProperty(globalThis, 'BroadcastChannel', {
+    configurable: true,
+    value: undefined,
+  });
+
+  return () => {
+    restoreGlobal('location', locationDescriptor);
+    restoreGlobal('BroadcastChannel', broadcastChannelDescriptor);
+  };
+}
+
+function restoreGlobal(
+  key: 'location' | 'BroadcastChannel',
+  descriptor: PropertyDescriptor | undefined,
+): void {
+  if (descriptor == null) {
+    Reflect.deleteProperty(globalThis, key);
+    return;
+  }
+
+  Object.defineProperty(globalThis, key, descriptor);
 }
 
 /* -------------------------------------------------------------------------- */

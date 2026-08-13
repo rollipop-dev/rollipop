@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vite-plus/
 
 import {
   type FakeClient,
-  type SSESubscription,
+  type DevframeEventSubscription,
   type TestServer,
   cloneFixture,
   createFakeClient,
   readFixtureFile,
   startTestServer,
-  subscribeSSE,
+  subscribeDevframeEvents,
   writeFixtureFile,
 } from './harness';
 
@@ -44,14 +44,14 @@ const INDEX_MODULE_ID = 'index.js';
 
 let fixture: { dir: string; cleanup: () => void };
 let ts: TestServer;
-let sse: SSESubscription;
+let devframeEvents: DevframeEventSubscription;
 let client: FakeClient;
 let lastPatchSeq = 0;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function resetObservedEvents() {
-  sse.events.length = 0;
+  devframeEvents.events.length = 0;
   client.messages.length = 0;
 }
 
@@ -68,7 +68,7 @@ beforeAll(async () => {
   fixture = cloneFixture('hmr-app');
   ts = await startTestServer(fixture.dir);
 
-  sse = await subscribeSSE(ts.baseUrl);
+  devframeEvents = await subscribeDevframeEvents(ts.baseUrl);
 
   // Activate the watcher via an HTTP bundle request — the HTTP build and
   // the HMR WS share a bundler instance (see utils/id.ts#createId).
@@ -77,7 +77,7 @@ beforeAll(async () => {
     throw new Error(`Initial /index.bundle failed: HTTP ${bundleRes.status}`);
   }
   await bundleRes.text();
-  await sse.waitFor('bundle_build_done', undefined, 180_000);
+  await devframeEvents.waitFor('bundle_build_done', undefined, 180_000);
 
   client = await createFakeClient({ baseUrl: ts.baseUrl, platform: 'ios' });
 
@@ -88,7 +88,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await client?.close();
-  sse?.close();
+  devframeEvents?.close();
   await ts?.close();
   fixture?.cleanup();
 }, 60_000);
@@ -125,7 +125,11 @@ describe('runtime e2e: HMR', () => {
   it('dispatches a Patch (hmr:update) that invalidates non-component refresh boundaries', async () => {
     prepareClientForHMR();
 
-    const watchPromise = sse.waitFor('watch_change', (e) => e.file.includes('index.js'), 60_000);
+    const watchPromise = devframeEvents.waitFor(
+      'watch_change',
+      (e) => e.file.includes('index.js'),
+      60_000,
+    );
     const updateStartPromise = client.waitForMessage('hmr:update-start', undefined, 60_000);
     const updatePromise = client.waitForMessage(
       'hmr:update',
@@ -165,7 +169,11 @@ describe('runtime e2e: HMR', () => {
   it('dispatches a Patch (hmr:update) when a module with import.meta.hot.accept changes', async () => {
     prepareClientForHMR();
 
-    const watchPromise = sse.waitFor('watch_change', (e) => e.file.includes('App.tsx'), 60_000);
+    const watchPromise = devframeEvents.waitFor(
+      'watch_change',
+      (e) => e.file.includes('App.tsx'),
+      60_000,
+    );
     const updateStartPromise = client.waitForMessage('hmr:update-start', undefined, 60_000);
     const updatePromise = client.waitForMessage('hmr:update', undefined, 60_000);
     const updateDonePromise = client.waitForMessage('hmr:update-done', undefined, 60_000);
@@ -198,10 +206,10 @@ describe('runtime e2e: HMR', () => {
     expect(newMessages).not.toContain('hmr:reload');
   }, 180_000);
 
-  it('reports an HMR error via SSE hmr_failed and WS hmr:error', async () => {
+  it('reports an HMR error through Devframe and WS', async () => {
     prepareClientForHMR();
 
-    const failedPromise = sse.waitFor('hmr_failed', undefined, 60_000);
+    const failedPromise = devframeEvents.waitFor('hmr_failed', undefined, 60_000);
     const errorPromise = client.waitForMessage('hmr:error', undefined, 60_000);
 
     writeFixtureFile(

@@ -1,27 +1,19 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import {
-  CallToolRequestSchema,
-  ErrorCode,
-  ListToolsRequestSchema,
-  McpError,
-  type CallToolResult,
-} from '@modelcontextprotocol/sdk/types.js';
 import { type as arkType } from 'arktype';
+import type { DevframeAgentHost } from 'devframe';
 
-import type { BuildOptions } from '../../../core/types';
-import { getBaseBundleName } from '../../../utils/bundle';
-import { resetCache } from '../../../utils/reset-cache';
-import { parseUrl } from '../../../utils/url';
-import { toSSEEvent } from '../../sse/adapter';
-import type { SSEBuildEvent } from '../../sse/types';
-import { symbolicate, type StackFrameInput } from '../../symbolicate';
-import type { DevServerContext } from '../../types';
+import type { BuildOptions } from '../../../../core/types';
+import { getBaseBundleName } from '../../../../utils/bundle';
+import { resetCache } from '../../../../utils/reset-cache';
+import { parseUrl } from '../../../../utils/url';
+import { symbolicate, type StackFrameInput } from '../../../symbolicate';
+import type { DevServerContext } from '../../../types';
+import { toDevframeEvent, type DevframeEvent } from '../../events';
 import type { AppLogDiagnostics } from './app-log-diagnostics';
 import type { BuildDiagnostics } from './build-diagnostics';
 import { getBuildInfo } from './build-info';
 import type { ClientDiagnostics } from './client-diagnostics';
 
-export interface McpToolContext {
+export interface AgentToolContext {
   context: DevServerContext;
   appLogDiagnostics: AppLogDiagnostics;
   buildDiagnostics: BuildDiagnostics;
@@ -45,7 +37,7 @@ interface ToolDefinition<Args extends object = Record<string, never>> {
   title: string;
   description: string;
   inputSchema: ToolArgsSchema<Args>;
-  handler: (args: Args) => Promise<CallToolResult> | CallToolResult;
+  handler: (args: Args) => unknown;
 }
 
 const emptyArgs = arkType({}) as unknown as ToolArgsSchema<Record<string, never>>;
@@ -76,10 +68,24 @@ const symbolicateStackArgs = arkType({
   dev?: boolean;
 }>;
 
-export function registerTools(server: McpServer, options: McpToolContext): void {
+export function registerAgentTools(agent: DevframeAgentHost, options: AgentToolContext): void {
+  for (const tool of createToolDefinitions(options)) {
+    agent.registerTool({
+      id: tool.name,
+      title: tool.title,
+      description: tool.description,
+      safety: getToolSafety(tool.name),
+      tags: ['rollipop'],
+      inputSchema: toAgentInputSchema(tool.inputSchema),
+      handler: (args) => tool.handler(parseToolArgs(tool.inputSchema, args ?? {})),
+    });
+  }
+}
+
+function createToolDefinitions(options: AgentToolContext): ToolDefinition<object>[] {
   const { context, appLogDiagnostics, buildDiagnostics, clientDiagnostics } = options;
 
-  const tools = [
+  return [
     defineTool({
       name: 'reset_cache',
       title: 'Reset Cache',
@@ -88,7 +94,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       async handler() {
         await resetCache();
         context.eventBus.emit({ type: 'cache_reset' });
-        return textResult('Cache cleared successfully.');
+        return 'Cache cleared successfully.';
       },
     }),
     defineTool({
@@ -97,11 +103,11 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       description: 'Collect dev-server events for a duration.',
       inputSchema: durationArgs,
       async handler({ duration }) {
-        const events: SSEBuildEvent[] = [];
+        const events: DevframeEvent[] = [];
         const unsubscribe = context.eventBus.subscribe((event) => {
-          const sseEvent = toSSEEvent(event);
-          if (sseEvent != null) {
-            events.push(sseEvent);
+          const devframeEvent = toDevframeEvent(event);
+          if (devframeEvent != null) {
+            events.push(devframeEvent);
           }
         });
 
@@ -109,10 +115,10 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
         unsubscribe();
 
         if (events.length === 0) {
-          return textResult('No events received during the listening period.');
+          return 'No events received during the listening period.';
         }
 
-        return jsonResult(events);
+        return events;
       },
     }),
     defineTool({
@@ -123,9 +129,9 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       async handler({ bundlerId }) {
         const bundler = context.bundlerPool.getInstanceById(bundlerId);
         if (bundler == null) {
-          return jsonResult({ error: 'not found' });
+          return { error: 'not found' };
         }
-        return jsonResult({ id: bundler.id, status: bundler.status });
+        return { id: bundler.id, status: bundler.status };
       },
     }),
     defineTool({
@@ -134,7 +140,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       description: 'Return buffered Rolldown logs.',
       inputSchema: limitBundlerArgs,
       async handler({ limit, bundlerId }) {
-        return jsonResult(buildDiagnostics.getBuildLogs({ limit, bundlerId }));
+        return buildDiagnostics.getBuildLogs({ limit, bundlerId });
       },
     }),
     defineTool({
@@ -143,7 +149,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       description: 'Return buffered Rolldown errors.',
       inputSchema: limitBundlerArgs,
       async handler({ limit, bundlerId }) {
-        return jsonResult(buildDiagnostics.getBuildErrors({ limit, bundlerId }));
+        return buildDiagnostics.getBuildErrors({ limit, bundlerId });
       },
     }),
     defineTool({
@@ -153,7 +159,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       inputSchema: optionalBundlerIdArgs,
       async handler({ bundlerId }) {
         buildDiagnostics.clearBuildLogs({ bundlerId });
-        return jsonResult({ cleared: true });
+        return { cleared: true };
       },
     }),
     defineTool({
@@ -163,7 +169,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       inputSchema: optionalBundlerIdArgs,
       async handler({ bundlerId }) {
         buildDiagnostics.clearBuildErrors({ bundlerId });
-        return jsonResult({ cleared: true });
+        return { cleared: true };
       },
     }),
     defineTool({
@@ -173,7 +179,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       inputSchema: optionalBundlerIdArgs,
       async handler({ bundlerId }) {
         buildDiagnostics.clearBuildDiagnostics({ bundlerId });
-        return jsonResult({ cleared: true });
+        return { cleared: true };
       },
     }),
     defineTool({
@@ -182,7 +188,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       description: 'Return buffered app logs.',
       inputSchema: limitBundlerArgs,
       async handler({ limit, bundlerId }) {
-        return jsonResult(appLogDiagnostics.getConsoleLogs({ limit, bundlerId }));
+        return appLogDiagnostics.getConsoleLogs({ limit, bundlerId });
       },
     }),
     defineTool({
@@ -192,7 +198,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       inputSchema: optionalBundlerIdArgs,
       async handler({ bundlerId }) {
         appLogDiagnostics.clearConsoleLogs({ bundlerId });
-        return jsonResult({ cleared: true });
+        return { cleared: true };
       },
     }),
     defineTool({
@@ -201,7 +207,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       description: 'Return known HMR clients.',
       inputSchema: emptyArgs,
       async handler() {
-        return jsonResult(clientDiagnostics.getClients());
+        return clientDiagnostics.getClients();
       },
     }),
     defineTool({
@@ -211,7 +217,7 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
       inputSchema: emptyArgs,
       async handler() {
         context.message.broadcast('reload');
-        return jsonResult({ reloaded: true, clients: clientDiagnostics.getClients() });
+        return { reloaded: true, clients: clientDiagnostics.getClients() };
       },
     }),
     defineTool({
@@ -223,10 +229,10 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
         const bundler =
           bundlerId != null ? context.bundlerPool.getInstanceById(bundlerId) : undefined;
 
-        return jsonResult({
+        return {
           ...getBuildInfo(context.config),
           bundler: bundler != null ? { id: bundler.id, status: bundler.status } : undefined,
-        });
+        };
       },
     }),
     defineTool({
@@ -243,35 +249,10 @@ export function registerTools(server: McpServer, options: McpToolContext): void 
         });
         const bundler = context.bundlerPool.get(buildOptions.bundleName, buildOptions);
         const bundle = await bundler.getBundle();
-        return jsonResult(await symbolicate(bundle, stack as StackFrameInput[]));
+        return await symbolicate(bundle, stack as StackFrameInput[]);
       },
     }),
   ];
-
-  const toolsByName = new Map(tools.map((tool) => [tool.name, tool]));
-
-  server.server.registerCapabilities({ tools: { listChanged: true } });
-  server.server.setRequestHandler(ListToolsRequestSchema, () => ({
-    tools: tools.map((tool) => ({
-      name: tool.name,
-      title: tool.title,
-      description: tool.description,
-      inputSchema: toMcpInputSchema(tool.inputSchema),
-    })),
-  }));
-  server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    try {
-      const tool = toolsByName.get(request.params.name);
-      if (tool == null) {
-        throw new McpError(ErrorCode.InvalidParams, `Tool ${request.params.name} not found`);
-      }
-
-      const args = parseToolArgs(tool.inputSchema, request.params.arguments ?? {});
-      return await tool.handler(args);
-    } catch (error) {
-      return errorResult(error instanceof Error ? error.message : String(error));
-    }
-  });
 }
 
 function defineTool<Args extends object>(definition: ToolDefinition<Args>): ToolDefinition<object> {
@@ -281,7 +262,7 @@ function defineTool<Args extends object>(definition: ToolDefinition<Args>): Tool
 function parseToolArgs<Args extends object>(schema: ToolArgsSchema<Args>, args: unknown): Args {
   const result = schema(args);
   if (isArkErrors(result)) {
-    throw new McpError(ErrorCode.InvalidParams, result.summary);
+    throw new Error(result.summary);
   }
   return result;
 }
@@ -295,7 +276,7 @@ function isArkErrors(value: unknown): value is { summary: string; [' arkKind']: 
   );
 }
 
-function toMcpInputSchema(schema: ToolArgsSchema<object>): JsonSchemaObject {
+function toAgentInputSchema(schema: ToolArgsSchema<object>): JsonSchemaObject {
   const { $schema: _schema, type: _type, ...jsonSchema } = schema.toJsonSchema();
   return {
     type: 'object',
@@ -303,23 +284,16 @@ function toMcpInputSchema(schema: ToolArgsSchema<object>): JsonSchemaObject {
   };
 }
 
-function textResult(text: string): CallToolResult {
-  return {
-    content: [{ type: 'text' as const, text }],
-  };
-}
+function getToolSafety(name: string): 'read' | 'action' | 'destructive' {
+  if (name.startsWith('clear_') || name === 'reset_cache') {
+    return 'destructive';
+  }
 
-function errorResult(text: string): CallToolResult {
-  return {
-    content: [{ type: 'text' as const, text }],
-    isError: true,
-  };
-}
+  if (name === 'reload') {
+    return 'action';
+  }
 
-function jsonResult(value: unknown): CallToolResult {
-  return {
-    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
-  };
+  return 'read';
 }
 
 function resolveSymbolicateBuildOptions(

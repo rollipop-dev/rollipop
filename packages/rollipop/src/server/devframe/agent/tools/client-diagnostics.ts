@@ -1,6 +1,6 @@
 import type { RawData } from 'ws';
 
-import type { DevServerContext } from '../../types';
+import type { DevServerContext } from '../../../types';
 
 export interface ClientInfo {
   id: number;

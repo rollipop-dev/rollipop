@@ -14,7 +14,7 @@ Start with the official troubleshooting guide for debug logging and issue-report
 
 ## Diagnostics
 
-Use `debugging.md` when the next step is collecting MCP/SSE/build-log/app-log/symbolication data. MCP details are in https://rollipop.dev/docs/features/mcp.md and SSE details are in https://rollipop.dev/docs/features/sse.md.
+Use `debugging.md` when the next step is collecting Devframe MCP build-log, app-log, event, or symbolication data. MCP details are in https://rollipop.dev/docs/features/mcp.md.
 
 ## Configuration
 

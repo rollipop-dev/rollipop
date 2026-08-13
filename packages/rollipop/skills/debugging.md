@@ -1,6 +1,6 @@
 ---
 name: debugging
-description: Rollipop diagnostics workflow. Use for build failures, HMR failures, runtime app logs, MCP/SSE event inspection, symbolication, bundleFilePath inspection, cache resets, and agent-oriented debugging.
+description: Rollipop diagnostics workflow. Use for build failures, HMR failures, runtime app logs, Devframe MCP event inspection, symbolication, bundleFilePath inspection, cache resets, and agent-oriented debugging.
 allowed-tools: Bash(npx:*), Bash(npm:*), Bash(pnpm:*), Bash(rollipop:*), Bash(curl:*), Bash(yarn:*), Bash(node:*)
 ---
 
@@ -10,11 +10,7 @@ Use this skill when Rollipop is installed or running and the task needs diagnost
 
 ## MCP Server
 
-MCP exposes structured Rollipop diagnostics from a dev server started with `--mcp`. Use it for build events, logs, cache actions, app logs, device status, reloads, build info, and symbolication. Read https://rollipop.dev/docs/features/mcp.md.
-
-## Server-Sent Events
-
-SSE streams build/dev-server events and app client logs when MCP is unavailable or a simple stream is enough. Read https://rollipop.dev/docs/features/sse.md.
+Devframe MCP exposes structured Rollipop diagnostics whenever the dev server is running. Use it for build events, logs, cache actions, app logs, device status, reloads, build info, and symbolication. Read https://rollipop.dev/docs/features/mcp.md.
 
 ## React Native DevTools
 

@@ -1,5 +1,5 @@
-import type { BuildDiagnosticLog } from '../../../types';
-import type { DevServerContext } from '../../types';
+import type { BuildDiagnosticLog } from '../../../../types';
+import type { DevServerContext } from '../../../types';
 
 export interface BuildLogEntry {
   id: number;

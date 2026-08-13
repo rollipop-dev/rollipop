@@ -15,8 +15,6 @@ import type { BundlerPool } from './bundler-pool';
 import type { DevServerState } from './state/store';
 import type { WebSocketClient } from './wss/server';
 
-export type * from './sse/types';
-
 export type FastifyInstance = BaseFastifyInstance & {
   // `@fastify/middie` extension
   use(fn: fastifyMiddie.Handler): FastifyInstance;
@@ -31,7 +29,6 @@ export interface ServerOptions {
   key?: string;
   cert?: string;
   buildOptions?: Pick<BuildOptions, 'cache'>;
-  mcp?: boolean;
 }
 
 export interface DevServerContext {
@@ -56,7 +53,7 @@ export interface DevServerContext {
    */
   eventBus: EventBus;
   /**
-   * Shared dev-server state for REST, MCP, and future integrations.
+   * Shared dev-server state for Devframe integrations.
    */
   state: DevServerState;
   /**
