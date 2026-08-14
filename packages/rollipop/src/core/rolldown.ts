@@ -32,6 +32,7 @@ import {
   type EntryPluginOptions,
   type ExpoMetroRuntimePluginOptions,
   type ExpoRouterPluginOptions,
+  type ExpoAssetInteropPluginOptions,
   type ImportGlobPluginOptions,
   type ReactNativePluginOptions,
   type ReactRefreshFilter,
@@ -44,6 +45,7 @@ import {
   entry,
   expoMetroRuntime,
   expoRouter,
+  expoAssetInterop,
   importGlob,
   reactNative,
   reporter,
@@ -209,6 +211,7 @@ export async function resolveRolldownOptions(
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
   const expoMetroRuntimePluginOptions = resolveExpoMetroRuntimePluginOptions(config);
   const expoRouterPluginOptions = resolveExpoRouterPluginOptions(config);
+  const expoAssetInteropPluginOptions = resolveExpoAssetInteropPluginOptions();
 
   const inputOptions: rolldown.InputOptions = {
     ...rolldownInput,
@@ -238,6 +241,7 @@ export async function resolveRolldownOptions(
       analyze(analyzePluginOptions),
       expoMetroRuntime(expoMetroRuntimePluginOptions),
       expoRouter(expoRouterPluginOptions),
+      expoAssetInterop(expoAssetInteropPluginOptions),
       userPlugins,
     ]),
     checks: {
@@ -518,6 +522,12 @@ function resolveExpoRouterPluginOptions(config: ResolvedConfig): ExpoRouterPlugi
   return {
     enabled: isExpoBundlerMode(),
     projectRoot: config.root,
+  };
+}
+
+function resolveExpoAssetInteropPluginOptions(): ExpoAssetInteropPluginOptions {
+  return {
+    enabled: isExpoBundlerMode(),
   };
 }
 
