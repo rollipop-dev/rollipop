@@ -79,6 +79,11 @@ export async function resolveRolldownOptions(
 
   const { platform, dev, cache } = buildOptions;
   const isDevServerMode = dev && context.buildType === 'serve';
+  // React Native / Expo dependencies (e.g. `expo-router`) ship raw JSX inside
+  // `.js` files. Metro parses `.js` as JSX for every RN build; oxc only does so
+  // for `.jsx`/`.tsx` by default. Map `.js` -> `jsx` module type on native
+  // platforms so those dependencies bundle correctly.
+  const isNativePlatform = platform === 'ios' || platform === 'android' || platform === 'native';
 
   invariant(
     isDevServerMode ? devEngineOptions != null : true,
@@ -212,6 +217,9 @@ export async function resolveRolldownOptions(
     input: ROLLIPOP_VIRTUAL_ENTRY_ID,
     resolve: mergedResolveOptions,
     transform: mergedTransformOptions,
+    // See `isNativePlatform` above: parse `.js` as JSX on native platforms so
+    // RN/Expo dependencies that ship JSX in `.js` (e.g. expo-router) bundle.
+    ...(isNativePlatform ? { moduleTypes: { '.js': 'jsx' } } : {}),
     experimental: merge(
       { ...rolldownExperimental },
       isDevServerMode
