@@ -6,7 +6,9 @@ import {
   ROLLIPOP_VERSION,
   ROLLIPOP_VIRTUAL_BOOTSTRAP_ID,
   ROLLIPOP_VIRTUAL_ENTRY_ID,
+  ROLLIPOP_VIRTUAL_EXPO_ROUTER_MANIFEST_ID,
 } from '../../constants';
+import { isExpoBundlerMode } from '../../expo/config-translator';
 
 const VIRTUAL_ENTRY_FILTER = [include(id(exactRegex(ROLLIPOP_VIRTUAL_ENTRY_ID)))];
 const VIRTUAL_BOOTSTRAP_FILTER = [include(id(exactRegex(ROLLIPOP_VIRTUAL_BOOTSTRAP_ID)))];
@@ -20,10 +22,15 @@ export interface EntryPluginOptions {
 function entryPlugin(options: EntryPluginOptions): rolldown.Plugin[] {
   const { id, entryPath, preludePaths = [] } = options;
 
+  const expoRouterManifestImport = isExpoBundlerMode()
+    ? [ROLLIPOP_VIRTUAL_EXPO_ROUTER_MANIFEST_ID]
+    : [];
+
   const importStatements = [
     // Bootstrap Rollipop runtime metadata before evaluating prelude and app modules.
     ROLLIPOP_VIRTUAL_BOOTSTRAP_ID,
     ...preludePaths,
+    ...expoRouterManifestImport,
     entryPath,
   ]
     .map((modulePath) => `import ${JSON.stringify(modulePath)};`)

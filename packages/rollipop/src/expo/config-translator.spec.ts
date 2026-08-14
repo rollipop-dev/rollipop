@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  EXPO_BUNDLER_ENV,
-  isExpoBundlerMode,
-  translateExpoMetroConfig,
-} from './config-translator';
+import { EXPO_BUNDLER_ENV, isExpoBundlerMode, translateExpoMetroConfig } from './config-translator';
 
 describe('translateExpoMetroConfig', () => {
   it('maps resolver.alias to resolve.alias', () => {

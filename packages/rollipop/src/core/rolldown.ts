@@ -12,6 +12,7 @@ import { applyRolldownOptionsConfig } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { CompatStatusReporter, ProgressBarStatusReporter } from '../events/builtin-reporters';
 import { createReporterEventListener } from '../events/consumers';
+import { isExpoBundlerMode } from '../expo/config-translator';
 import { getGlobalVariables } from '../internal/react-native';
 import type { BuildDiagnosticLog, MaybePromise, Reporter } from '../types';
 import type { ResolvedBuildOptions } from '../utils/build-options';
@@ -29,6 +30,8 @@ import {
   type BabelPluginOptions,
   type DevServerPluginOptions,
   type EntryPluginOptions,
+  type ExpoMetroRuntimePluginOptions,
+  type ExpoRouterPluginOptions,
   type ImportGlobPluginOptions,
   type ReactNativePluginOptions,
   type ReactRefreshFilter,
@@ -39,6 +42,8 @@ import {
   babel,
   devServer,
   entry,
+  expoMetroRuntime,
+  expoRouter,
   importGlob,
   reactNative,
   reporter,
@@ -197,6 +202,8 @@ export async function resolveRolldownOptions(
   );
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
+  const expoMetroRuntimePluginOptions = resolveExpoMetroRuntimePluginOptions(config);
+  const expoRouterPluginOptions = resolveExpoRouterPluginOptions(config);
 
   const inputOptions: rolldown.InputOptions = {
     ...rolldownInput,
@@ -221,6 +228,8 @@ export async function resolveRolldownOptions(
       devServer(devServerPluginOptions),
       reporter(reporterPluginOptions),
       analyze(analyzePluginOptions),
+      expoMetroRuntime(expoMetroRuntimePluginOptions),
+      expoRouter(expoRouterPluginOptions),
       userPlugins,
     ]),
     checks: {
@@ -486,6 +495,21 @@ function resolveAnalyzePluginOptions(
     analyzeFile: config.analyzer.analyzeFile,
     reportFile: config.analyzer.reportFile,
     autoOpen: config.analyzer.autoOpen,
+  };
+}
+
+function resolveExpoMetroRuntimePluginOptions(
+  _config: ResolvedConfig,
+): ExpoMetroRuntimePluginOptions {
+  return {
+    enabled: isExpoBundlerMode(),
+  };
+}
+
+function resolveExpoRouterPluginOptions(config: ResolvedConfig): ExpoRouterPluginOptions {
+  return {
+    enabled: isExpoBundlerMode(),
+    projectRoot: config.root,
   };
 }
 

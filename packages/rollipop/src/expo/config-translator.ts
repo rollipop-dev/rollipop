@@ -32,9 +32,7 @@ export interface ExpoConfigTranslationResult {
  * fields such as `assetExtensions` are unioned with the defaults by
  * `mergeConfig`).
  */
-export function translateExpoMetroConfig(
-  metroConfig: Record<string, any>,
-): Partial<Config> {
+export function translateExpoMetroConfig(metroConfig: Record<string, any>): Partial<Config> {
   const warnings: string[] = [];
   const resolve: Partial<ResolveConfig> = {};
 
@@ -96,9 +94,7 @@ export async function getExpoRolipopConfig(
   const warnings: string[] = [];
   const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
 
-  let getDefaultConfig:
-    | ((projectRoot: string, options?: Record<string, any>) => any)
-    | undefined;
+  let getDefaultConfig: ((projectRoot: string, options?: Record<string, any>) => any) | undefined;
   try {
     const resolved = projectRequire.resolve('@expo/metro-config');
     const mod = await import(resolved);

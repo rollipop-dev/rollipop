@@ -12,6 +12,18 @@ export const ROLLIPOP_VIRTUAL_BOOTSTRAP_ID = `${ROLLIPOP_VIRTUAL_PREFIX}bootstra
 export const ROLLIPOP_VIRTUAL_ENTRY_ID = `${ROLLIPOP_VIRTUAL_PREFIX}entry`;
 
 /**
+ * Expo compatibility virtual modules (only materialized when Rollipop runs as
+ * the Expo bundler, i.e. `EXPO_BUNDLER=rollipop`).
+ *
+ * - `expo-metro-runtime`: shim that stands in for `@expo/metro-runtime` so
+ *   Expo Router / error overlays keep working without Metro.
+ * - `expo-router-manifest`: the static route tree generated from `app/`,
+ *   consumed by Expo Router's `expo-router/entry`.
+ */
+export const ROLLIPOP_VIRTUAL_EXPO_METRO_RUNTIME_ID = `${ROLLIPOP_VIRTUAL_PREFIX}expo-metro-runtime`;
+export const ROLLIPOP_VIRTUAL_EXPO_ROUTER_MANIFEST_ID = `${ROLLIPOP_VIRTUAL_PREFIX}expo-router-manifest`;
+
+/**
  * @see {@link https://github.com/facebook/metro/blob/0.81.x/docs/Configuration.md#resolvermainfields}
  */
 export const DEFAULT_RESOLVER_MAIN_FIELDS = ['react-native', 'browser', 'main'];
