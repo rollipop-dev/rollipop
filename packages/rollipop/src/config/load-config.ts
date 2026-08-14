@@ -5,6 +5,7 @@ import { invariant, omit } from 'es-toolkit';
 
 import { createPluginContext } from '../core/plugins/context';
 import type { Plugin, PluginConfig, ResolvedPluginConfig } from '../core/plugins/types';
+import { getExpoRolipopConfig, isExpoBundlerMode } from '../expo/config-translator';
 import { getDefaultConfig, type ResolvedConfig } from './defaults';
 import { DefineConfigContext } from './define-config';
 import { mergeConfig } from './merge-config';
@@ -25,6 +26,21 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
   const { cwd = process.cwd(), configFile, mode, context = {} } = options;
 
   const defaultConfig = await getDefaultConfig(cwd, mode);
+
+  // Expo compatibility mode: when `@expo/cli` requests Rollipop (via
+  // `EXPO_BUNDLER=rollipop`), translate the project's `@expo/metro-config`
+  // output onto the default config so aliases / asset extensions line up with
+  // what Expo Router and Metro-based tooling expect.
+  if (isExpoBundlerMode()) {
+    const { rollipopConfig, warnings } = await getExpoRolipopConfig(cwd);
+    for (const warning of warnings) {
+      // eslint-disable-next-line no-console
+      console.warn(`[rollipop:expo] ${warning}`);
+    }
+    const merged = mergeConfig(defaultConfig, rollipopConfig as Parameters<typeof mergeConfig>[1]);
+    Object.assign(defaultConfig, merged);
+  }
+
   const commonOptions: c12.LoadConfigOptions = {
     context: { ...context, defaultConfig },
     rcFile: false,
