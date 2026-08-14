@@ -93,6 +93,13 @@ export default defineConfig({
       dts: true,
     },
     {
+      ...commonPackConfig,
+      entry: 'src/expo/runtime-shim.ts',
+      format: ['esm'],
+      platform: 'neutral',
+      dts: false,
+    },
+    {
       ...runtimePackConfig,
       entry: 'src/runtime.ts',
       format: ['esm'],

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type * as rolldown from '@rollipop/rolldown';
 import type { TransformOptions as RollipopTransformOptions } from '@rollipop/rolldown/utils';
@@ -30,7 +31,6 @@ import {
   type BabelPluginOptions,
   type DevServerPluginOptions,
   type EntryPluginOptions,
-  type ExpoMetroRuntimePluginOptions,
   type ExpoRouterPluginOptions,
   type ExpoAssetInteropPluginOptions,
   type ImportGlobPluginOptions,
@@ -43,7 +43,6 @@ import {
   babel,
   devServer,
   entry,
-  expoMetroRuntime,
   expoRouter,
   expoAssetInterop,
   importGlob,
@@ -151,6 +150,22 @@ export async function resolveRolldownOptions(
   const userPlugins = config.plugins;
   const { rolldownAlias, aliasPluginOptions } = resolveAliasPluginOptions(config);
 
+  // In Expo mode, redirect `@expo/metro-runtime` (and subpaths) to Rollipop's
+  // Rollipop-compatible shim. This MUST be a core `resolve.alias` entry (not a
+  // plugin `resolveId` hook) because rolldown's dev engine (`rolldown.dev()`,
+  // used by `rollipop start`) does not invoke user `resolveId` hooks for
+  // external `node_modules` specifiers, whereas the core resolver honors
+  // `resolve.alias` in both `build` and `dev` modes. The shim is a real,
+  // resolvable module file (`runtime-shim.js`, the type-checked reference
+  // implementation) so the native resolver can load it in either mode.
+  const expoMetroRuntimeShimPath = fileURLToPath(new URL('../runtime-shim.js', import.meta.url));
+  const expoAlias = isExpoBundlerMode()
+    ? {
+        '@expo/metro-runtime': expoMetroRuntimeShimPath,
+        '@expo/metro-runtime/': `${expoMetroRuntimeShimPath}/`,
+      }
+    : undefined;
+
   const mergedResolveOptions = merge(
     {
       extensions: getResolveExtensions({
@@ -162,7 +177,7 @@ export async function resolveRolldownOptions(
     } satisfies rolldown.InputOptions['resolve'],
     {
       ...rolldownResolve,
-      alias: rolldownAlias,
+      alias: merge(rolldownAlias ?? {}, expoAlias ?? {}),
     },
   );
 
@@ -209,7 +224,6 @@ export async function resolveRolldownOptions(
   );
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
-  const expoMetroRuntimePluginOptions = resolveExpoMetroRuntimePluginOptions(config);
   const expoRouterPluginOptions = resolveExpoRouterPluginOptions(config);
   const expoAssetInteropPluginOptions = resolveExpoAssetInteropPluginOptions();
 
@@ -239,7 +253,6 @@ export async function resolveRolldownOptions(
       devServer(devServerPluginOptions),
       reporter(reporterPluginOptions),
       analyze(analyzePluginOptions),
-      expoMetroRuntime(expoMetroRuntimePluginOptions),
       expoRouter(expoRouterPluginOptions),
       expoAssetInterop(expoAssetInteropPluginOptions),
       userPlugins,
@@ -507,14 +520,6 @@ function resolveAnalyzePluginOptions(
     analyzeFile: config.analyzer.analyzeFile,
     reportFile: config.analyzer.reportFile,
     autoOpen: config.analyzer.autoOpen,
-  };
-}
-
-function resolveExpoMetroRuntimePluginOptions(
-  _config: ResolvedConfig,
-): ExpoMetroRuntimePluginOptions {
-  return {
-    enabled: isExpoBundlerMode(),
   };
 }
 
