@@ -80,6 +80,50 @@ const plugin = fp<ServeBundlePluginOptions>(
         } else {
           this.log.debug(`client is not support multipart/mixed content: ${accept ?? '<empty>'}`);
           const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
+          if (!bundle || typeof bundle.code !== 'string') {
+            return;
+          }
+          const code = bundle.code;
+          await reply
+            .header('Content-Type', 'application/javascript')
+            .header('Content-Length', Buffer.byteLength(code))
+            .status(200)
+            .send(code);
+        }
+      },
+    });
+
+    // Metro-compatibility alias: Expo Dev Client (and `expo start` consumers)
+    // request the bundle at `/.expo/.virtual-metro-entry.bundle`. Serve the same
+    // bundle as `/index.bundle` so Dev Client launches work without Metro.
+    fastify.get<{ Querystring: BundleRequestSchema }>('/.expo/.virtual-metro-entry.bundle', {
+      schema: {
+        querystring: bundleRequestSchema,
+      },
+      async handler(request, reply) {
+        const { query, headers } = request;
+        const buildOptions = getBundleOptions(query);
+        const bundler = context.bundlerPool.get('index', buildOptions);
+        const isSupportMultipart = headers.accept?.includes('multipart/mixed') ?? false;
+
+        if (isSupportMultipart) {
+          const bundleResponse = new BundleResponse(reply);
+          const unsubscribe = context.eventBus.subscribe((event) => {
+            if (isEventForBundler(event, bundler.id) && event.type === 'transform') {
+              bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
+            }
+          });
+          await bundler
+            .getBundle()
+            .then((bundle) => bundleResponse.endWithBundle(bundle.code))
+            .catch((error) => bundleResponse.endWithError(error))
+            .finally(unsubscribe);
+        } else {
+          this.log.debug(`client is not support multipart/mixed content: ${headers.accept ?? '<empty>'}`);
+          const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
+          if (!bundle || typeof bundle.code !== 'string') {
+            return;
+          }
           const code = bundle.code;
           await reply
             .header('Content-Type', 'application/javascript')

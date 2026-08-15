@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { isDebugEnabled } from '../common/env';
 import { stripFlowTypes } from '../common/transformer';
@@ -44,7 +45,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
   const defaultConfig = {
     root: projectRoot,
     mode: mode ?? 'development',
-    entry: 'index.js',
+    entry: path.resolve(projectRoot, 'index.js'),
     resolve: {
       sourceExtensions: DEFAULT_SOURCE_EXTENSIONS,
       assetExtensions: DEFAULT_ASSET_EXTENSIONS,
@@ -62,7 +63,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
         },
       },
     },
-    prelude: [getInitializeCorePath(projectRoot)] as string[],
+    prelude: [path.join(reactNativePath, 'Libraries/Core/InitializeCore.js')] as string[],
     polyfills: (await Promise.all(
       getPolyfillScriptPaths(reactNativePath).map(async (path) => {
         const code = fs.readFileSync(path, 'utf-8');

@@ -36,13 +36,28 @@ function entryPlugin(options: EntryPluginOptions): rolldown.Plugin[] {
     .map((modulePath) => `import ${JSON.stringify(modulePath)};`)
     .join('\n');
 
+  // Absolute paths (project entry + react-native prelude) cannot be resolved by
+  // Rolldown's default resolver when emitted from a *virtual* entry module, because
+  // the virtual module has no filesystem location to anchor node_modules/relative
+  // resolution. Intercept them here and treat them as already-resolved file paths.
+  const resolvedModulePaths = new Set([entryPath, ...preludePaths]);
+
   const entryPlugin: rolldown.Plugin = {
     name: 'rollipop:entry',
-    resolveId: {
-      filter: VIRTUAL_ENTRY_FILTER,
-      handler() {
-        return ROLLIPOP_VIRTUAL_ENTRY_ID;
-      },
+    resolveId(source) {
+      // The virtual entry id resolves to itself.
+      if (source === ROLLIPOP_VIRTUAL_ENTRY_ID) {
+        return { id: ROLLIPOP_VIRTUAL_ENTRY_ID };
+      }
+      // Absolute paths (project entry + react-native prelude) emitted into the
+      // virtual entry cannot be resolved by Rolldown's default resolver (no
+      // filesystem location to anchor from). Treat them as already-resolved file
+      // imports. This hook must stay UNFILTERED so it runs for these imports
+      // (filtered resolveId hooks are skipped for arbitrary module ids).
+      if (resolvedModulePaths.has(source)) {
+        return { id: source };
+      }
+      return null;
     },
     load: {
       filter: VIRTUAL_ENTRY_FILTER,

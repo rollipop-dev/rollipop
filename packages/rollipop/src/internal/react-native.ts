@@ -4,8 +4,13 @@ import { isNotNil } from 'es-toolkit';
 
 import { asLiteral } from '../common/code';
 
-export function getInitializeCorePath(basePath: string) {
-  return require.resolve('react-native/Libraries/Core/InitializeCore', { paths: [basePath] });
+export function getInitializeCorePath(_basePath: string) {
+  // Emit the bare specifier so rollipop's resolver can locate react-native's
+  // InitializeCore the same way it resolves every other `react-native/*` import
+  // (including inside pnpm's nested .pnpm layout). Returning an absolute path
+  // from `require.resolve` breaks dev-server on-demand bundling, where the
+  // resolver cannot follow the pnpm-nested absolute path.
+  return 'react-native/Libraries/Core/InitializeCore';
 }
 
 export function getPolyfillScriptPaths(reactNativePath: string) {

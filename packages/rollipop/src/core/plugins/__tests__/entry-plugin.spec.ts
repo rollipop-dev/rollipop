@@ -37,19 +37,22 @@ describe('entry plugin', () => {
 
   it('filters resolve to the virtual entry id', () => {
     const entryPath = path.join('/project', 'index.js');
+    const preludePath = path.join('/project', 'prelude.js');
     const plugin = entry({
       id: BUNDLER_ID,
       entryPath,
-      preludePaths: [path.join('/project', 'prelude.js')],
+      preludePaths: [preludePath],
     })[0]!;
-    const resolveId = plugin.resolveId as {
-      filter: Filter;
-      handler: (source: string) => string | undefined;
-    };
+    const resolveId = plugin.resolveId as (source: string) => { id: string } | null;
 
-    expect(interpreter(resolveId.filter, undefined, ROLLIPOP_VIRTUAL_ENTRY_ID)).toBe(true);
-    expect(interpreter(resolveId.filter, undefined, entryPath)).toBe(false);
-    expect(resolveId.handler(ROLLIPOP_VIRTUAL_ENTRY_ID)).toBe(ROLLIPOP_VIRTUAL_ENTRY_ID);
+    // The virtual entry id resolves to itself.
+    expect(resolveId(ROLLIPOP_VIRTUAL_ENTRY_ID)).toEqual({ id: ROLLIPOP_VIRTUAL_ENTRY_ID });
+    // Absolute entry/prelude paths (emitted into the virtual entry) resolve to
+    // themselves so the default resolver doesn't choke on them.
+    expect(resolveId(entryPath)).toEqual({ id: entryPath });
+    expect(resolveId(preludePath)).toEqual({ id: preludePath });
+    // Unrelated ids are not intercepted.
+    expect(resolveId('/some/other/module.js')).toBeNull();
   });
 
   it('loads a virtual entry that imports prelude modules before the app entry', () => {
