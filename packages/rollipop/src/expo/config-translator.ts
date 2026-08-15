@@ -95,8 +95,35 @@ export async function getExpoRolipopConfig(
   const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
 
   let getDefaultConfig: ((projectRoot: string, options?: Record<string, any>) => any) | undefined;
+  let resolved: string | undefined;
   try {
-    const resolved = projectRequire.resolve('@expo/metro-config');
+    resolved = projectRequire.resolve('@expo/metro-config');
+  } catch {
+    // `@expo/metro-config` may not be hoisted into the consuming app's
+    // node_modules (e.g. pnpm strict mode). Prefer an explicit path supplied
+    // by the Expo CLI (which passes the resolved location of its own
+    // `@expo/metro-config` dependency), then fall back to Rollipop's own
+    // location, so Expo compatibility works without a symlink in the app.
+    const fromEnv = process.env.ROLLIPOP_EXPO_METRO_CONFIG;
+    if (fromEnv) {
+      resolved = fromEnv;
+    } else {
+      try {
+        const selfRequire = createRequire(import.meta.url);
+        resolved = selfRequire.resolve('@expo/metro-config');
+      } catch {
+        resolved = undefined;
+      }
+    }
+  }
+  if (!resolved) {
+    return {
+      metroConfig: null,
+      rollipopConfig: {},
+      warnings: ['@expo/metro-config is not resolvable from the project root.'],
+    };
+  }
+  try {
     const mod = await import(resolved);
     getDefaultConfig = mod.getDefaultConfig ?? mod.default?.getDefaultConfig;
   } catch {
