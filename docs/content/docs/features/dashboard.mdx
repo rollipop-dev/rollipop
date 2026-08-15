@@ -27,6 +27,12 @@ http://localhost:8081/dashboard
 - **Build Logs**: Inspect build logs by bundler instance and filter by log level
 - **Actions**: Reload connected clients, reset the transform cache, and reset development server state
 
+## Devframe Integration
+
+The dashboard uses a [Devframe](https://devfra.me/) scope mounted at `/__rollipop/` as its control plane. The browser discovers the connection from Devframe, receives live dashboard state through shared state, and performs queries and actions through RPC.
+
+Devframe also exposes the Rollipop MCP server from the same integration. Dashboard and agent tools therefore operate on the same development-server state and actions.
+
 ## Bundle Analysis
 
 The Analyze tab depends on the analyzer configuration and generated report files. See [Bundle Analysis](/docs/features/analyze) for setup and options.

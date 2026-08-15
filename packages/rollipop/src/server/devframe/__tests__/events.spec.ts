@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vite-plus/test';
 
 import type { ReportableEvent } from '../../../types';
 import type { WebSocketClient } from '../../wss/server';
-import { toSSEClientLogEvent, toSSEEvent } from '../adapter';
+import { toDevframeEvent } from '../events';
 
-describe('toSSEEvent', () => {
+describe('Devframe events', () => {
   const bundlerId = 'ios-true';
 
   it('should convert bundle_build_started with bundlerId', () => {
     const event: ReportableEvent = { type: 'bundle_build_started', bundlerId };
 
-    expect(toSSEEvent(event)).toEqual({
+    expect(toDevframeEvent(event)).toEqual({
       type: 'bundle_build_started',
       bundlerId: 'ios-true',
     });
@@ -27,7 +27,7 @@ describe('toSSEEvent', () => {
       bundleFilePath: '/tmp/.rollipop/bundles/ios-true.bundle',
     };
 
-    expect(toSSEEvent(event)).toEqual({
+    expect(toDevframeEvent(event)).toEqual({
       type: 'bundle_build_done',
       bundlerId: 'ios-true',
       totalModules: 100,
@@ -45,7 +45,7 @@ describe('toSSEEvent', () => {
       error: new Error('SyntaxError: Unexpected token'),
     };
 
-    expect(toSSEEvent(event)).toEqual({
+    expect(toDevframeEvent(event)).toEqual({
       type: 'bundle_build_failed',
       bundlerId: 'ios-true',
       error: 'SyntaxError: Unexpected token',
@@ -59,7 +59,7 @@ describe('toSSEEvent', () => {
       error: new Error('SyntaxError: Unexpected token'),
     };
 
-    expect(toSSEEvent(event)).toEqual({
+    expect(toDevframeEvent(event)).toEqual({
       type: 'hmr_failed',
       bundlerId: 'ios-true',
       error: 'SyntaxError: Unexpected token',
@@ -75,7 +75,7 @@ describe('toSSEEvent', () => {
       transformedModules: 50,
     };
 
-    expect(toSSEEvent(event)).toBeNull();
+    expect(toDevframeEvent(event)).toBeNull();
   });
 
   it('should convert watch_change with bundlerId and rename fields', () => {
@@ -85,39 +85,35 @@ describe('toSSEEvent', () => {
       id: 'src/App.tsx',
     };
 
-    expect(toSSEEvent(event)).toEqual({
+    expect(toDevframeEvent(event)).toEqual({
       type: 'watch_change',
       bundlerId: 'ios-true',
       file: 'src/App.tsx',
     });
   });
 
-  it('should exclude client_log from build events and convert it for the client log stream', () => {
+  it('should exclude client logs', () => {
     const event: ReportableEvent = {
       type: 'client_log',
       level: 'error',
       data: ['Something went wrong'],
     };
 
-    expect(toSSEEvent(event)).toBeNull();
-    expect(toSSEClientLogEvent(event)).toEqual({
-      type: 'client_log',
-      data: ['Something went wrong'],
-    });
+    expect(toDevframeEvent(event)).toBeNull();
   });
 
   it('should pass through non-reporter server events', () => {
-    expect(toSSEEvent({ type: 'cache_reset' })).toEqual({ type: 'cache_reset' });
+    expect(toDevframeEvent({ type: 'cache_reset' })).toEqual({ type: 'cache_reset' });
   });
 
   it('should convert HMR client lifecycle events', () => {
     const client = { id: 1 } as WebSocketClient;
 
-    expect(toSSEEvent({ type: 'client_connected', client })).toEqual({
+    expect(toDevframeEvent({ type: 'client_connected', client })).toEqual({
       type: 'client_connected',
       clientId: 1,
     });
-    expect(toSSEEvent({ type: 'client_disconnected', client })).toEqual({
+    expect(toDevframeEvent({ type: 'client_disconnected', client })).toEqual({
       type: 'client_disconnected',
       clientId: 1,
     });

@@ -33,8 +33,8 @@ For local project work, start with the bundled agent guidance:
 rollipop agent
 ```
 
-`rollipop agent` prints the recommended diagnostics workflow, including SSE endpoints, MCP setup,
-external debugging integrations, and how to inspect build events.
+`rollipop agent` prints the recommended Devframe MCP workflow, external debugging integrations,
+and guidance for inspecting build events.
 
 Rollipop also ships bundled Markdown skills for common agent tasks:
 
@@ -47,19 +47,14 @@ rollipop skills get <name>
 Start with `rollipop skills get core`, then switch to a narrower skill such as `dev-server`,
 `debugging`, `configuration`, `build`, `migration`, or `plugins` when the task calls for it.
 
-When an agent needs structured diagnostics, run the dev server with MCP enabled:
+When an agent needs structured diagnostics, start the dev server. The Devframe MCP endpoint is available automatically:
 
 ```bash
-rollipop start --mcp --reset-cache
+rollipop start --reset-cache
 ```
 
-The default endpoints are:
-
-- SSE events: `http://localhost:8081/sse/events`
-- SSE client logs: `http://localhost:8081/sse/client-logs`
-- MCP server: `http://localhost:8081/mcp`
-
-Adjust the URLs when using custom `--host`, `--port`, or `--https` options.
+The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Adjust the URL and
+`Origin` header when using custom `--host`, `--port`, or `--https` options.
 
 </details>
 
