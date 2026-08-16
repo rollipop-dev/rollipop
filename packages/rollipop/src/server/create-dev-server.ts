@@ -22,6 +22,7 @@ import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
 import { errorHandler } from './error';
 import { DevServerLogger, logger } from './logger';
 import { dashboard } from './middlewares/dashboard';
+import { expoManifest } from './middlewares/expo-manifest';
 import { requestLogger } from './middlewares/request-logger';
 import { serveAssets } from './middlewares/serve-assets';
 import { serveBundle } from './middlewares/serve-bundle';
@@ -142,6 +143,7 @@ export async function createDevServer(
     .register(symbolicate, { context })
     .register(serveBundle, { context })
     .register(serveAssets, { context })
+    .register(expoManifest, { context })
     .register(rest, { context })
     .register(sse, { context });
 
