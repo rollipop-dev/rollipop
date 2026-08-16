@@ -2,13 +2,23 @@ import type * as rolldown from '@rollipop/rolldown';
 import { id, include } from '@rollipop/rolldown/filter';
 
 /**
- * Match `expo-asset`'s `resolveAssetSource` modules (native + base). These ship
- * raw JSX-free ESM that re-exports from React Native's CJS `resolveAssetSource`.
+ * Match `expo-asset`'s `resolveAssetSource` modules (native + base) ONLY.
+ *
+ * IMPORTANT: this must NOT match React Native's own
+ * `react-native/Libraries/Image/resolveAssetSource.js`. That module is handled
+ * separately by `rollipop:resolve-asset-source-interop`, which rewrites its
+ * self-referential default export. If this filter also matched RN's copy, the
+ * replacement below would `import resolveAssetSource from
+ * 'react-native/Libraries/Image/resolveAssetSource'` — i.e. the module would
+ * import itself — re-introducing the exact self-referential default interop bug
+ * (the module body gets dropped and `Image` crashes).
+ *
  * Use a trailing-anchor RegExp (not `exactRegex`, which anchors both ends) so
- * the variable pnpm store path prefix is ignored.
+ * the variable pnpm store path prefix is ignored, but anchor on `expo-asset`
+ * so React Native's copy is excluded.
  */
 const RESOLVE_ASSET_SOURCE_FILTER = [
-  include(id(new RegExp('resolveAssetSource(\\.native)?\\.js$'))),
+  include(id(new RegExp('expo-asset/build/resolveAssetSource(\\.native)?\\.js$'))),
 ];
 
 export interface ExpoAssetInteropPluginOptions {

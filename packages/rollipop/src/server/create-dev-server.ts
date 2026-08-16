@@ -51,7 +51,7 @@ export async function createDevServer(
   const emitter = mitt<DevServerEvents>();
   const fastify = Fastify({
     loggerInstance: new DevServerLogger(),
-    logController: new LogController({ disableRequestLogging: true }),
+    logController: new LogController({ disableRequestLogging: false }),
   });
 
   const eventBus = new EventBus();

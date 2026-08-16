@@ -49,6 +49,7 @@ import {
   reactNative,
   reporter,
   swc,
+  selfRefDefaultInteropPlugin,
   DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
   DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
 } from './plugins';
@@ -188,6 +189,16 @@ export async function resolveRolldownOptions(
       ...(hmrEnabled ? null : { 'import.meta.hot': 'undefined' }),
       ...defineEnvFromObject(env),
       ...defineEnvFromObject(builtInEnv),
+      // Hermes (React Native) cannot parse `import.meta` syntax at all. Statically
+      // replace bare `import.meta` / `import.meta.env` member access with empty
+      // objects so the dev runtime shim parses on-device. More specific keys
+      // (e.g. `import.meta.env.BASE_URL`) above still resolve to their literals.
+      'import.meta': '({})',
+      'import.meta.env': '({})',
+      // Expo Router reads the route root from process.env.EXPO_ROUTER_APP_ROOT
+      // (Metro replaces this at build time). Without it, `require.context`
+      // receives `undefined` and discovers no routes, leaving a blank screen.
+      'process.env.EXPO_ROUTER_APP_ROOT': asLiteral(path.join(config.root, 'app')),
     },
     helpers: {
       mode: 'Runtime',
@@ -248,6 +259,7 @@ export async function resolveRolldownOptions(
       expoMetroRuntimePlugin(),
       expoRouter(expoRouterPluginOptions),
       expoAssetInterop(expoAssetInteropPluginOptions),
+      selfRefDefaultInteropPlugin(),
       userPlugins,
     ]),
     checks: {
@@ -348,11 +360,40 @@ function resolveAliasPluginOptions(config: ResolvedConfig): {
 } {
   const { alias } = config.resolve;
 
+  // Deduplicate `react` to a single module instance across the whole graph.
+  // React's package splits into several subpath entry files (`react`,
+  // `react/jsx-runtime`, `react/jsx-dev-runtime`, plus dev/prod CJS variants)
+  // that each define their own `ReactSharedInternals` (the hook dispatcher
+  // host). Without dedupe, rollipop bundles each as a separate module, so
+  // react-native's renderer sets the dispatcher on one instance while app
+  // components read another (null) -> "Invalid hook call" / "Cannot read
+  // property 'use' of null". Metro resolves every `react*` specifier to the
+  // same package instance; we mirror that here by aliasing `react` and its
+  // subpaths to the resolved project `react` package, which also catches the
+  // symlinked `expo` fork's nested `react` copy (a separate pnpm store) that
+  // would otherwise be a distinct instance and break hooks at runtime.
+  const reactRoot = path.dirname(resolveFrom(config.root, 'react'));
+  const reactNativeRoot = path.dirname(resolveFrom(config.root, 'react-native'));
+
+  const reactDedupeAlias: Record<string, string> = {
+    react: `${reactRoot}/index.js`,
+    'react/jsx-runtime': `${reactRoot}/jsx-runtime.js`,
+    'react/jsx-dev-runtime': `${reactRoot}/jsx-dev-runtime.js`,
+    'react-native': `${reactNativeRoot}/index.js`,
+  };
+
   if (Array.isArray(alias)) {
-    return { rolldownAlias: undefined, aliasPluginOptions: { entries: alias } };
+    // Unlikely (config typed as object), but keep previous behaviour.
+    return {
+      rolldownAlias: [...alias, ...Object.entries(reactDedupeAlias).map(([find, replacement]) => ({ find, replacement }))],
+      aliasPluginOptions: { entries: [] },
+    };
   }
 
-  return { rolldownAlias: alias, aliasPluginOptions: { entries: [] } };
+  return {
+    rolldownAlias: { ...(alias ?? {}), ...reactDedupeAlias },
+    aliasPluginOptions: { entries: [] },
+  };
 }
 
 async function resolveReactNativePluginOptions(
@@ -695,6 +736,12 @@ export function getOverrideOptionsForDevServer(
   const overrideOptions = getOverrideOptions();
 
   const input: rolldown.InputOptions = {
+    // Disable code splitting for the dev server so the entire module graph is
+    // inlined into a single `index.bundle` (matching Metro's single-artifact
+    // dev bundle). Without this, rollipop's dev engine emits a split graph with
+    // external modules loaded lazily via `require.e`, which requires a dev-client
+    // chunk bridge that the Expo dev client does not provide — causing
+    // "External module ... is not available" at runtime.
     transform: {
       jsx: {
         development: buildOptions.dev,
@@ -722,6 +769,16 @@ export function getOverrideOptionsForDevServer(
   const output: rolldown.OutputOptions = {
     minify: buildOptions.minify ?? false,
     sourcemap: buildOptions.sourcemap ?? true,
+    // Inline all modules (including dynamic/external imports) into a single
+    // `index.bundle`, matching Metro's single-artifact dev bundle. Without this,
+    // rollipop externalizes modules and emits `require.e(id)` calls that require a
+    // dev-client chunk bridge (absent in the Expo dev client), leaving those
+    // modules undefined at runtime.
+    inlineDynamicImports: true,
+    // Disable code splitting so the entire module graph is inlined into a single
+    // `index.bundle` (see the dev-server input rationale above). `codeSplitting`
+    // is an output-level option in Rolldown.
+    codeSplitting: false,
     generatedCode: {
       symbols: buildOptions.dev,
       profilerNames: buildOptions.dev,

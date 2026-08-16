@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -100,7 +100,7 @@ describe('generateExpoRouterManifest', () => {
       'index.tsx': 'export default function Home() {}',
     });
     const manifest = generateExpoRouterManifest(appDir);
-    const code = serializeExpoRouterManifestCode(manifest);
+    const code = serializeExpoRouterManifestCode(manifest, dirname(appDir));
     expect(code).toContain('export const __expoRouterManifest');
     expect(code).toContain('export const initialRouteName');
     expect(code).toContain('export default __expoRouterManifest');

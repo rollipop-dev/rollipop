@@ -31,7 +31,7 @@ function expoRouterPlugin(options: ExpoRouterPluginOptions): rolldown.Plugin | n
   }
 
   const appDir = options.appDir ?? path.join(options.projectRoot, 'app');
-  const manifest = generateExpoRouterManifest(appDir);
+  const manifest = generateExpoRouterManifest(appDir, options.projectRoot);
 
   return {
     name: 'rollipop:expo-router',
@@ -49,7 +49,7 @@ function expoRouterPlugin(options: ExpoRouterPluginOptions): rolldown.Plugin | n
       handler(resolvedId) {
         if (resolvedId === ROLLIPOP_VIRTUAL_EXPO_ROUTER_MANIFEST_ID) {
           return {
-            code: serializeExpoRouterManifestCode(manifest),
+            code: serializeExpoRouterManifestCode(manifest, options.projectRoot),
             moduleType: 'js',
           };
         }

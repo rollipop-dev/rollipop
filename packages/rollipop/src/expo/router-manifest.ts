@@ -202,8 +202,16 @@ function isScreenFile(name: string): boolean {
  * Returns an empty manifest with `initialRouteName: ''` when the directory does
  * not exist or contains no screens (non-Expo-Router projects).
  */
-export function generateExpoRouterManifest(appDir: string): ExpoRouterManifest {
+export function generateExpoRouterManifest(
+  appDir: string,
+  projectRoot: string = path.dirname(appDir),
+): ExpoRouterManifest {
   const routes: RouteNode[] = [];
+  // Normalize a screen file path to the module id form used by the bundler
+  // (relative to the project root, e.g. "app/index.tsx"). Rollipop registers
+  // route screens under that id, so the manifest must reference them the same
+  // way or expo-router's getRoutes() cannot resolve the screen modules.
+  const toModuleId = (file: string) => path.relative(projectRoot, file).split(path.sep).join('/');
 
   if (!existsSyncSafe(appDir)) {
     return { routes, initialRouteName: '' };
@@ -215,16 +223,18 @@ export function generateExpoRouterManifest(appDir: string): ExpoRouterManifest {
     if (!isDirectory(entryPath)) {
       if (isScreenFile(entry)) {
         const node = buildNodeFromFile(entryPath, entry, appDir);
-        if (node) routes.push(node);
+        if (node) { node.file = toModuleId(node.file); routes.push(node); }
       }
       continue;
     }
     if (isGroup(entry)) {
-      routes.push(...buildGroup(appDir, entry));
+      const groupNodes = buildGroup(appDir, entry);
+      for (const n of groupNodes) normalizeNode(n, projectRoot);
+      routes.push(...groupNodes);
       continue;
     }
     const node = buildNode(appDir, entry);
-    if (node) routes.push(node);
+    if (node) { normalizeNode(node, projectRoot); routes.push(node); }
   }
 
   return {
@@ -233,11 +243,53 @@ export function generateExpoRouterManifest(appDir: string): ExpoRouterManifest {
   };
 }
 
-/** Serialize the manifest into the ESM source for the virtual module. */
-export function serializeExpoRouterManifestCode(manifest: ExpoRouterManifest): string {
+/** Recursively rewrite a node's `file` (and its children's) to the module-id
+ *  form relative to the project root (e.g. "app/index.tsx"). */
+function normalizeNode(node: RouteNode, projectRoot: string): void {
+  if (node.file) node.file = path.relative(projectRoot, node.file).split(path.sep).join('/');
+  for (const child of node.children) normalizeNode(child, projectRoot);
+}
+
+/** Serialize the manifest into the ESM source for the virtual module.
+ *  Also emits `require()` calls for every screen module (resolved by absolute
+ *  path, which the static bundler can follow) so the route screens are actually
+ *  bundled. Metro discovers them via `require.context` over `app/`; here we
+ *  pull them in explicitly. The JSON manifest keeps `file` paths relative to
+ *  the project root (e.g. "app/index.tsx") so expo-router's getRoutes() resolves
+ *  them against the bundled module ids. */
+export function serializeExpoRouterManifestCode(
+  manifest: ExpoRouterManifest,
+  projectRoot: string,
+): string {
+  const screenFiles = collectScreenFiles(manifest.routes);
+  const requires = screenFiles
+    .map((file) => `require(${JSON.stringify(path.join(projectRoot, file))});`)
+    .join('\n');
   return [
+    requires,
     `export const __expoRouterManifest = ${JSON.stringify(manifest.routes, null, 2)};`,
     `export const initialRouteName = ${JSON.stringify(manifest.initialRouteName)};`,
     `export default __expoRouterManifest;`,
   ].join('\n');
+}
+
+/** Collect every screen module path in the route tree (deduplicated).
+ *  Only real screen files (with a screen extension) are included — directory
+ *  nodes expose their `file` as the directory path, which is not requireable. */
+function collectScreenFiles(routes: RouteNode[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const visit = (node: RouteNode) => {
+    if (
+      node.file &&
+      /\.(tsx|ts|jsx|js)$/.test(node.file) &&
+      !seen.has(node.file)
+    ) {
+      seen.add(node.file);
+      out.push(node.file);
+    }
+    for (const child of node.children) visit(child);
+  };
+  for (const route of routes) visit(route);
+  return out;
 }

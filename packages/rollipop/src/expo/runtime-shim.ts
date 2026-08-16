@@ -19,7 +19,44 @@
  * existing imports in the Expo dependency tree keep working unchanged.
  */
 
+import React from 'react';
+
 const noop = (): void => {};
+
+export function withErrorOverlay<P extends object>(
+  Component: React.ComponentType<P>,
+): React.ComponentType<P> {
+  // `@expo/metro-runtime/error-overlay` exports `withErrorOverlay`, which wraps
+  // the root component in an error boundary that renders the dev error overlay.
+  // Rollipop ships its own LogBox-based overlay, so we still surface render
+  // errors but delegate the visual presentation to React's error logging
+  // (LogBox picks them up). A minimal error boundary is used so a thrown render
+  // error is reported once instead of crashing the whole root silently.
+  const Boundary = class WithErrorOverlay extends React.Component<
+    P,
+    { error: Error | null }
+  > {
+    constructor(props: P) {
+      super(props);
+      this.state = { error: null };
+    }
+    static getDerivedStateFromError(error: Error) {
+      return { error };
+    }
+    componentDidCatch(error: Error) {
+      // Let LogBox/Rollipop's error reporting surface it.
+      console.error(error);
+    }
+    render() {
+      if (this.state.error) {
+        // Re-throw so React's error reporter (LogBox) displays a redbox.
+        throw this.state.error;
+      }
+      return React.createElement(Component, this.props as P);
+    }
+  };
+  return Boundary as unknown as React.ComponentType<P>;
+}
 
 export function createRuntimeError(message: string, stack?: string | null): Error {
   const error = new Error(message);
