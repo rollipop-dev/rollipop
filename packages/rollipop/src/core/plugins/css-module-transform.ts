@@ -27,6 +27,13 @@ import { ROLLDOWN_RUNTIME_EXCLUDE_FILTER } from './shared/filters';
 function cssModuleTransform(): rolldown.Plugin {
   const isModuleCss = (id: string) => /\.module\.css(\?.*)?$/.test(id);
   const isCss = (id: string) => /\.css(\?.*)?$/.test(id);
+  // Marker appended to the generated JS module id so the `transform` hook can
+  // tell a CSS file we already converted from a *raw* CSS file that needs
+  // converting. Without this discriminator the `transform` hook would re-run on
+  // our own JS output (which contains no `[.#]` selectors) and silently rewrite
+  // `export default { foo: 'foo' }` into `export default {}` — dropping the
+  // class-name map that React Native components import.
+  const CONVERTED_MARKER = '?rollipop-css-module';
 
   // Collect local class / id names from CSS source. We only care about
   // top-level `.foo` / `#foo` selectors; pseudo-classes and at-rules carry no
@@ -75,24 +82,37 @@ function cssModuleTransform(): rolldown.Plugin {
         // Read the file ourselves so we don't depend on rolldown having already
         // loaded it as CSS.
         const fs = await import('node:fs/promises');
+        let code = '';
         try {
-          const code = await fs.readFile(id, 'utf8');
-          return toJs(code, id);
+          code = await fs.readFile(id, 'utf8');
         } catch {
-          return toJs('', id);
+          code = '';
         }
+        const result = toJs(code, id);
+        // Rewrite the resolved id to carry the conversion marker and re-key the
+        // module as JS, so the downstream `transform` hook (which receives the
+        // same id) can see it is already converted and skip it. The marker is
+        // appended with a query string so the same file path resolves to the
+        // same unique module and the original `.css` id is preserved for
+        // debugging.
+        return {
+          ...result,
+          moduleType: 'js',
+          id: `${id}${CONVERTED_MARKER}`,
+        };
       },
     },
     transform: {
       // Don't run on the rolldown runtime internals.
       filter: [ROLLDOWN_RUNTIME_EXCLUDE_FILTER],
-      handler(code, id) {
-        // Guard: if a CSS file reaches here as a JS module, re-emit the interop
-        // form (covers cases where `load` was skipped, e.g. virtual modules).
-        if (!isCss(id)) {
-          return;
-        }
-        return toJs(code, id);
+      handler(_code, id) {
+        // Skip modules we already converted in `load` (carried marker) and
+        // anything that isn't a raw CSS file. This closes the double-transform
+        // bug where the generated JS (which has no selectors) was re-emitted as
+        // `export default {}`, destroying the class-name map.
+        if (id.includes(CONVERTED_MARKER)) return;
+        if (!isCss(id)) return;
+        return;
       },
     },
   };

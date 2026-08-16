@@ -1,7 +1,42 @@
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import type { Config, ResolveConfig } from '../config/types';
+
+/**
+ * Resolve the Expo Router app root (the `app/` directory Expo Router reads
+ * routes from) for a given project.
+ *
+ * Mirrors Expo's own `getRouterDirectory` convention:
+ *   1. `expo.extra.router.root` (if set in app.json / app.config) — supports
+ *      `src/app` and custom roots.
+ *   2. `src/app` if it exists (SDK 50+ default when a `src/` directory is used).
+ *   3. `app` otherwise (the classic default).
+ *
+ * Without this, `process.env.EXPO_ROUTER_APP_ROOT` (which Expo Router reads at
+ * module-eval time) and the route-manifest scanner would disagree on where the
+ * routes live, producing a blank screen for projects that use `src/app` or a
+ * custom root.
+ */
+export function getExpoRouterAppRoot(projectRoot: string): string {
+  const tryCustom = (): string | null => {
+    try {
+      const appConfigPath = path.join(projectRoot, 'app.json');
+      const raw = fs.readFileSync(appConfigPath, 'utf8');
+      const parsed = JSON.parse(raw) as { expo?: { extra?: { router?: { root?: string } } } };
+      const root = parsed.expo?.extra?.router?.root;
+      if (typeof root === 'string' && root.length > 0) {
+        return path.isAbsolute(root) ? path.relative(projectRoot, root) : root;
+      }
+    } catch {
+      // No app.json or unreadable — fall through to convention.
+    }
+    return null;
+  };
+
+  return tryCustom() ?? (fs.existsSync(path.join(projectRoot, 'src', 'app')) ? 'src/app' : 'app');
+}
 
 /**
  * The value of `process.env.EXPO_BUNDLER` that activates Rollipop's Expo

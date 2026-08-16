@@ -36,7 +36,7 @@ describe('generateExpoRouterManifest', () => {
     const routes = manifest.routes.map((r) => r.route).sort();
     expect(routes).toContain(''); // index -> ''
     expect(routes).toContain('about');
-    expect(manifest.initialRouteName).toBe('/');
+    expect(manifest.initialRouteName).toBe(''); // index route is the initial route
   });
 
   it('marks nodes with a layout via hasLayout', () => {

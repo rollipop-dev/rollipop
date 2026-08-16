@@ -12,7 +12,7 @@ import { applyRolldownOptionsConfig } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { CompatStatusReporter, ProgressBarStatusReporter } from '../events/builtin-reporters';
 import { createReporterEventListener } from '../events/consumers';
-import { isExpoBundlerMode } from '../expo/config-translator';
+import { getExpoRouterAppRoot, isExpoBundlerMode } from '../expo/config-translator';
 import { getGlobalVariables } from '../internal/react-native';
 import type { BuildDiagnosticLog, MaybePromise, Reporter } from '../types';
 import type { ResolvedBuildOptions } from '../utils/build-options';
@@ -204,7 +204,13 @@ export async function resolveRolldownOptions(
       // Expo Router reads the route root from process.env.EXPO_ROUTER_APP_ROOT
       // (Metro replaces this at build time). Without it, `require.context`
       // receives `undefined` and discovers no routes, leaving a blank screen.
-      'process.env.EXPO_ROUTER_APP_ROOT': asLiteral(path.join(config.root, 'app')),
+      // Resolve the real router root (honoring `exp.extra.router.root` and the
+      // `src/app` convention) so it matches where the Expo Router manifest
+      // plugin actually scans — otherwise projects using `src/app` or a custom
+      // root get a blank screen.
+      'process.env.EXPO_ROUTER_APP_ROOT': asLiteral(
+        path.join(config.root, getExpoRouterAppRoot(config.root)),
+      ),
     },
     helpers: {
       mode: 'Runtime',
@@ -603,6 +609,9 @@ function resolveExpoRouterPluginOptions(config: ResolvedConfig): ExpoRouterPlugi
   return {
     enabled: isExpoBundlerMode(),
     projectRoot: config.root,
+    // Must match the `process.env.EXPO_ROUTER_APP_ROOT` define above so the
+    // manifest scanner and the env contract agree on where routes live.
+    appDir: path.join(config.root, getExpoRouterAppRoot(config.root)),
   };
 }
 

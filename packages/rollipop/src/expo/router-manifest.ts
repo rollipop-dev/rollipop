@@ -243,9 +243,17 @@ export function generateExpoRouterManifest(
     }
   }
 
+  // The initial route name is the index route (`route === ''`, i.e. `index.tsx`)
+  // when present, otherwise the first top-level route. Returning `'/'` for a
+  // project whose first filesystem entry is a non-index screen (FS ordering is
+  // not guaranteed) would deep-link to a non-existent path, so we resolve it
+  // from the route tree itself rather than hardcoding `'/'`.
+  const indexRoute = routes.find((r) => r.route === '');
+  const initialRouteName = (indexRoute ?? routes[0])?.route ?? '';
+
   return {
     routes,
-    initialRouteName: routes.length > 0 ? '/' : '',
+    initialRouteName,
   };
 }
 

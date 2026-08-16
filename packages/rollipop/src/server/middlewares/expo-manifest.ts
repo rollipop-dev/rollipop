@@ -72,6 +72,13 @@ function buildManifest(context: DevServerContext, request: ManifestRequestLike) 
   const root = context.config.root ?? process.cwd();
   const appJson = readJsonSafe<{ expo?: Record<string, any> }>(path.join(root, 'app.json'));
   const pkgJson = readJsonSafe<Record<string, any>>(path.join(root, 'package.json'));
+
+  // Derive the Expo fields locally from `app.json` (the canonical source for
+  // `slug`/`name`/`sdkVersion`/`runtimeVersion` in a non-ejected Expo project)
+  // plus `package.json` as fallback. This avoids taking a hard dependency on
+  // `@expo/config` inside the Rollipop package, while still producing a real,
+  // per-project `id`/`scopeKey` instead of the hardcoded example values that
+  // would otherwise leak into every app and break OTA / expo-updates identity.
   const expo = appJson?.expo ?? {};
 
   const platform = parseRuntimePlatform(request);
@@ -93,11 +100,15 @@ function buildManifest(context: DevServerContext, request: ManifestRequestLike) 
     ...pkgJson?.devDependencies,
   };
 
-  const id = `@example/${expo.slug ?? expo.name ?? 'rollipop-expo-example'}`;
+  // Derive the app `id`/`scopeKey` from the real project config. Falls back to a
+  // stable, non-example default only when neither app.json nor package.json
+  // provide a name, so every app gets a correct, unique identity.
+  const appName = expo.name ?? pkgJson?.name ?? 'rollipop-expo-app';
+  const id = `@${appName.replace(/[^a-z0-9_-]/gi, '')}/${expo.slug ?? appName}`;
 
   return {
-    name: expo.name ?? pkgJson?.name ?? 'rollipop-expo-example',
-    slug: expo.slug ?? 'rollipop-expo-example',
+    name: appName,
+    slug: expo.slug ?? appName,
     version: expo.version ?? pkgJson?.version ?? '0.0.1',
     orientation: expo.orientation ?? 'default',
     platforms: expo.platforms ?? ['android', 'ios'],
@@ -122,7 +133,9 @@ function buildManifest(context: DevServerContext, request: ManifestRequestLike) 
     id,
     scopeKey: id,
     runtimeVersion: expo.runtimeVersion ?? { policy: 'appVersion' },
-    sdkVersion: expo.sdkVersion ?? '57.0.0',
+    // Reflect the project's real SDK version when set; otherwise omit rather
+    // than asserting a hardcoded `'57.0.0'` that could contradict the app.
+    ...(expo.sdkVersion ? { sdkVersion: expo.sdkVersion } : {}),
     hostUri: baseHost,
   };
 }

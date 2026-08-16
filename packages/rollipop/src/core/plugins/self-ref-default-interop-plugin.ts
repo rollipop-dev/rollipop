@@ -31,25 +31,31 @@ import { id, include } from '@rollipop/rolldown/filter';
  *
  *   function _resolveAssetSourceImpl(source) { ... }
  *   const resolveAssetSource = Object.assign(_resolveAssetSourceImpl, {
- *     pickScale, setCustomSourceTransformer, addCustomSourceTransformer,
+ *     pickScale,
+ *     setCustomSourceTransformer,
+ *     addCustomSourceTransformer,
  *   });
  *   export default resolveAssetSource;
  *
+ * This version is resilient to whitespace and to the *order* of the property
+ * mutations (it collects every `resolveAssetSource.<prop> = <prop>;` assignment
+ * rather than matching one exact block), so an RN bump that reorders or rewraps
+ * the assignments still produces a correct shim.
+ *
  * NOTE: this is a stop-gap at the Rollipop layer. The proper fix belongs in the
  * `@rollipop/rolldown` format plugin (the self-referential default interop).
- * TRACKED DEBT: when that is fixed, this plugin can be removed. If React Native
- * ever changes the shape of `resolveAssetSource.js` so the rewrite below no
- * longer matches, we emit a loud warning instead of silently no-op'ing — a
- * silent no-op would resurrect the dropped-body crash with no diagnosability.
+ * Until that is fixed, we keep this shim — but if the module shape drifts so far
+ * that neither the function nor `export default resolveAssetSource` is present,
+ * we emit a loud warning instead of silently no-op'ing (a silent no-op would
+ * resurrect the dropped-body crash with no diagnosability).
  */
 const RESOLVE_ASSET_SOURCE_FILTER = [include(id(new RegExp('resolveAssetSource\\.js$')))];
 
-// The exact block we rewrite: the three property mutations immediately followed
-// by the default export. Anchored with `\s*` so minor whitespace changes still
-// match, but a structural change (renamed prop, extra mutation, reordering) will
-// not — and we want that to be *visible*, hence the warning path below.
-const MUTATION_BLOCK_RE =
-  /resolveAssetSource\.pickScale = pickScale;\s*\n\s*resolveAssetSource\.setCustomSourceTransformer = setCustomSourceTransformer;\s*\n\s*resolveAssetSource\.addCustomSourceTransformer = addCustomSourceTransformer;\s*\n\s*export default resolveAssetSource;/;
+// A single `resolveAssetSource.<prop> = <prop>;` mutation, captured by prop name.
+// Tolerant of spacing/whitespace changes between the tokens.
+const MUTATION_LINE_RE = /resolveAssetSource\.(\w+)\s*=\s*(\w+)\s*;/g;
+// The exact default export line.
+const DEFAULT_EXPORT_RE = /export\s+default\s+resolveAssetSource\s*;/;
 
 function selfRefDefaultInteropPlugin(): rolldown.Plugin | null {
   return {
@@ -62,52 +68,74 @@ function selfRefDefaultInteropPlugin(): rolldown.Plugin | null {
           return null;
         }
 
-        // This is the RN resolveAssetSource module. If the expected mutation
-        // block is present, rewrite it. If it is NOT present, the module shape
-        // has drifted from what we understand — warn loudly rather than silently
-        // passing through, because a pass-through here means the self-ref bug
-        // (and the dropped-body crash) comes back with zero diagnosability.
-        if (!MUTATION_BLOCK_RE.test(code)) {
+        const hasFunction = /function\s+resolveAssetSource\s*\(/.test(code);
+        const defaultExportMatch = DEFAULT_EXPORT_RE.exec(code);
+
+        if (!hasFunction || !defaultExportMatch) {
           const warn = typeof this?.warn === 'function' ? this.warn.bind(this) : console.warn;
           warn(
-            '[rollipop:resolve-asset-source-interop] ' +
+            '[rollipop:resolve-asset-called] ' +
               'react-native/Libraries/Image/resolveAssetSource.js no longer matches the ' +
-              'expected "fn + prop mutations + export default" shape. The self-referential ' +
-              'default-export interop fix was NOT applied. This likely means React Native ' +
-              'changed the module; the Image component may crash at runtime. ' +
-              'Update this plugin or fix the @rollipop/rolldown format plugin.',
+              'expected "function + export default resolveAssetSource" shape. The ' +
+              'self-referential default-export interop fix was NOT applied. This likely ' +
+              'means React Native changed the module; the Image component may crash at ' +
+              'runtime. Update this plugin or fix the @rollipop/rolldown format plugin.',
           );
           return null;
         }
 
-        const renamed = code.replace(
-          /function resolveAssetSource\(/,
-          'function _resolveAssetSourceImpl(',
-        );
+        // Collect every `resolveAssetSource.<prop> = <prop>;` mutation and
+        // rewrite each target to `_resolveAssetSourceImpl.<prop>` so the
+        // property bindings attach to the private impl, not the exported const.
+        const props: string[] = [];
+        const rewrittenCode = code
+          // Rename the implementation function so the exported name is free.
+          .replace(/function\s+resolveAssetSource\s*\(/, 'function _resolveAssetSourceImpl(')
+          // Rewrite each mutation line to target the private impl.
+          .replace(MUTATION_LINE_RE, (_m, prop: string, value: string) => {
+            props.push(prop);
+            return `_resolveAssetSourceImpl.${prop} = ${value};`;
+          });
 
-        const rewritten = renamed.replace(
-          MUTATION_BLOCK_RE,
+        if (props.length === 0) {
+          const warn = typeof this?.warn === 'function' ? this.warn.bind(this) : console.warn;
+          warn(
+            '[rollipop:resolve-asset-source-interop] ' +
+              'matched resolveAssetSource but found no `resolveAssetSource.<prop> = <prop>` ' +
+              'mutations. The self-referential interop fix was NOT applied; the Image ' +
+              'component may crash at runtime. Update this plugin or fix the ' +
+              '@rollipop/rolldown format plugin.',
+          );
+          return null;
+        }
+
+        // Build the exported const from the collected props, then replace the
+        // default export with it. This breaks the self-reference: the exported
+        // `resolveAssetSource` is a fresh `Object.assign` result that is never
+        // mutated after being exported.
+        const shimDeclaration =
           'const resolveAssetSource = Object.assign(_resolveAssetSourceImpl, {\n' +
-            '  pickScale,\n' +
-            '  setCustomSourceTransformer,\n' +
-            '  addCustomSourceTransformer,\n' +
-            '});\n' +
-            'export default resolveAssetSource;',
+          props.map((prop) => `  ${prop},`).join('\n') +
+          '\n});\n';
+
+        const finalCode = rewrittenCode.replace(
+          DEFAULT_EXPORT_RE,
+          `${shimDeclaration}export default resolveAssetSource;`,
         );
 
         // Defensive: if the replace did not take effect, do not emit a broken
         // module — return the original and warn.
-        if (rewritten === renamed) {
+        if (finalCode === rewrittenCode) {
           const warn = typeof this?.warn === 'function' ? this.warn.bind(this) : console.warn;
           warn(
             '[rollipop:resolve-asset-source-interop] ' +
-              'matched the resolveAssetSource mutation block but the rewrite did not apply. ' +
+              'matched the resolveAssetSource shape but the rewrite did not apply. ' +
               'Skipping the transform to avoid emitting a broken module.',
           );
           return null;
         }
 
-        return { code: rewritten, moduleType: 'js' };
+        return { code: finalCode, moduleType: 'js' };
       },
     },
   };

@@ -1,6 +1,15 @@
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { EXPO_BUNDLER_ENV, isExpoBundlerMode, translateExpoMetroConfig } from './config-translator';
+import {
+  EXPO_BUNDLER_ENV,
+  getExpoRouterAppRoot,
+  isExpoBundlerMode,
+  translateExpoMetroConfig,
+} from './config-translator';
 
 describe('translateExpoMetroConfig', () => {
   it('maps resolver.alias to resolve.alias', () => {
@@ -63,5 +72,33 @@ describe('isExpoBundlerMode', () => {
   it('is false otherwise', () => {
     delete process.env.EXPO_BUNDLER;
     expect(isExpoBundlerMode()).toBe(false);
+  });
+});
+
+describe('getExpoRouterAppRoot', () => {
+  const prev = process.env.EXPO_BUNDLER;
+  afterEach(() => {
+    if (prev === undefined) delete process.env.EXPO_BUNDLER;
+    else process.env.EXPO_BUNDLER = prev;
+  });
+
+  it('defaults to "app"', () => {
+    const root = mkdtempSync(join(tmpdir(), 'rollipop-root-'));
+    expect(getExpoRouterAppRoot(root)).toBe('app');
+  });
+
+  it('prefers "src/app" when it exists', () => {
+    const root = mkdtempSync(join(tmpdir(), 'rollipop-root-'));
+    mkdirSync(join(root, 'src', 'app'), { recursive: true });
+    expect(getExpoRouterAppRoot(root)).toBe('src/app');
+  });
+
+  it('honors expo.extra.router.root from app.json', () => {
+    const root = mkdtempSync(join(tmpdir(), 'rollipop-root-'));
+    writeFileSync(
+      join(root, 'app.json'),
+      JSON.stringify({ expo: { extra: { router: { root: 'src/screens' } } } }),
+    );
+    expect(getExpoRouterAppRoot(root)).toBe('src/screens');
   });
 });
