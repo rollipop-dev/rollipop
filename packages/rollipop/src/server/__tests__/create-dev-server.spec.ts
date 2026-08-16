@@ -213,9 +213,18 @@ describe('createDevServer', () => {
       mcp: true,
     });
     await mcpServer.instance.ready();
-    const mcpRoutes = mcpServer.instance.printRoutes();
-    expect(mcpRoutes).toContain('mcp');
-    expect(mcpRoutes).not.toContain('reset-cache');
+    // `printRoutes()` renders the path radix-compressed (e.g. `/mcp` becomes
+    // `m/cp (POST, GET, HEAD, DELETE)`), so a bare substring check for "mcp"
+    // is unreliable. Instead verify the route is actually registered by hitting
+    // it: with `mcp:true` the `/mcp` endpoint must be reachable (a POST without
+    // a session yields 400 "invalid session"), not a 404.
+    const mcpProbe = await mcpServer.instance.inject({
+      method: 'POST',
+      url: '/mcp',
+      payload: { jsonrpc: '2.0', method: 'initialize' },
+    });
+    expect(mcpProbe.statusCode).not.toBe(404);
+    expect(mcpProbe.statusCode).toBe(400);
     await mcpServer.instance.close();
   }, 10_000);
 

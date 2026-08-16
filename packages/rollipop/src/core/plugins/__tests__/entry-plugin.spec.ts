@@ -89,7 +89,21 @@ describe('entry plugin', () => {
 
     expect(interpreter(load.filter, undefined, ROLLIPOP_VIRTUAL_BOOTSTRAP_ID)).toBe(true);
     const result = load.handler(ROLLIPOP_VIRTUAL_BOOTSTRAP_ID);
-    const metadata = evaluateContext().evaluate(`${result.code}\nglobalThis.__rollipop_meta__;`);
+    const metadata = evaluateContext({
+      __rollipop_require__: (() => {
+        const modules: Record<string, unknown> = {};
+        const fn = ((id: string) => {
+          if (id in modules) return modules[id];
+          throw new Error(`Cannot require "${id}" in test vm`);
+        }) as unknown as ((id: string) => unknown) & {
+          m: Record<string, unknown>;
+          e: (s: string) => unknown;
+        };
+        fn.m = modules;
+        fn.e = (s: string) => fn(s);
+        return fn;
+      })(),
+    }).evaluate(`${result.code}\nglobalThis.__rollipop_meta__;`);
 
     expect(result.moduleType).toBe('js');
     expect(metadata).toEqual({

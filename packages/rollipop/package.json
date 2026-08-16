@@ -106,6 +106,7 @@
     "@types/react-refresh": "0.14.7",
     "@vitest/coverage-v8": "4.1.10",
     "react": "^19.2.0",
+    "react-native": "0.86.0",
     "react-refresh": "0.18.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

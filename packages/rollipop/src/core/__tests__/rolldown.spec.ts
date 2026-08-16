@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import type * as rolldown from '@rollipop/rolldown';
@@ -246,8 +247,15 @@ describe('resolveRolldownOptions', () => {
 
     const options = await resolveTestRolldownOptions(config, 'test-bundler-object-alias');
 
+    const require = createRequire(import.meta.url);
+    const reactRoot = path.dirname(require.resolve('react'));
+    const reactNativeRoot = path.dirname(require.resolve('react-native'));
     expect(options.input?.resolve?.alias).toEqual({
       '@src': '/project/src',
+      react: `${reactRoot}/index.js`,
+      'react/jsx-runtime': `${reactRoot}/jsx-runtime.js`,
+      'react/jsx-dev-runtime': `${reactRoot}/jsx-dev-runtime.js`,
+      'react-native': `${reactNativeRoot}/index.js`,
     });
     expect(getPlugins(options).map((plugin) => plugin.name)).not.toContain('builtin:vite-alias');
   });
@@ -265,7 +273,18 @@ describe('resolveRolldownOptions', () => {
 
     const options = await resolveTestRolldownOptions(config, 'test-bundler-array-alias');
 
-    expect(options.input?.resolve?.alias).toBeUndefined();
+    const require = createRequire(import.meta.url);
+    const reactRoot = path.dirname(require.resolve('react'));
+    const reactNativeRoot = path.dirname(require.resolve('react-native'));
+    // Array aliases are routed through the `vite-alias` plugin (which chains to
+    // plugin resolveId hooks), so they do NOT appear in rolldown's object-form
+    // `resolve.alias` — only the react dedupe aliases do.
+    expect(options.input?.resolve?.alias).toEqual({
+      react: `${reactRoot}/index.js`,
+      'react/jsx-runtime': `${reactRoot}/jsx-runtime.js`,
+      'react/jsx-dev-runtime': `${reactRoot}/jsx-dev-runtime.js`,
+      'react-native': `${reactNativeRoot}/index.js`,
+    });
     expect(getPlugins(options).map((plugin) => plugin.name)).toContain('builtin:vite-alias');
   });
 

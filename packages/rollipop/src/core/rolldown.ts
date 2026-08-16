@@ -406,25 +406,29 @@ function resolveAliasPluginOptions(config: ResolvedConfig): {
   if (Array.isArray(alias)) {
     // `@rollipop/rolldown` only accepts the object/glob form of `resolve.alias`
     // (`Record<string, string | string[] | false>`); the array form with
-    // `AliasEntry` (which may carry `RegExp` finds) is not representable. Merge
-    // any string-find entries into the record; drop RegExp/exotic finds with a
-    // warning since they have no object-form equivalent and would otherwise be
-    // silently lost.
-    const aliasRecord: Record<string, string> = {};
+    // `AliasEntry` (which may carry `RegExp` finds) is not representable. Route
+    // any string-find entries through the `vite-alias` plugin (which chains to
+    // plugin `resolveId` hooks, so virtual-id replacements resolve correctly)
+    // instead of the object form — rolldown's core object alias does NOT re-invoke
+    // `resolveId` for the replacement, so a virtual-id replacement would fail to
+    // resolve. Drop RegExp/exotic finds with a warning since the vite-alias
+    // plugin only accepts string or RegExp `find` and we cannot safely convert
+    // arbitrary exotic finds.
+    const aliasPluginEntries: { find: string; replacement: string }[] = [];
     for (const entry of alias) {
       const find = (entry as { find?: unknown }).find;
       const replacement = (entry as { replacement?: unknown }).replacement;
       if (typeof find === 'string' && typeof replacement === 'string') {
-        aliasRecord[find] = replacement;
+        aliasPluginEntries.push({ find, replacement });
       } else {
         console.warn(
-          `[rollipop] dropping unsupported alias entry (non-string find is not representable in rolldown's object-form alias): ${String(find)}`,
+          `[rollipop] dropping unsupported alias entry (non-string find is not representable in the vite-alias plugin): ${String(find)}`,
         );
       }
     }
     return {
-      rolldownAlias: { ...aliasRecord, ...reactDedupeAlias },
-      aliasPluginOptions: { entries: [] },
+      rolldownAlias: { ...reactDedupeAlias },
+      aliasPluginOptions: { entries: aliasPluginEntries },
     };
   }
 

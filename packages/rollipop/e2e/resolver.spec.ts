@@ -163,7 +163,11 @@ describe('resolver', () => {
       });
 
       expect(chunk.code).toContain('"esm"');
-      expect(chunk.code).not.toContain('"react-native"');
+      // The `react-native` condition field must NOT be selected (it is excluded from
+      // conditionNames). N.B. the substring "react-native" also appears in the
+      // deduped react-native module path emitted by the runtime shim, so we assert
+      // on the field's own marker rather than the bare substring.
+      expect(chunk.code).not.toContain("source = 'react-native'");
     });
   });
 
