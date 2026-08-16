@@ -66,6 +66,15 @@ function swcPlugin({
     transform: {
       filter: [ROLLDOWN_RUNTIME_EXCLUDE_FILTER],
       handler(code, id) {
+        // swc only understands JS/TS/JSX/TSX. CSS (incl. CSS Modules such as
+        // `*.module.css`, which Expo's `@expo/log-box` ships) must be left to
+        // rolldown's own CSS pipeline — running the JS transform over a `.css`
+        // file yields a "Expression expected" syntax error. Skip non-script
+        // extensions here so they fall through untouched.
+        if (/\.(css|pcss|scss|sass|less|styl|stylus)(\?.*)?$/.test(id)) {
+          return;
+        }
+
         if (getFlag.call(this, context, id) & TransformFlag.SKIP_ALL) {
           return;
         }

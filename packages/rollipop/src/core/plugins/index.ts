@@ -11,3 +11,4 @@ export * from './expo-metro-runtime-plugin';
 export * from './expo-router-plugin';
 export * from './expo-asset-interop-plugin';
 export * from './self-ref-default-interop-plugin';
+export * from './css-module-transform';

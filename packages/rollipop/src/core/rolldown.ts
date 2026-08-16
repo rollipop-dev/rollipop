@@ -49,6 +49,7 @@ import {
   reactNative,
   reporter,
   swc,
+  cssModule,
   selfRefDefaultInteropPlugin,
   DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
   DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
@@ -244,7 +245,21 @@ export async function resolveRolldownOptions(
     transform: mergedTransformOptions,
     // See `isNativePlatform` above: parse `.js` as JSX on native platforms so
     // RN/Expo dependencies that ship JSX in `.js` (e.g. expo-router) bundle.
-    ...(isNativePlatform ? { moduleTypes: { '.js': 'jsx' } } : {}),
+    ...(isNativePlatform
+      ? {
+          moduleTypes: {
+            '.js': 'jsx',
+            // React Native / Expo never consume raw CSS on native — `*.module.css`
+            // (e.g. `@expo/log-box` overlays, pulled in by the Dev Client error
+            // overlay) is imported as a JS module of class-name strings, and
+            // plain `*.css` is discarded. Tell rolldown to treat CSS as JS so
+            // `rollipop:css-module-transform` can emit the interop module instead
+            // of rolldown's (removed) native CSS pipeline erroring out.
+            '.css': 'js',
+            '.module.css': 'js',
+          },
+        }
+      : {}),
     experimental: merge(
       { ...rolldownExperimental },
       isDevServerMode
@@ -258,6 +273,7 @@ export async function resolveRolldownOptions(
       reactNative(reactNativePluginOptions),
       babel(babelPluginOptions),
       swc(swcPluginOptions),
+      cssModule(),
       devServer(devServerPluginOptions),
       reporter(reporterPluginOptions),
       analyze(analyzePluginOptions),
