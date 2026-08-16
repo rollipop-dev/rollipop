@@ -22,6 +22,7 @@ import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
 import { errorHandler } from './error';
 import { DevServerLogger, logger } from './logger';
 import { dashboard } from './middlewares/dashboard';
+import { createExpoManifestInterceptor } from './middlewares/expo-manifest';
 import { expoManifest } from './middlewares/expo-manifest';
 import { requestLogger } from './middlewares/request-logger';
 import { serveAssets } from './middlewares/serve-assets';
@@ -136,6 +137,7 @@ export async function createDevServer(
 
   fastify
     .use(requestLogger)
+    .use(createExpoManifestInterceptor(context))
     .use(communityMiddleware)
     .use(devMiddleware)
     .register(dashboard, { context })
