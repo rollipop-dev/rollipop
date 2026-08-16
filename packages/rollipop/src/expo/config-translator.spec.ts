@@ -4,43 +4,47 @@ import { EXPO_BUNDLER_ENV, isExpoBundlerMode, translateExpoMetroConfig } from '.
 
 describe('translateExpoMetroConfig', () => {
   it('maps resolver.alias to resolve.alias', () => {
-    const result = translateExpoMetroConfig({
+    const { config: result } = translateExpoMetroConfig({
       resolver: { alias: { '@': './src' } },
     });
     expect(result.resolve?.alias).toEqual({ '@': './src' });
   });
 
   it('maps resolver.assetExts to resolve.assetExtensions', () => {
-    const result = translateExpoMetroConfig({
+    const { config: result } = translateExpoMetroConfig({
       resolver: { assetExts: ['png', 'jpg', 'db', 'sqlite'] },
     });
     expect(result.resolve?.assetExtensions).toEqual(['png', 'jpg', 'db', 'sqlite']);
   });
 
   it('maps resolver.sourceExts to resolve.sourceExtensions', () => {
-    const result = translateExpoMetroConfig({
+    const { config: result } = translateExpoMetroConfig({
       resolver: { sourceExts: ['js', 'jsx', 'ts', 'tsx'] },
     });
     expect(result.resolve?.sourceExtensions).toEqual(['js', 'jsx', 'ts', 'tsx']);
   });
 
-  it('approximates resolver.assetRedirects as object aliases', () => {
-    const result = translateExpoMetroConfig({
+  it('approximates resolver.assetRedirects as object aliases and warns', () => {
+    const { config: result, warnings } = translateExpoMetroConfig({
       resolver: { assetRedirects: { './a.png': './b.png' } },
     });
     expect(result.resolve?.alias).toEqual({ './a.png': './b.png' });
+    expect(warnings.some((w) => w.includes('assetRedirects'))).toBe(true);
   });
 
   it('does not emit a resolve block when there is nothing to translate', () => {
-    const result = translateExpoMetroConfig({});
+    const { config: result } = translateExpoMetroConfig({});
     expect(result.resolve).toBeUndefined();
   });
 
   it('warns about ignored transformer options', () => {
-    const result = translateExpoMetroConfig({ transformer: { babelTransformerPath: './x' } });
-    // translateExpoMetroConfig returns only the Rollipop config; the warning is
-    // surfaced by the caller, so we assert here that no transformer leaked in.
+    const { config: result, warnings } = translateExpoMetroConfig({
+      transformer: { babelTransformerPath: './x' },
+    });
+    // The transformer option must not leak into the Rollipop config...
     expect((result as any).transform).toBeUndefined();
+    // ...and the dropped field must be reported in warnings (the caller surfaces it).
+    expect(warnings.some((w) => w.includes('transformer'))).toBe(true);
   });
 });
 

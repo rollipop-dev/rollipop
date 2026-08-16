@@ -187,14 +187,19 @@ export async function resolveRolldownOptions(
       'process.env.NODE_ENV': asLiteral(nodeEnvironment(dev)),
       'process.env.DEBUG_ROLLIPOP': asLiteral(isDebugEnabled()),
       ...(hmrEnabled ? null : { 'import.meta.hot': 'undefined' }),
+      // Hermes (React Native) cannot parse `import.meta` syntax at all, but it
+      // *does* support `import.meta.url`. So we do NOT blanket-replace `import.meta`
+      // (that would break `import.meta.url`, which libraries legitimately use).
+      // Instead we only neutralize the two member accesses Hermes rejects:
+      //   - `import.meta.hot`  -> `undefined` when HMR is disabled (above).
+      //   - `import.meta.env`  -> `({})` because Expo/Metro replace `import.meta.env`
+      //     with an empty object at build time and app code reads `import.meta.env.X`.
+      // This blanket is placed BEFORE the specific env defines below so that
+      // `import.meta.env.BASE_URL` etc. (resolved by `defineEnvFromObject`) take
+      // precedence over the empty-object fallback for known keys.
+      'import.meta.env': '({})',
       ...defineEnvFromObject(env),
       ...defineEnvFromObject(builtInEnv),
-      // Hermes (React Native) cannot parse `import.meta` syntax at all. Statically
-      // replace bare `import.meta` / `import.meta.env` member access with empty
-      // objects so the dev runtime shim parses on-device. More specific keys
-      // (e.g. `import.meta.env.BASE_URL`) above still resolve to their literals.
-      'import.meta': '({})',
-      'import.meta.env': '({})',
       // Expo Router reads the route root from process.env.EXPO_ROUTER_APP_ROOT
       // (Metro replaces this at build time). Without it, `require.context`
       // receives `undefined` and discovers no routes, leaving a blank screen.
@@ -383,15 +388,32 @@ function resolveAliasPluginOptions(config: ResolvedConfig): {
   };
 
   if (Array.isArray(alias)) {
-    // Unlikely (config typed as object), but keep previous behaviour.
+    // `@rollipop/rolldown` only accepts the object/glob form of `resolve.alias`
+    // (`Record<string, string | string[] | false>`); the array form with
+    // `AliasEntry` (which may carry `RegExp` finds) is not representable. Merge
+    // any string-find entries into the record; drop RegExp/exotic finds with a
+    // warning since they have no object-form equivalent and would otherwise be
+    // silently lost.
+    const aliasRecord: Record<string, string> = {};
+    for (const entry of alias) {
+      const find = (entry as { find?: unknown }).find;
+      const replacement = (entry as { replacement?: unknown }).replacement;
+      if (typeof find === 'string' && typeof replacement === 'string') {
+        aliasRecord[find] = replacement;
+      } else {
+        console.warn(
+          `[rollipop] dropping unsupported alias entry (non-string find is not representable in rolldown's object-form alias): ${String(find)}`,
+        );
+      }
+    }
     return {
-      rolldownAlias: [...alias, ...Object.entries(reactDedupeAlias).map(([find, replacement]) => ({ find, replacement }))],
+      rolldownAlias: { ...aliasRecord, ...reactDedupeAlias },
       aliasPluginOptions: { entries: [] },
     };
   }
 
   return {
-    rolldownAlias: { ...(alias ?? {}), ...reactDedupeAlias },
+    rolldownAlias: { ...alias, ...reactDedupeAlias },
     aliasPluginOptions: { entries: [] },
   };
 }

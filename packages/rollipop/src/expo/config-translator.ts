@@ -32,7 +32,10 @@ export interface ExpoConfigTranslationResult {
  * fields such as `assetExtensions` are unioned with the defaults by
  * `mergeConfig`).
  */
-export function translateExpoMetroConfig(metroConfig: Record<string, any>): Partial<Config> {
+export function translateExpoMetroConfig(metroConfig: Record<string, any>): {
+  config: Partial<Config>;
+  warnings: string[];
+} {
   const warnings: string[] = [];
   const resolve: Partial<ResolveConfig> = {};
 
@@ -55,11 +58,18 @@ export function translateExpoMetroConfig(metroConfig: Record<string, any>): Part
 
   // `resolver.assetRedirects` has no native Rolldown equivalent; approximate it
   // as object aliases so redirected asset requests resolve to the target file.
+  // NOTE: this is lossy — Metro's assetRedirects supports glob/regex keys and
+  // richer matching that a flat alias map cannot express. Tracked as a known
+  // limitation; the caller surfaces this warning.
   if (resolver.assetRedirects && typeof resolver.assetRedirects === 'object') {
     resolve.alias = {
       ...(resolve.alias as Record<string, string> | undefined),
       ...(resolver.assetRedirects as Record<string, string>),
     } as ResolveConfig['alias'];
+    warnings.push(
+      'Metro `resolver.assetRedirects` was approximated as flat module aliases; ' +
+        'glob/regex redirect keys are not supported and may resolve incorrectly.',
+    );
   }
 
   // Metro's `transformer` (babel presets, etc.) has no direct Rollipop
@@ -75,7 +85,7 @@ export function translateExpoMetroConfig(metroConfig: Record<string, any>): Part
     rollipopConfig.resolve = resolve as ResolveConfig;
   }
 
-  return rollipopConfig;
+  return { config: rollipopConfig, warnings };
 }
 
 /**
@@ -93,6 +103,15 @@ export async function getExpoRolipopConfig(
 ): Promise<ExpoConfigTranslationResult> {
   const warnings: string[] = [];
   const projectRequire = createRequire(path.join(projectRoot, 'package.json'));
+
+  // Surface translation warnings to the user. Callers (e.g. the dev server) may
+  // also read `result.warnings`, but warnings must not be silently swallowed —
+  // a dropped Metro config field that changes bundle behavior is exactly the kind
+  // of thing the user needs to see.
+  const emitWarning = (message: string): void => {
+    warnings.push(message);
+    console.warn(`[rollipop:expo-config] ${message}`);
+  };
 
   let getDefaultConfig: ((projectRoot: string, options?: Record<string, any>) => any) | undefined;
   let resolved: string | undefined;
@@ -150,7 +169,11 @@ export async function getExpoRolipopConfig(
     return { metroConfig: null, rollipopConfig: {}, warnings };
   }
 
-  const rollipopConfig = translateExpoMetroConfig(metroConfig);
+  const { config: rollipopConfig, warnings: translationWarnings } =
+    translateExpoMetroConfig(metroConfig);
+  for (const w of translationWarnings) {
+    emitWarning(w);
+  }
   return { metroConfig, rollipopConfig, warnings };
 }
 

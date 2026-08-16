@@ -102,12 +102,17 @@
     "ws": "8.21.1"
   },
   "devDependencies": {
+    "@types/react": "^19.2.0",
     "@types/react-refresh": "0.14.7",
     "@vitest/coverage-v8": "4.1.10",
+    "react": "^19.2.0",
     "react-refresh": "0.18.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "4.1.10"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
   },
   "engines": {
     "node": ">=22.12.0"

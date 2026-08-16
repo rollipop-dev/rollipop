@@ -43,7 +43,20 @@ describe('expo metro-runtime shim', () => {
     expect(() => shimModule.reload()).not.toThrow();
   });
 
-  it('loadBundleAsync resolves (single-bundle model)', async () => {
-    await expect(shimModule.loadBundleAsync('unused')).resolves.toBeUndefined();
+  it('getDevServer reads ROLLIPOP_DEV_SERVER_URL from process.env (matches runtime-shim.ts)', async () => {
+    const dataUrl = `data:text/javascript;base64,${Buffer.from(expoMetroRuntimeShimCode).toString('base64')}`;
+    const mod = (await import(dataUrl)) as Record<string, (...args: any[]) => any>;
+
+    const prev = process.env.ROLLIPOP_DEV_SERVER_URL;
+    try {
+      delete process.env.ROLLIPOP_DEV_SERVER_URL;
+      expect(mod.getDevServer()).toBeNull();
+
+      process.env.ROLLIPOP_DEV_SERVER_URL = 'http://localhost:8081';
+      expect(mod.getDevServer()).toEqual({ url: 'http://localhost:8081' });
+    } finally {
+      if (prev === undefined) delete process.env.ROLLIPOP_DEV_SERVER_URL;
+      else process.env.ROLLIPOP_DEV_SERVER_URL = prev;
+    }
   });
 });

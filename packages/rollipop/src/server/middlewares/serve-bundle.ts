@@ -29,6 +29,49 @@ function withGetBundleErrorHandler<T>(reply: FastifyReply, task: Promise<T>) {
   });
 }
 
+/**
+ * Serve a bundle to a Fastify reply, supporting both the multipart/mixed progress
+ * stream (used by the Metro dev client) and a plain `application/javascript`
+ * response. Shared by `/:name.bundle` and `/.expo/.virtual-metro-entry.bundle`
+ * so the two routes cannot drift apart.
+ */
+async function serveBundle(
+  reply: FastifyReply,
+  bundler: ReturnType<DevServerContext['bundlerPool']['get']>,
+  accept: string | undefined,
+  log: { debug: (msg: string) => void },
+  eventBus: DevServerContext['eventBus'],
+): Promise<void> {
+  const isSupportMultipart = accept?.includes('multipart/mixed') ?? false;
+
+  if (isSupportMultipart) {
+    const bundleResponse = new BundleResponse(reply);
+    const unsubscribe = eventBus.subscribe((event) => {
+      if (isEventForBundler(event, bundler.id) && event.type === 'transform') {
+        bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
+      }
+    });
+
+    await bundler
+      .getBundle()
+      .then((bundle) => bundleResponse.endWithBundle(bundle.code))
+      .catch((error) => bundleResponse.endWithError(error))
+      .finally(unsubscribe);
+  } else {
+    log.debug(`client is not support multipart/mixed content: ${accept ?? '<empty>'}`);
+    const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
+    if (!bundle || typeof bundle.code !== 'string') {
+      return;
+    }
+    const code = bundle.code;
+    await reply
+      .header('Content-Type', 'application/javascript')
+      .header('Content-Length', Buffer.byteLength(code))
+      .status(200)
+      .send(code);
+  }
+}
+
 const plugin = fp<ServeBundlePluginOptions>(
   (fastify, options) => {
     const { context } = options;
@@ -61,35 +104,7 @@ const plugin = fp<ServeBundlePluginOptions>(
 
         const buildOptions = getBundleOptions(query);
         const bundler = context.bundlerPool.get(params.name, buildOptions);
-        const isSupportMultipart = accept?.includes('multipart/mixed') ?? false;
-
-        if (isSupportMultipart) {
-          const bundleResponse = new BundleResponse(reply);
-
-          const unsubscribe = context.eventBus.subscribe((event) => {
-            if (isEventForBundler(event, bundler.id) && event.type === 'transform') {
-              bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
-            }
-          });
-
-          await bundler
-            .getBundle()
-            .then((bundle) => bundleResponse.endWithBundle(bundle.code))
-            .catch((error) => bundleResponse.endWithError(error))
-            .finally(unsubscribe);
-        } else {
-          this.log.debug(`client is not support multipart/mixed content: ${accept ?? '<empty>'}`);
-          const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
-          if (!bundle || typeof bundle.code !== 'string') {
-            return;
-          }
-          const code = bundle.code;
-          await reply
-            .header('Content-Type', 'application/javascript')
-            .header('Content-Length', Buffer.byteLength(code))
-            .status(200)
-            .send(code);
-        }
+        await serveBundle(reply, bundler, accept, this.log, context.eventBus);
       },
     });
 
@@ -104,33 +119,7 @@ const plugin = fp<ServeBundlePluginOptions>(
         const { query, headers } = request;
         const buildOptions = getBundleOptions(query);
         const bundler = context.bundlerPool.get('index', buildOptions);
-        const isSupportMultipart = headers.accept?.includes('multipart/mixed') ?? false;
-
-        if (isSupportMultipart) {
-          const bundleResponse = new BundleResponse(reply);
-          const unsubscribe = context.eventBus.subscribe((event) => {
-            if (isEventForBundler(event, bundler.id) && event.type === 'transform') {
-              bundleResponse.writeBundleState(event.transformedModules, event.totalModules ?? 0);
-            }
-          });
-          await bundler
-            .getBundle()
-            .then((bundle) => bundleResponse.endWithBundle(bundle.code))
-            .catch((error) => bundleResponse.endWithError(error))
-            .finally(unsubscribe);
-        } else {
-          this.log.debug(`client is not support multipart/mixed content: ${headers.accept ?? '<empty>'}`);
-          const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
-          if (!bundle || typeof bundle.code !== 'string') {
-            return;
-          }
-          const code = bundle.code;
-          await reply
-            .header('Content-Type', 'application/javascript')
-            .header('Content-Length', Buffer.byteLength(code))
-            .status(200)
-            .send(code);
-        }
+        await serveBundle(reply, bundler, headers.accept, this.log, context.eventBus);
       },
     });
 

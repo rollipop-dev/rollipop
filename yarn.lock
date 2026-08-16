@@ -9863,21 +9863,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react@npm:^19.2.0, @types/react@npm:^19.2.18":
+  version: 19.2.18
+  resolution: "@types/react@npm:19.2.18"
+  dependencies:
+    csstype: "npm:^3.2.2"
+  checksum: 10c0/d04216172b4b4362b310017c210dfbe019fb4f4e7dffd0313e70b3acb3051d5c3e76e7e84e3cf4c6a3c824993ffadfe3949e589a6398a09d4200e7670e2962de
+  languageName: node
+  linkType: hard
+
 "@types/react@npm:^19.2.14":
   version: 19.2.14
   resolution: "@types/react@npm:19.2.14"
   dependencies:
     csstype: "npm:^3.2.2"
   checksum: 10c0/7d25bf41b57719452d86d2ac0570b659210402707313a36ee612666bf11275a1c69824f8c3ee1fdca077ccfe15452f6da8f1224529b917050eb2d861e52b59b7
-  languageName: node
-  linkType: hard
-
-"@types/react@npm:^19.2.18":
-  version: 19.2.18
-  resolution: "@types/react@npm:19.2.18"
-  dependencies:
-    csstype: "npm:^3.2.2"
-  checksum: 10c0/d04216172b4b4362b310017c210dfbe019fb4f4e7dffd0313e70b3acb3051d5c3e76e7e84e3cf4c6a3c824993ffadfe3949e589a6398a09d4200e7670e2962de
   languageName: node
   linkType: hard
 
@@ -20753,17 +20753,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react@npm:^19.2.0, react@npm:^19.2.8":
+  version: 19.2.8
+  resolution: "react@npm:19.2.8"
+  checksum: 10c0/5f86bdb56426652fd6d989d30a6f2e603c057272c47c9ca3a3fbe190a3a39ee9ccce937d63cfc039717abed1b8891d6a499134bc35311acc07eafdacd86537cd
+  languageName: node
+  linkType: hard
+
 "react@npm:^19.2.4":
   version: 19.2.4
   resolution: "react@npm:19.2.4"
   checksum: 10c0/cd2c9ff67a720799cc3b38a516009986f7fc4cb8d3e15716c6211cf098d1357ee3e348ab05ad0600042bbb0fd888530ba92e329198c92eafa0994f5213396596
-  languageName: node
-  linkType: hard
-
-"react@npm:^19.2.8":
-  version: 19.2.8
-  resolution: "react@npm:19.2.8"
-  checksum: 10c0/5f86bdb56426652fd6d989d30a6f2e603c057272c47c9ca3a3fbe190a3a39ee9ccce937d63cfc039717abed1b8891d6a499134bc35311acc07eafdacd86537cd
   languageName: node
   linkType: hard
 
@@ -21487,6 +21487,7 @@ __metadata:
     "@rollipop/rolldown": "catalog:rolldown"
     "@swc/core": "npm:1.15.43"
     "@swc/helpers": "npm:0.5.23"
+    "@types/react": "npm:^19.2.0"
     "@types/react-refresh": "npm:0.14.7"
     "@types/ws": "npm:8.18.1"
     "@vitest/coverage-v8": "npm:4.1.10"
@@ -21510,6 +21511,7 @@ __metadata:
     mitt: "npm:3.0.1"
     open: "npm:11.0.0"
     pretty-format: "npm:30.4.1"
+    react: "npm:^19.2.0"
     react-refresh: "npm:0.18.0"
     rolldown-analyzer: "npm:0.3.1"
     source-map: "npm:0.8.0"
@@ -21519,6 +21521,8 @@ __metadata:
     vitest: "npm:4.1.10"
     wrap-ansi: "npm:10.0.0"
     ws: "npm:8.21.1"
+  peerDependencies:
+    react: ^19.0.0
   bin:
     rollipop: ./bin/index.js
   languageName: unknown

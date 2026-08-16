@@ -11,7 +11,7 @@
  *   dev engine), otherwise no-ops in production.
  * - Error overlay + LogBox helpers are lightweight no-ops (Rollipop ships its
  *   own overlay); `createRuntimeError` preserves the error object so callers
- *   that re-throw still work.
+ *   that re-throw still work. `withErrorOverlay` is a proper error boundary.
  * - `loadBundleAsync` / `clearSegmentCache` are async no-ops (segment preloading
  *   is a Metro concept; Rollipop serves the whole graph from one bundle).
  *
@@ -28,14 +28,15 @@ export function withErrorOverlay<P extends object>(
 ): React.ComponentType<P> {
   // `@expo/metro-runtime/error-overlay` exports `withErrorOverlay`, which wraps
   // the root component in an error boundary that renders the dev error overlay.
-  // Rollipop ships its own LogBox-based overlay, so we still surface render
-  // errors but delegate the visual presentation to React's error logging
-  // (LogBox picks them up). A minimal error boundary is used so a thrown render
-  // error is reported once instead of crashing the whole root silently.
-  const Boundary = class WithErrorOverlay extends React.Component<
-    P,
-    { error: Error | null }
-  > {
+  // Rollipop ships its own LogBox-based overlay, so our boundary surfaces render
+  // errors once (via `console.error` in `componentDidCatch`) and then renders a
+  // minimal fallback UI. We deliberately do NOT re-throw in `render()`: once
+  // `getDerivedStateFromError` has captured the error into state, re-throwing in
+  // `render` propagates to the nearest parent boundary — and there is none above
+  // the root — which turns a recoverable render error into an unhandled crash /
+  // white screen. Rendering a fallback instead keeps the app alive and lets the
+  // dev overlay (LogBox) show the captured error.
+  const Boundary = class WithErrorOverlay extends React.Component<P, { error: Error | null }> {
     constructor(props: P) {
       super(props);
       this.state = { error: null };
@@ -44,13 +45,27 @@ export function withErrorOverlay<P extends object>(
       return { error };
     }
     componentDidCatch(error: Error) {
-      // Let LogBox/Rollipop's error reporting surface it.
+      // Log exactly once. Do NOT also re-throw in render().
       console.error(error);
     }
     render() {
       if (this.state.error) {
-        // Re-throw so React's error reporter (LogBox) displays a redbox.
-        throw this.state.error;
+        // Minimal, dependency-free fallback so the app does not white-screen.
+        // The captured error is already logged above and shown by LogBox.
+        return React.createElement(
+          'div',
+          {
+            style: {
+              flex: 1,
+              padding: 16,
+              color: '#fff',
+              backgroundColor: '#a00',
+              fontFamily: 'monospace',
+              fontSize: 12,
+            },
+          },
+          this.state.error.message,
+        );
       }
       return React.createElement(Component, this.props as P);
     }
@@ -67,12 +82,18 @@ export function createRuntimeError(message: string, stack?: string | null): Erro
 }
 
 export function getDevServer(): { url: string } | null {
-  // Rollipop's dev engine exposes the server origin through `import.meta.env`.
-  const origin =
-    (typeof import.meta !== 'undefined' &&
-      (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL) ||
-    null;
-  return origin ? { url: origin } : null;
+  // The dev server origin is provided out-of-band by Rollipop's dev engine via
+  // an env var (set when `rollipop start` launches). We read it from
+  // `process.env` (reliable on RN) rather than `import.meta.env`, because the
+  // `import.meta.env` member access is statically replaced with `({})` for
+  // Hermes compatibility, so it can never carry a real value. Returns null when
+  // not running against a dev server (e.g. production), which is the correct
+  // "no dev server available" contract.
+  const url =
+    typeof process !== 'undefined'
+      ? (process.env.ROLLIPOP_DEV_SERVER_URL ?? process.env.EXPO_PACKAGER_PROXY_URL ?? null)
+      : null;
+  return url ? { url } : null;
 }
 
 export function enableExperimental(_featureName: string): void {

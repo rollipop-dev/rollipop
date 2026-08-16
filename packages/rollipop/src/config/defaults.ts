@@ -18,7 +18,7 @@ import {
   DEFAULT_SOURCE_EXTENSIONS,
 } from '../constants';
 import { ClientLogReporter } from '../events/builtin-reporters';
-import { getInitializeCorePath, getPolyfillScriptPaths } from '../internal/react-native';
+import { getPolyfillScriptPaths } from '../internal/react-native';
 import type { Reporter } from '../types';
 import { resolvePackagePath } from '../utils/node-resolve';
 import type { PluginFlattenConfig } from './merge-config';

@@ -223,7 +223,10 @@ export function generateExpoRouterManifest(
     if (!isDirectory(entryPath)) {
       if (isScreenFile(entry)) {
         const node = buildNodeFromFile(entryPath, entry, appDir);
-        if (node) { node.file = toModuleId(node.file); routes.push(node); }
+        if (node) {
+          node.file = toModuleId(node.file);
+          routes.push(node);
+        }
       }
       continue;
     }
@@ -234,7 +237,10 @@ export function generateExpoRouterManifest(
       continue;
     }
     const node = buildNode(appDir, entry);
-    if (node) { normalizeNode(node, projectRoot); routes.push(node); }
+    if (node) {
+      normalizeNode(node, projectRoot);
+      routes.push(node);
+    }
   }
 
   return {
@@ -280,11 +286,7 @@ function collectScreenFiles(routes: RouteNode[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   const visit = (node: RouteNode) => {
-    if (
-      node.file &&
-      /\.(tsx|ts|jsx|js)$/.test(node.file) &&
-      !seen.has(node.file)
-    ) {
+    if (node.file && /\.(tsx|ts|jsx|js)$/.test(node.file) && !seen.has(node.file)) {
       seen.add(node.file);
       out.push(node.file);
     }

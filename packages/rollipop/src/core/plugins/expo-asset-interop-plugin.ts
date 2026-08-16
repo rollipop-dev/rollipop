@@ -5,7 +5,7 @@ import { id, include } from '@rollipop/rolldown/filter';
  * Match `expo-asset`'s `resolveAssetSource` modules (native + base) ONLY.
  *
  * IMPORTANT: this must NOT match React Native's own
- * `react-native/Libraries/Image/resolveAssetSource.js`. That module is handled
+ * `react-native/Libraries/Image/resolveAssetSource`. That module is handled
  * separately by `rollipop:resolve-asset-source-interop`, which rewrites its
  * self-referential default export. If this filter also matched RN's copy, the
  * replacement below would `import resolveAssetSource from
@@ -13,13 +13,20 @@ import { id, include } from '@rollipop/rolldown/filter';
  * import itself — re-introducing the exact self-referential default interop bug
  * (the module body gets dropped and `Image` crashes).
  *
- * Use a trailing-anchor RegExp (not `exactRegex`, which anchors both ends) so
- * the variable pnpm store path prefix is ignored, but anchor on `expo-asset`
- * so React Native's copy is excluded.
+ * HACK WARNING: ideally we would match on the module's *resolved* path. But the
+ * rolldown filter runs on the raw specifier / un-resolved id, and the pnpm
+ * store layout is non-deterministic (`.pnpm/expo-asset@x.y.z/node_modules/...`
+ * vs a hoisted `node_modules/expo-asset/...`). To stay layout-agnostic we anchor
+ * on the package directory name `expo-asset` plus the known file basename, which
+ * is stable across RN / Expo / layout changes. We no longer hardcode
+ * `expo-asset/build/`, so a future RN bump that moves the file still matches by
+ * basename as long as it lives under an `expo-asset/` directory. The correct fix
+ * is to move this to a `resolveId`-based guard in `@rollipop/rolldown`'s format
+ * plugin (where the real path is known) — tracked as debt.
  */
-const RESOLVE_ASSET_SOURCE_FILTER = [
-  include(id(new RegExp('expo-asset/build/resolveAssetSource(\\.native)?\\.js$'))),
-];
+const RESOLVE_ASSET_SOURCE_RE = /(^|\/)expo-asset\/.{0,40}resolveAssetSource(\.[^/\\]+)?\.js$/;
+
+const RESOLVE_ASSET_SOURCE_FILTER = [include(id(RESOLVE_ASSET_SOURCE_RE))];
 
 export interface ExpoAssetInteropPluginOptions {
   /** When false the plugin is a no-op (Rollipop is not the Expo bundler). */

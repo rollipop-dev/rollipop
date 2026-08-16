@@ -13,9 +13,12 @@ export function createRuntimeError(message, stack) {
   return error;
 }
 export function getDevServer() {
-  const env = (typeof import.meta !== 'undefined' && import.meta.env) || null;
-  const origin = (env && env.BASE_URL) || null;
-  return origin ? { url: origin } : null;
+  // Mirror of runtime-shim.ts: read from process.env (reliable on RN). The
+  // import.meta.env member access is statically replaced with ({}) for Hermes,
+  // so it can never carry a real value.
+  const env = (typeof process !== 'undefined' && process.env) || {};
+  const url = env.ROLLIPOP_DEV_SERVER_URL || env.EXPO_PACKAGER_PROXY_URL || null;
+  return url ? { url } : null;
 }
 export function enableExperimental() {}
 export function clearSegmentCache() {}
