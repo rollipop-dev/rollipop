@@ -265,6 +265,11 @@ export async function resolveRolldownOptions(
       ? {
           moduleTypes: {
             '.js': 'jsx',
+            // React Native / Expo dependencies also ship JSX inside `.mjs`
+            // (e.g. `@rn-primitives/slot` dist/index.mjs). Without mapping it,
+            // oxc keeps JSX disabled and fails with "Unexpected JSX expression".
+            '.mjs': 'jsx',
+            '.mts': 'jsx',
             // React Native / Expo never consume raw CSS on native — `*.module.css`
             // (e.g. `@expo/log-box` overlays, pulled in by the Dev Client error
             // overlay) is imported as a JS module of class-name strings, and

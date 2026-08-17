@@ -31,6 +31,47 @@ import type {
   TerminalConfig,
 } from './types';
 
+/** Expo/Metro entry discovery. The app entry is not always `index.js` — it may
+ *  be `index.ts(x)`, or be declared via `package.json` `main` / `expo.entry`.
+ *  Hardcoding `index.js` breaks any app whose entry uses a different extension
+ *  (e.g. Vautr mobile's `index.ts`), producing
+ *  `[UNLOADABLE_DEPENDENCY] Could not load index.js`. Mirror Metro/Expo: prefer
+ *  an explicit `main`/`expo.entry`, then discover `index.[tsx|ts|js|jsx]`. */
+function resolveDefaultEntry(projectRoot: string): string {
+  const candidates = ['index.tsx', 'index.ts', 'index.js', 'index.jsx'];
+  // package.json `main` (or `expo.entry`) wins when it points at a real file.
+  try {
+    const pkgPath = path.join(projectRoot, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
+        main?: string;
+        expo?: { entry?: string };
+      };
+      const declared = pkg.expo?.entry ?? pkg.main;
+      if (declared && typeof declared === 'string') {
+        const abs = path.isAbsolute(declared)
+          ? declared
+          : path.resolve(projectRoot, declared);
+        if (fs.existsSync(abs)) return abs;
+        // Allow extension-less/bare `main` (e.g. "index") to match a discovered file.
+        for (const ext of ['', '.tsx', '.ts', '.jsx', '.js']) {
+          const withExt = abs + ext;
+          if (fs.existsSync(withExt)) return withExt;
+        }
+      }
+    }
+  } catch {
+    // fall through to extension discovery
+  }
+  for (const candidate of candidates) {
+    const abs = path.join(projectRoot, candidate);
+    if (fs.existsSync(abs)) return abs;
+  }
+  // Default to index.js (Metro-compatible fallback) even if absent; the loader
+  // will surface a clear "could not load" error rather than a wrong file.
+  return path.resolve(projectRoot, 'index.js');
+}
+
 export async function getDefaultConfig(projectRoot: string, mode?: Config['mode']) {
   let reactNativePath: string;
   try {
@@ -45,7 +86,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
   const defaultConfig = {
     root: projectRoot,
     mode: mode ?? 'development',
-    entry: path.resolve(projectRoot, 'index.js'),
+    entry: resolveDefaultEntry(projectRoot),
     resolve: {
       sourceExtensions: DEFAULT_SOURCE_EXTENSIONS,
       assetExtensions: DEFAULT_ASSET_EXTENSIONS,
