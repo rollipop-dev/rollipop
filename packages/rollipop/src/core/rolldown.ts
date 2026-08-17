@@ -86,7 +86,18 @@ export async function resolveRolldownOptions(
   // `.js` files. Metro parses `.js` as JSX for every RN build; oxc only does so
   // for `.jsx`/`.tsx` by default. Map `.js` -> `jsx` module type on native
   // platforms so those dependencies bundle correctly.
-  const isNativePlatform = platform === 'ios' || platform === 'android' || platform === 'native';
+  // tvOS and macOS are native RN targets that consume the same iOS-style
+  // native bundle as iOS (macOS reuses iOS's `Platform.OS === 'ios'`), so they
+  // belong in the native pipeline alongside ios/android.
+  const isNativePlatform =
+    platform === 'ios' ||
+    platform === 'android' ||
+    platform === 'tvos' ||
+    platform === 'macos' ||
+    platform === 'native';
+  // `process.env.EXPO_OS` seeds `Platform.OS`. tvOS uses its own value; macOS
+  // reuses iOS's, so map it through.
+  const expoOs = platform === 'macos' ? 'ios' : platform;
 
   invariant(
     isDevServerMode ? devEngineOptions != null : true,
@@ -217,8 +228,9 @@ export async function resolveRolldownOptions(
       // stays a runtime `process.env.EXPO_OS` lookup that resolves to undefined
       // and emits "The global process.env.EXPO_OS is not defined". Only native
       // platforms have a meaningful value here (web leaves it undefined, like
-      // babel-preset-expo).
-      ...(isNativePlatform ? { 'process.env.EXPO_OS': asLiteral(platform) } : null),
+      // babel-preset-expo). macOS reuses iOS's `Platform.OS`, so its `EXPO_OS`
+      // is inlined as `ios` (see `expoOs` above); tvOS uses its own value.
+      ...(isNativePlatform ? { 'process.env.EXPO_OS': asLiteral(expoOs) } : null),
     },
     helpers: {
       mode: 'Runtime',

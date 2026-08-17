@@ -138,6 +138,58 @@ describe('resolveRolldownOptions', () => {
     expect(define!['process.env.EXPO_ROUTER_APP_ROOT']).toBeDefined();
   });
 
+  it('inlines process.env.EXPO_OS to "tvos" for tvOS native builds', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-expo-os-tvos',
+        root,
+        buildType: 'build',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'tvos', dev: true }),
+    );
+
+    const define = options.input?.transform?.define as Record<string, unknown> | undefined;
+    expect(define).toBeDefined();
+    expect(define!['process.env.EXPO_OS']).toBe('"tvos"');
+  });
+
+  it('inlines process.env.EXPO_OS to "ios" for macOS native builds (macOS reuses iOS Platform.OS)', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-expo-os-macos',
+        root,
+        buildType: 'build',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'macos', dev: true }),
+    );
+
+    const define = options.input?.transform?.define as Record<string, unknown> | undefined;
+    expect(define).toBeDefined();
+    expect(define!['process.env.EXPO_OS']).toBe('"ios"');
+  });
+
   it('does not inline process.env.EXPO_OS for non-native builds', async () => {
     resolveRolldownOptions.cache.clear();
 
