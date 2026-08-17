@@ -259,15 +259,24 @@ export async function resolveRolldownOptions(
     transform: mergedTransformOptions,
     // See `isNativePlatform` above: parse `.js` as JSX on native platforms so
     // RN/Expo dependencies that ship JSX in `.js` (e.g. expo-router) bundle.
+    // oxc's `moduleTypes` REPLACES the default extension→type map (it does not
+    // merge), so we must list every extension the app uses — omitting an entry
+    // silently drops that extension's JSX/TS parsing (e.g. a missing `.tsx`
+    // entry makes oxc treat `.tsx` as plain JS, failing with "Unterminated
+    // regular expression"). The only override vs oxc defaults is `.js`/`.mjs`
+    // -> `jsx`; everything else mirrors oxc's native defaults.
     ...(isNativePlatform
       ? {
           moduleTypes: {
             '.js': 'jsx',
-            // React Native / Expo dependencies also ship JSX inside `.mjs`
-            // (e.g. `@rn-primitives/slot` dist/index.mjs). Without mapping it,
-            // oxc keeps JSX disabled and fails with "Unexpected JSX expression".
+            '.jsx': 'jsx',
             '.mjs': 'jsx',
-            '.mts': 'jsx',
+            '.cjs': 'js',
+            '.ts': 'ts',
+            '.tsx': 'tsx',
+            '.mts': 'tsx',
+            '.cts': 'ts',
+            '.json': 'json',
             // React Native / Expo never consume raw CSS on native — `*.module.css`
             // (e.g. `@expo/log-box` overlays, pulled in by the Dev Client error
             // overlay) is imported as a JS module of class-name strings, and
@@ -502,7 +511,7 @@ function resolveReactNativeBuiltinPluginConfig(
   };
 }
 
-function resolveWorkletsConfig(
+export function resolveWorkletsConfig(
   config: ResolvedConfig,
 ): RollipopReactNativeWorkletsConfig | undefined {
   const { worklets } = config.experimental ?? {};
@@ -636,9 +645,6 @@ function resolveExpoRouterPluginOptions(config: ResolvedConfig): ExpoRouterPlugi
   return {
     enabled: isExpoBundlerMode(),
     projectRoot: config.root,
-    // Must match the `process.env.EXPO_ROUTER_APP_ROOT` define above so the
-    // manifest scanner and the env contract agree on where routes live.
-    appDir: path.join(config.root, getExpoRouterAppRoot(config.root)),
   };
 }
 

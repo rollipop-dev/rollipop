@@ -2,6 +2,7 @@ import * as babel from '@babel/core';
 import type * as rolldown from '@rollipop/rolldown';
 import { invariant } from 'es-toolkit';
 
+import { stripFlowTypes } from '../../common/transformer';
 import type { TransformConfig } from '../../config';
 import { mergeBabelOptions } from '../../utils/babel';
 import { resolveFrom } from '../../utils/node-resolve';
@@ -71,7 +72,7 @@ function babelPlugin({
       babelOptionsById.clear();
     },
     transform: {
-      handler(code, id) {
+      async handler(code, id) {
         const flags = getFlag.call(this, context, id);
         if (flags & TransformFlag.SKIP_ALL) {
           return;
@@ -82,30 +83,93 @@ function babelPlugin({
         const isScript = /\.(m?[jt]sx?|c?[jt]sx?)$/.test(id);
         const needsReanimated = reanimatedPlugin != null && isScript;
 
-        const baseOptions = useNativeTransformPipeline ? [] : [getPreset(flags, id)];
+        const baseOptions = useNativeTransformPipeline
+          ? []
+          : [getPreset(flags, id, code, context.buildType === 'serve')];
+        // In the legacy (non-native-pipeline) mode, Babel must parse every
+        // native script (`.js`/`.jsx`/`.ts`/`.tsx`/`.mjs`/`.cjs`): React Native
+        // and Expo ship raw JSX inside `.js`/`.mjs` and Flow inside `.js`, and
+        // app code is frequently `.tsx`. `getPreset` only attaches the plugins
+        // each file actually needs (TS strip, Flow strip, codegen), so running
+        // it on a plain module is a cheap no-op. Gating on `needsReanimated`
+        // alone would skip `.tsx`/`.js` files when the project has no
+        // reanimated, leaving oxc to mis-parse them (oxc's `moduleTypes` does
+        // not rewrite `.tsx` parsing in the dev server here) — so we force the
+        // transform for every script in legacy mode.
         const shouldTransform = useNativeTransformPipeline
           ? babelOptions.length > 0 || needsReanimated
-          : flags & TransformFlag.CODEGEN_REQUIRED || babelOptions.length > 0 || needsReanimated;
+          : isScript ||
+            flags & TransformFlag.CODEGEN_REQUIRED ||
+            babelOptions.length > 0 ||
+            needsReanimated;
         if (!shouldTransform) {
+          return;
+        }
+
+        // Virtual modules (e.g. `\0rolldown/runtime.js`) are emitted by the
+        // bundler itself and must never be parsed by Babel.
+        if (id.includes('\0')) {
           return;
         }
 
         const extraPlugins: babel.PluginItem[] = needsReanimated
           ? [reanimatedPlugin as babel.PluginItem]
           : [];
-        const result = babel.transformSync(code, {
+
+        // React Native / Expo ship Flow source inside plain `.js`/`.mjs`/`.cjs`
+        // modules and raw JSX inside `.js`/`.mjs`/`.jsx`/`.tsx`. Because rolldown
+        // does not guarantee that the `rollipop:react-native-strip-flow-syntax`
+        // pre-pass is chained into this transform — and when it is, the stripped
+        // output has already lost its `@flow` marker — we make Babel
+        // self-sufficient: we strip Flow ourselves on every plain-JS script
+        // (idempotent — already-stripped or non-Flow source passes through
+        // `stripFlowTypes` untouched) and always parse scripts with both the
+        // `typescript` and `jsx` parser plugins. `.ts`/`.tsx` files are handled
+        // by `getPreset` (the `@babel/plugin-transform-typescript` transform),
+        // so we don't run the Flow stripper on them. oxc finishes the JSX → JS
+        // transform via `moduleTypes`.
+        const isPlainJs = /\.(m?js|c?js|m?jsx|c?jsx)$/.test(id);
+        let inputCode = code;
+        if (isPlainJs) {
+          try {
+            inputCode = (await stripFlowTypes(id, code)).code;
+          } catch {
+            inputCode = code;
+          }
+        }
+
+        const mergedOptions = mergeBabelOptions([...baseOptions, ...babelOptions]);
+
+        // Always parse scripts with the `typescript` + `jsx` + `importMeta`
+        // parser plugins so that Flow-stripped (TS-like), JSX-bearing, or
+        // `import.meta`-using `.js` source is readable regardless of whether the
+        // Flow pre-pass ran first.
+        const mergedParserPlugins =
+          (mergedOptions.parserOpts?.plugins as string[] | undefined) ?? [];
+        const parserPluginNames = new Set<string>(mergedParserPlugins);
+        parserPluginNames.add('typescript');
+        parserPluginNames.add('jsx');
+        parserPluginNames.add('importMeta');
+        const parserOpts: babel.InputOptions['parserOpts'] = {
+          plugins: [...parserPluginNames] as NonNullable<
+            NonNullable<babel.InputOptions['parserOpts']>['plugins']
+          >,
+        };
+
+        const result = babel.transformSync(inputCode, {
           filename: id,
           babelrc: false,
           configFile: false,
           sourceMaps: true,
-          ...mergeBabelOptions([...baseOptions, ...babelOptions]),
+          ...mergedOptions,
+          parserOpts,
           // Reanimated's plugin must run last so it sees already-transformed code.
-          plugins: [
-            ...(mergeBabelOptions([...baseOptions, ...babelOptions]).plugins ?? []),
-            ...extraPlugins,
-          ],
+          plugins: [...(mergedOptions.plugins ?? []), ...extraPlugins],
         });
-        invariant(result?.code, `Failed to transform with babel: ${id}`);
+        invariant(
+          result != null && typeof result.code === 'string',
+          `Failed to transform with babel: ${id}`,
+        );
 
         const map = result.map && {
           ...result.map,
@@ -121,34 +185,61 @@ function babelPlugin({
   return [...babelRules, babelPlugin];
 }
 
-function getPreset(flags: TransformFlag, id: string): babel.InputOptions {
+function getPreset(
+  flags: TransformFlag,
+  id: string,
+  code?: string,
+  isServe = false,
+): babel.InputOptions {
   const presets: babel.PresetItem[] = [];
   const plugins: babel.PluginItem[] = [];
-  let parserOpts: NonNullable<babel.InputOptions['parserOpts']> | null = null;
+  // De-dupe parser plugins so a file that is both Flow + JSX (common in RN/Expo
+  // deps) does not request the same parser feature twice — Babel aborts with
+  // "Duplicate plugin/preset detected" otherwise.
+  const parserPlugins = new Set<
+    NonNullable<NonNullable<babel.InputOptions['parserOpts']>['plugins']>[number]
+  >();
 
-  if (flags & TransformFlag.STRIP_FLOW_REQUIRED) {
-    parserOpts = { flow: 'all' } as any;
-    plugins.push(
-      [
-        require.resolve('babel-plugin-syntax-hermes-parser'),
-        {
-          parseLangTypes: 'flow',
-          reactRuntimeTarget: '19',
-        },
-      ],
-      require.resolve('@babel/plugin-transform-flow-strip-types'),
-    );
-  } else if (isTS(id)) {
+  const jsx = isJSX(id);
+  const ts = isTS(id);
+
+  // TypeScript / TSX: strip types, and enable JSX parsing for `.tsx`.
+  if (ts) {
     plugins.push([
       require.resolve('@babel/plugin-transform-typescript'),
-      {
-        isTSX: isJSX(id),
-        allowNamespaces: true,
-      },
+      { isTSX: jsx, allowNamespaces: true },
     ]);
+    if (jsx) {
+      parserPlugins.add('jsx');
+    }
   }
 
-  if (flags & TransformFlag.CODEGEN_REQUIRED) {
+  // React Native / Expo ship raw JSX inside plain `.js`/`.mjs` files (and of
+  // course `.jsx`/`.tsx`). Because transform hooks are not guaranteed to be
+  // chained to oxc in every rolldown build, Babel may receive that raw JSX and
+  // must be able to parse it. Enable the `jsx` parser for every native script
+  // (`.js`/`.jsx`/`.mjs`/`.cjs`/`.tsx`) — a plain `.ts` without JSX does not
+  // need it. No `@babel/plugin-transform-react-jsx` is required (and the v7
+  // plugin would reject this package's `@babel/core@8`); oxc performs the
+  // actual JSX → JS transform via `moduleTypes`.
+  if (jsx || (!ts && /\.(m?js|c?js)$/.test(id))) {
+    parserPlugins.add('jsx');
+  }
+
+  // Flow: flagged by the `rollipop:react-native-strip-flow-syntax` plugin
+  // (content carrying `@flow`/`@format`), OR detected here directly from the
+  // source when the flag is unavailable (transform hooks are not guaranteed to
+  // be chained in every rolldown build). Flow files are stripped to TS-like
+  // source, so they need the `typescript` parser.
+  const isFlow =
+    Boolean(flags & TransformFlag.STRIP_FLOW_REQUIRED) ||
+    (/\.(m?js|c?js)$/.test(id) && code != null && /@flow|@format/.test(code));
+
+  if (isFlow) {
+    parserPlugins.add('typescript');
+  }
+
+  if (flags & TransformFlag.CODEGEN_REQUIRED && !isServe) {
     plugins.push(reactNativeCodegenPlugin);
   }
 
@@ -157,8 +248,8 @@ function getPreset(flags: TransformFlag, id: string): babel.InputOptions {
     plugins,
   };
 
-  if (parserOpts) {
-    options.parserOpts = parserOpts;
+  if (parserPlugins.size > 0) {
+    options.parserOpts = { plugins: [...parserPlugins] };
   }
 
   return options;

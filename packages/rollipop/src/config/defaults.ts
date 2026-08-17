@@ -96,9 +96,16 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
     },
     transform: {
       flow: {
+        // Strip Flow only from files that actually carry a Flow signature.
+        // RN 0.7x+ ships Flow (`@flow`) with TS-ish syntax (`static readonly`,
+        // `?: ?Type`) that only `fast-flow-transform` understands. Matching on
+        // the `@flow`/`@format` marker (not the bare `.js` extension) keeps the
+        // Flow strip — and the matching `typescript` Babel parser it enables —
+        // away from plain app/runtime modules (e.g. the `\0rolldown/runtime.js`
+        // virtual module), which would otherwise be mis-parsed.
         filter: {
-          id: /\.jsx?$/,
-          code: /@flow/,
+          id: /\.(m?js|c?js)$/,
+          code: /@flow|@format/,
         },
       },
     },

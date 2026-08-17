@@ -17,11 +17,15 @@ export const ROLLIPOP_VIRTUAL_ENTRY_ID = `${ROLLIPOP_VIRTUAL_PREFIX}entry`;
  *
  * - `expo-metro-runtime`: shim that stands in for `@expo/metro-runtime` so
  *   Expo Router / error overlays keep working without Metro.
- * - `expo-router-manifest`: the static route tree generated from `app/`,
- *   consumed by Expo Router's `expo-router/entry`.
+ * - `expo-router/_ctx`: Expo Router 57 reads its route tree from the
+ *   `expo-router/_ctx` module's `ctx` export — a RequireContext over the
+ *   `app/` directory (Metro generates this at build time). Rollipop materializes
+ *   it as a virtual module so `getRoutes(ctx)` builds the full route tree
+ *   (groups, dynamic `[id]`, rest `[...slug]`, modals, not-found, layouts)
+ *   natively, without hand-rolling a manifest.
  */
 export const ROLLIPOP_VIRTUAL_EXPO_METRO_RUNTIME_ID = `${ROLLIPOP_VIRTUAL_PREFIX}expo-metro-runtime`;
-export const ROLLIPOP_VIRTUAL_EXPO_ROUTER_MANIFEST_ID = `${ROLLIPOP_VIRTUAL_PREFIX}expo-router-manifest`;
+export const ROLLIPOP_VIRTUAL_EXPO_ROUTER_CTX_ID = 'expo-router/_ctx';
 
 /**
  * @see {@link https://github.com/facebook/metro/blob/0.81.x/docs/Configuration.md#resolvermainfields}

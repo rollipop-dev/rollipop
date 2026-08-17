@@ -1,15 +1,22 @@
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 
 import type * as rolldown from '@rollipop/rolldown';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
+import type { ResolvedConfig } from '../../config';
 import { ProgressBarStatusReporter } from '../../events/builtin-reporters';
 import { EventBus } from '../../events/event-bus';
 import { createTestConfig } from '../../testing/config';
 import type { ReportableEvent } from '../../types';
 import { resolveBuildOptions } from '../../utils/build-options';
-import { getOverrideOptionsForDevServer, resolveRolldownOptions } from '../rolldown';
+import {
+  getOverrideOptionsForDevServer,
+  resolveRolldownOptions,
+  resolveWorkletsConfig,
+} from '../rolldown';
 import type { BundlerContext } from '../types';
 
 type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
@@ -576,5 +583,51 @@ describe('resolveRolldownOptions', () => {
       totalModules: 2,
       transformedModules: 1,
     });
+  });
+});
+
+describe('resolveWorkletsConfig (reanimated/worklets auto-enable)', () => {
+  const appRoot = path.resolve(__dirname, '../../../../packages/expo/apps/rollipop-expo-example');
+  const hasWorklets = fs.existsSync(path.join(appRoot, 'node_modules', 'react-native-worklets'));
+
+  it('auto-enables worklets when react-native-worklets is resolvable from the project', () => {
+    if (!hasWorklets) {
+      // The example app doesn't have the dep in this environment; assert the
+      // absent-path contract instead so the test is deterministic.
+      const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-wk-'));
+      try {
+        const cfg = createTestConfig(empty);
+        expect(resolveWorkletsConfig(cfg)).toBeUndefined();
+      } finally {
+        fs.rmSync(empty, { recursive: true, force: true });
+      }
+      return;
+    }
+    const cfg = createTestConfig(appRoot);
+    const result = resolveWorkletsConfig(cfg);
+    expect(result).toBeDefined();
+    expect(result?.pluginVersion).toBeTruthy();
+    expect(result?.isRelease).toBe(false);
+  });
+
+  it('returns undefined when worklets is unset and the dep is absent', () => {
+    const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-wk-'));
+    try {
+      const cfg = createTestConfig(empty);
+      expect(resolveWorkletsConfig(cfg)).toBeUndefined();
+    } finally {
+      fs.rmSync(empty, { recursive: true, force: true });
+    }
+  });
+
+  it('honors an explicit worklets override (no auto-detection)', () => {
+    const base = createTestConfig(process.cwd());
+    const cfg = {
+      ...base,
+      experimental: { worklets: { pluginVersion: '9.9.9', isRelease: true } },
+    } as ResolvedConfig;
+    const result = resolveWorkletsConfig(cfg);
+    expect(result?.pluginVersion).toBe('9.9.9');
+    expect(result?.isRelease).toBe(true);
   });
 });

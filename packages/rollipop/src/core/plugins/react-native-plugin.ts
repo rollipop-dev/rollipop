@@ -81,19 +81,18 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
           return;
         }
 
-        if (flags & TransformFlag.CODEGEN_REQUIRED) {
-          return { meta: setFlag.call(this, context, id, TransformFlag.STRIP_FLOW_REQUIRED) };
-        }
-
+        // Codegen `NativeComponent` files ship Flow type syntax that the
+        // TypeScript parser can't read (e.g. `T: {...}` generic bounds,
+        // `...ViewProps` spread props). Strip Flow exactly like any other
+        // Flow module so downstream TS/JSX parsing succeeds. We also flag the
+        // module as Flow-stripped so the Babel plugin knows to attach the
+        // `typescript` parser to read the (now TS-like) result.
         const result = await stripFlowTypes(id, code);
 
         return {
           code: result.code,
           map: result.map,
-          /**
-           * Treat the transformed code as TSX code
-           * because Flow modules can be `.js` files with type annotations and JSX syntax.
-           */
+          meta: setFlag.call(this, context, id, TransformFlag.STRIP_FLOW_REQUIRED),
           moduleType: 'tsx',
         };
       },
