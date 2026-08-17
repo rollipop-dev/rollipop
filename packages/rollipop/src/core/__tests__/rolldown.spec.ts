@@ -100,6 +100,62 @@ describe('resolveRolldownOptions', () => {
     expect(options.input.transform?.jsx).toEqual({ development: true });
   });
 
+  it('inlines process.env.EXPO_OS to the platform for native builds (babel-preset-expo parity)', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-expo-os-android',
+        root,
+        buildType: 'build',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'android', dev: true }),
+    );
+
+    const define = options.input?.transform?.define as Record<string, unknown> | undefined;
+    expect(define).toBeDefined();
+    // babel-preset-expo inlines EXPO_OS to the platform string literal
+    // (`"android"`); without it expo-modules-core warns "The global
+    // process.env.EXPO_OS is not defined".
+    expect(define!['process.env.EXPO_OS']).toBe('"android"');
+    // Control: the existing EXPO_ROUTER_APP_ROOT inline must remain.
+    expect(define!['process.env.EXPO_ROUTER_APP_ROOT']).toBeDefined();
+  });
+
+  it('does not inline process.env.EXPO_OS for non-native builds', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-expo-os-web',
+        root,
+        buildType: 'build',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'web', dev: true }),
+    );
+
+    const define = options.input?.transform?.define as Record<string, unknown> | undefined;
+    expect(define!['process.env.EXPO_OS']).toBeUndefined();
+  });
+
   it('excludes React Refresh wrapper plugins for dev server when HMR is disabled', async () => {
     resolveRolldownOptions.cache.clear();
 

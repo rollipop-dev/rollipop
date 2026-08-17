@@ -211,6 +211,16 @@ export async function resolveRolldownOptions(
       'process.env.EXPO_ROUTER_APP_ROOT': asLiteral(
         path.join(config.root, getExpoRouterAppRoot(config.root)),
       ),
+      // `babel-preset-expo` inlines `process.env.EXPO_OS` to the platform string
+      // ('android' | 'ios' | 'web' | ...) at transform time. expo-modules-core
+      // reads it in `Platform.js` to seed `Platform.OS`; without the inline it
+      // stays a runtime `process.env.EXPO_OS` lookup that resolves to undefined
+      // and emits "The global process.env.EXPO_OS is not defined". Only native
+      // platforms have a meaningful value here (web leaves it undefined, like
+      // babel-preset-expo).
+      ...(isNativePlatform
+        ? { 'process.env.EXPO_OS': asLiteral(platform) }
+        : null),
     },
     helpers: {
       mode: 'Runtime',
