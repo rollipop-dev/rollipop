@@ -49,9 +49,7 @@ function resolveDefaultEntry(projectRoot: string): string {
       };
       const declared = pkg.expo?.entry ?? pkg.main;
       if (declared && typeof declared === 'string') {
-        const abs = path.isAbsolute(declared)
-          ? declared
-          : path.resolve(projectRoot, declared);
+        const abs = path.isAbsolute(declared) ? declared : path.resolve(projectRoot, declared);
         if (fs.existsSync(abs)) return abs;
         // Allow extension-less/bare `main` (e.g. "index") to match a discovered file.
         for (const ext of ['', '.tsx', '.ts', '.jsx', '.js']) {

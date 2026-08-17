@@ -218,9 +218,7 @@ export async function resolveRolldownOptions(
       // and emits "The global process.env.EXPO_OS is not defined". Only native
       // platforms have a meaningful value here (web leaves it undefined, like
       // babel-preset-expo).
-      ...(isNativePlatform
-        ? { 'process.env.EXPO_OS': asLiteral(platform) }
-        : null),
+      ...(isNativePlatform ? { 'process.env.EXPO_OS': asLiteral(platform) } : null),
     },
     helpers: {
       mode: 'Runtime',
@@ -509,8 +507,22 @@ function resolveWorkletsConfig(
 ): RollipopReactNativeWorkletsConfig | undefined {
   const { worklets } = config.experimental ?? {};
 
+  // Auto-enable worklets when the project depends on `react-native-worklets`
+  // (the engine `react-native-reanimated` v4 is built on). Without this,
+  // reanimated v4 never initializes its runtime — including the
+  // `ScrollView.scrollTo` patch — which throws
+  // `ReferenceError: Property 'scrollTo' doesn't exist` on RN 0.86 (new arch)
+  // at first render. `babel-preset-expo` enables the equivalent automatically;
+  // Rollipop must do the same so apps don't have to opt in manually.
   if (worklets == null) {
-    return undefined;
+    const workletsPkg = resolvePackageJson(config.root, 'react-native-worklets');
+    if (workletsPkg == null) {
+      return undefined;
+    }
+    return {
+      isRelease: config.mode === 'production',
+      pluginVersion: workletsPkg.version,
+    };
   }
 
   return merge(

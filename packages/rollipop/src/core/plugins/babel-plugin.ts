@@ -4,9 +4,31 @@ import { invariant } from 'es-toolkit';
 
 import type { TransformConfig } from '../../config';
 import { mergeBabelOptions } from '../../utils/babel';
+import { resolveFrom } from '../../utils/node-resolve';
 import type { BundlerContext } from '../types';
 import { isJSX, isTS } from './utils';
 import { getFlag, TransformFlag } from './utils/transform-utils';
+
+/**
+ * Reanimated v3/v4 requires its Babel plugin to run during transform so it can
+ * transform `worklet` directives (and, on some RN versions, patch
+ * `ScrollView.scrollTo`). `babel-preset-expo` auto-injects it whenever
+ * `react-native-reanimated` is installed; Rollipop's pipeline deliberately
+ * ignores project Babel config (see `babelrc: false` below), so we inject it
+ * explicitly. Detected lazily per-project and cached; absent when the dep isn't
+ * installed.
+ */
+let cachedReanimatedPlugin: string | null | undefined;
+function resolveReanimatedPlugin(root: string): string | null {
+  if (cachedReanimatedPlugin === undefined) {
+    try {
+      cachedReanimatedPlugin = resolveFrom(root, 'react-native-reanimated/plugin');
+    } catch {
+      cachedReanimatedPlugin = null;
+    }
+  }
+  return cachedReanimatedPlugin;
+}
 
 export interface BabelPluginOptions {
   context: BundlerContext;
@@ -56,20 +78,32 @@ function babelPlugin({
         }
 
         const babelOptions = babelOptionsById.get(id) ?? [];
+        const reanimatedPlugin = resolveReanimatedPlugin(context.root);
+        const isScript = /\.(m?[jt]sx?|c?[jt]sx?)$/.test(id);
+        const needsReanimated = reanimatedPlugin != null && isScript;
+
+        const baseOptions = useNativeTransformPipeline ? [] : [getPreset(flags, id)];
         const shouldTransform = useNativeTransformPipeline
-          ? babelOptions.length > 0
-          : flags & TransformFlag.CODEGEN_REQUIRED || babelOptions.length > 0;
+          ? babelOptions.length > 0 || needsReanimated
+          : flags & TransformFlag.CODEGEN_REQUIRED || babelOptions.length > 0 || needsReanimated;
         if (!shouldTransform) {
           return;
         }
 
-        const baseOptions = useNativeTransformPipeline ? [] : [getPreset(flags, id)];
+        const extraPlugins: babel.PluginItem[] = needsReanimated
+          ? [reanimatedPlugin as babel.PluginItem]
+          : [];
         const result = babel.transformSync(code, {
           filename: id,
           babelrc: false,
           configFile: false,
           sourceMaps: true,
           ...mergeBabelOptions([...baseOptions, ...babelOptions]),
+          // Reanimated's plugin must run last so it sees already-transformed code.
+          plugins: [
+            ...(mergeBabelOptions([...baseOptions, ...babelOptions]).plugins ?? []),
+            ...extraPlugins,
+          ],
         });
         invariant(result?.code, `Failed to transform with babel: ${id}`);
 
