@@ -97,7 +97,9 @@ function babelPlugin({
         // not rewrite `.tsx` parsing in the dev server here) — so we force the
         // transform for every script in legacy mode.
         const shouldTransform = useNativeTransformPipeline
-          ? babelOptions.length > 0 || needsReanimated
+          ? babelOptions.length > 0 ||
+            needsReanimated ||
+            (flags & TransformFlag.CODEGEN_REQUIRED) !== 0
           : isScript ||
             flags & TransformFlag.CODEGEN_REQUIRED ||
             babelOptions.length > 0 ||
@@ -116,21 +118,24 @@ function babelPlugin({
           ? [reanimatedPlugin as babel.PluginItem]
           : [];
 
-        // React Native / Expo ship Flow source inside plain `.js`/`.mjs`/`.cjs`
-        // modules and raw JSX inside `.js`/`.mjs`/`.jsx`/`.tsx`. Because rolldown
-        // does not guarantee that the `rollipop:react-native-strip-flow-syntax`
-        // pre-pass is chained into this transform — and when it is, the stripped
-        // output has already lost its `@flow` marker — we make Babel
-        // self-sufficient: we strip Flow ourselves on every plain-JS script
-        // (idempotent — already-stripped or non-Flow source passes through
-        // `stripFlowTypes` untouched) and always parse scripts with both the
-        // `typescript` and `jsx` parser plugins. `.ts`/`.tsx` files are handled
-        // by `getPreset` (the `@babel/plugin-transform-typescript` transform),
-        // so we don't run the Flow stripper on them. oxc finishes the JSX → JS
-        // transform via `moduleTypes`.
+        // React Native / Expo ship Flow source (`.js`/`.mjs`/`.cjs` with
+        // `@flow`, `static readonly`, `?: ?Type`, …). The pre-order
+        // `rollipop:react-native-strip-flow-syntax` plugin strips Flow with
+        // `fast-flow-transform` and flags the result `STRIP_FLOW_REQUIRED` +
+        // `moduleType: 'tsx'`. For files it DID NOT strip (the common case: a
+        // plain `.js`/`.mjs` with no `@flow` marker but Flow-ish or TS-ish
+        // syntax, or when transform hooks are not chained in every rolldown
+        // build), we make Babel self-sufficient and strip Flow here so the
+        // resulting source is TS-like and re-emits a *valid* sourcemap (the
+        // pre-stripped variant is what kept the dev-server sourcemap merger
+        // green). This must NOT run for codegen files: they keep their original
+        // Flow (the `@react-native/codegen` plugin parses Flow itself) and are
+        // handled by `getPreset` with the `flow` parser. `stripFlowTypes` is
+        // idempotent — already-stripped/non-Flow source passes through untouched.
         const isPlainJs = /\.(m?js|c?js|m?jsx|c?jsx)$/.test(id);
+        const isCodegenFile = (flags & TransformFlag.CODEGEN_REQUIRED) !== 0;
         let inputCode = code;
-        if (isPlainJs) {
+        if (isPlainJs && !isCodegenFile) {
           try {
             inputCode = (await stripFlowTypes(id, code)).code;
           } catch {
@@ -140,15 +145,26 @@ function babelPlugin({
 
         const mergedOptions = mergeBabelOptions([...baseOptions, ...babelOptions]);
 
-        // Always parse scripts with the `typescript` + `jsx` + `importMeta`
-        // parser plugins so that Flow-stripped (TS-like), JSX-bearing, or
-        // `import.meta`-using `.js` source is readable regardless of whether the
-        // Flow pre-pass ran first.
+        // `getPreset` attaches the correct base parser plugins: `flow` (+`jsx`)
+        // for codegen/Flow source, `typescript`+`jsx` for TS/TSX. For the common
+        // case (plain `.js`/`.mjs` RN/Expo deps that ship TS syntax like
+        // `import type`, `enum`, or JSX without a `@flow` marker), `getPreset`
+        // does not add `typescript` (it keys off the `@flow` marker / TS
+        // extension), so we force `typescript` + `jsx` here for every non-codegen
+        // script — mirroring the prior behavior that kept these modules
+        // parseable. For codegen files `getPreset` already set `flow`; forcing
+        // `typescript` on top would make Babel abort with "Cannot combine flow
+        // and typescript plugins", so we skip it there. `importMeta` is always
+        // safe to add.
         const mergedParserPlugins =
           (mergedOptions.parserOpts?.plugins as string[] | undefined) ?? [];
         const parserPluginNames = new Set<string>(mergedParserPlugins);
-        parserPluginNames.add('typescript');
-        parserPluginNames.add('jsx');
+        if (!isCodegenFile) {
+          parserPluginNames.add('typescript');
+        }
+        if (!parserPluginNames.has('jsx')) {
+          parserPluginNames.add('jsx');
+        }
         parserPluginNames.add('importMeta');
         const parserOpts: babel.InputOptions['parserOpts'] = {
           plugins: [...parserPluginNames] as NonNullable<
@@ -160,7 +176,13 @@ function babelPlugin({
           filename: id,
           babelrc: false,
           configFile: false,
-          sourceMaps: true,
+          // Codegen view-config modules (`*NativeComponent.js`) are internal RN
+          // modules — their sourcemaps are not needed for the dev/HMR
+          // experience, and babel's Flow-stripped sourcemaps for them contain a
+          // 0-length mapping segment that rolldown's sourcemap merger rejects
+          // ("Mapping segment had an unsupported size of 0"). Drop the sourcemap
+          // for these files so the final bundle's sourcemap stays valid.
+          sourceMaps: isCodegenFile ? false : true,
           ...mergedOptions,
           parserOpts,
           // Reanimated's plugin must run last so it sees already-transformed code.
@@ -226,20 +248,38 @@ function getPreset(
     parserPlugins.add('jsx');
   }
 
-  // Flow: flagged by the `rollipop:react-native-strip-flow-syntax` plugin
-  // (content carrying `@flow`/`@format`), OR detected here directly from the
-  // source when the flag is unavailable (transform hooks are not guaranteed to
-  // be chained in every rolldown build). Flow files are stripped to TS-like
-  // source, so they need the `typescript` parser.
+  // Codegen: `NativeComponent` files (`*NativeComponent.js`) are parsed by the
+  // `@react-native/babel-plugin-codegen` plugin, which runs its OWN Flow parser
+  // over the *original* source to extract the native view schema. So the Flow
+  // syntax (`T: {...}` generic bounds, `...ViewProps` spreads) must be
+  // preserved and parsed with the **`flow`** parser — NOT `typescript`, which
+  // rejects Flow-only syntax (`Unexpected token, expected ","`). When a codegen
+  // file is also a plain `.js`/`.mjs`, add `jsx` too so JSX-bearing codegen
+  // modules parse. The codegen plugin itself is pushed below.
+  const isCodegen = Boolean(flags & TransformFlag.CODEGEN_REQUIRED) && !isServe;
+  if (isCodegen) {
+    parserPlugins.add('flow');
+    if (jsx || /\.(m?js|c?js|jsx|tsx)$/.test(id)) {
+      parserPlugins.add('jsx');
+    }
+  }
+
+  // Flow (non-codegen): flagged by the `rollipop:react-native-strip-flow-syntax`
+  // pre-pass (`STRIP_FLOW_REQUIRED`), OR detected here directly from the source
+  // when the flag is unavailable (transform hooks are not guaranteed to be
+  // chained in every rolldown build). These files have already been stripped to
+  // TS-like syntax by the pre-pass, so they need the `typescript` parser. Codegen
+  // files are intentionally excluded above — they keep Flow and use `flow`.
   const isFlow =
-    Boolean(flags & TransformFlag.STRIP_FLOW_REQUIRED) ||
-    (/\.(m?js|c?js)$/.test(id) && code != null && /@flow|@format/.test(code));
+    !isCodegen &&
+    (Boolean(flags & TransformFlag.STRIP_FLOW_REQUIRED) ||
+      (/\.(m?js|c?js)$/.test(id) && code != null && /@flow|@format/.test(code)));
 
   if (isFlow) {
     parserPlugins.add('typescript');
   }
 
-  if (flags & TransformFlag.CODEGEN_REQUIRED && !isServe) {
+  if (isCodegen) {
     plugins.push(reactNativeCodegenPlugin);
   }
 

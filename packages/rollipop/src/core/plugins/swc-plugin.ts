@@ -79,6 +79,15 @@ function swcPlugin({
           return;
         }
 
+        // Codegen `NativeComponent` files contain Flow-only syntax (`T: {...}`)
+        // that swc's `typescript` parser rejects. They are handled exclusively by
+        // the Babel pipeline (which parses them with the `flow` parser and runs
+        // `@react-native/babel-plugin-codegen`), so swc must skip them — running
+        // the TS preset here produces "Expected '{', got 'ident'".
+        if (getFlag.call(this, context, id) & TransformFlag.CODEGEN_REQUIRED) {
+          return;
+        }
+
         const swcOptions = swcOptionsById.get(id) ?? [];
         if (getSwcPreset == null && swcOptions.length === 0) {
           return;

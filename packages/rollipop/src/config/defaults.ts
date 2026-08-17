@@ -128,9 +128,21 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       codegen: {
         /**
          * @see {@link https://github.com/facebook/react-native/blob/v0.83.1/packages/react-native-babel-preset/src/configs/main.js#L78}
+         *
+         * Matches React Native's native-component codegen modules: the
+         * `codegenNativeComponent` helper module itself
+         * (`Libraries/Utilities/codegenNativeComponent.js`) and every
+         * `*NativeComponent.js` view module that calls it (e.g.
+         * `VirtualViewNativeComponent.js`). These files ship Flow-only syntax
+         * (`T: {...}` generic bounds) that must be parsed with the Flow parser
+         * and handed to `@react-native/babel-plugin-codegen` unchanged. The
+         * previous `/\\bcodegenNativeComponent</` pattern required a literal `<`
+         * after the name and therefore matched nothing — so the codegen flag was
+         * never set and the raw Flow source reached oxc, which rejects it with
+         * "[PARSE_ERROR] Flow is not supported".
          */
         filter: {
-          code: /\bcodegenNativeComponent</,
+          code: /(^|\/)codegenNativeComponent\.(js|jsx|ts|tsx)$|\bNativeComponent\.(js|jsx|ts|tsx)$/,
         },
       },
       assetRegistryPath: DEFAULT_ASSET_REGISTRY_PATH as NonNullable<

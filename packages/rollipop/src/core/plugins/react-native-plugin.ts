@@ -81,17 +81,33 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
           return;
         }
 
-        // Codegen `NativeComponent` files ship Flow type syntax that the
-        // TypeScript parser can't read (e.g. `T: {...}` generic bounds,
-        // `...ViewProps` spread props). Strip Flow exactly like any other
-        // Flow module so downstream TS/JSX parsing succeeds. We also flag the
-        // module as Flow-stripped so the Babel plugin knows to attach the
-        // `typescript` parser to read the (now TS-like) result.
+        // Codegen `NativeComponent` files are handled by the
+        // `@react-native/babel-plugin-codegen` plugin (pushed by `getPreset`
+        // when `CODEGEN_REQUIRED` is set). That plugin runs its OWN Flow parser
+        // over the original source to extract the native component schema, so
+        // the Flow syntax must be preserved here — we must NOT strip Flow and
+        // must NOT flag the module as flow-stripped (doing so would make
+        // `getPreset` attach the `typescript` parser, which rejects Flow-only
+        // syntax like `T: {...}` and fails with "Could not find component
+        // config"). We simply leave the source untouched; `getPreset` detects
+        // the `CODEGEN_REQUIRED` flag and parses it with the `flow` parser.
+        if (flags & TransformFlag.CODEGEN_REQUIRED) {
+          return;
+        }
+
+        // Other Flow modules (non-codegen) ship Flow type syntax that the
+        // TypeScript parser can't read. Strip Flow so downstream TS/JSX parsing
+        // succeeds, and flag the module as Flow-stripped so the Babel plugin
+        // attaches the `typescript` parser to read the (now TS-like) result.
         const result = await stripFlowTypes(id, code);
 
         return {
           code: result.code,
           map: result.map,
+          /**
+           * Treat the transformed code as TSX code
+           * because Flow modules can be `.js` files with type annotations and JSX syntax.
+           */
           meta: setFlag.call(this, context, id, TransformFlag.STRIP_FLOW_REQUIRED),
           moduleType: 'tsx',
         };
