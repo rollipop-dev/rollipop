@@ -1,44 +1,55 @@
-import { interpreter } from '@rollipop/rolldown/filter';
 import { describe, expect, it } from 'vite-plus/test';
 
-import { expoAssetInterop } from '../expo-asset-interop-plugin';
+import { expoAssetInterop, RESOLVE_ASSET_SOURCE_RE } from '../expo-asset-interop-plugin';
 
-type Filter = Parameters<typeof interpreter>[0];
+describe('expoAssetInterop', () => {
+  describe('plugin gating', () => {
+    it('returns null when disabled (not the Expo bundler)', () => {
+      expect(expoAssetInterop({ enabled: false })).toBeNull();
+    });
 
-describe('expo-asset-interop plugin', () => {
-  it('is a no-op when disabled', () => {
-    expect(expoAssetInterop({ enabled: false })).toBeNull();
+    it('returns a plugin with a load hook when enabled', () => {
+      const plugin = expoAssetInterop({ enabled: true });
+      expect(plugin).not.toBeNull();
+      expect(plugin!.load).toBeDefined();
+    });
   });
 
-  it('re-exports setCustomSourceTransformer as a named export', () => {
-    const plugin = expoAssetInterop({ enabled: true })!;
-    const transform = plugin.transform as {
-      filter: Filter;
-      handler: () => { code: string; moduleType: string };
-    };
+  describe('load hook shim (MISSING_EXPORT fix)', () => {
+    it('re-exports setCustomSourceTransformer as a named export so Asset.fx.js resolves', () => {
+      const plugin = expoAssetInterop({ enabled: true });
+      const result = (
+        plugin!.load as { handler: (id: string) => { code: string; moduleType: string } }
+      ).handler('/abs/path/expo/packages/expo-asset/build/resolveAssetSource.native.js');
 
-    const result = transform.handler();
-
-    expect(result.moduleType).toBe('js');
-    expect(result.code).toContain(
-      "import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';",
-    );
-    expect(result.code).toContain('export default resolveAssetSource;');
-    expect(result.code).toContain(
-      'export const setCustomSourceTransformer = resolveAssetSource?.setCustomSourceTransformer;',
-    );
+      expect(result.moduleType).toBe('js');
+      // Default export preserved (Image still resolves the source transform fn).
+      expect(result.code).toContain(
+        "import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource'",
+      );
+      expect(result.code).toContain('export default resolveAssetSource;');
+      // The property that `export *` does not forward becomes an explicit named export.
+      expect(result.code).toContain(
+        'export const setCustomSourceTransformer = resolveAssetSource?.setCustomSourceTransformer;',
+      );
+      // Must NOT import itself (the self-referential default interop bug).
+      expect(result.code).not.toContain("from './resolveAssetSource'");
+      expect(result.code).not.toContain('from "./resolveAssetSource"');
+    });
   });
 
-  it('filters resolveAssetSource module variants', () => {
-    const plugin = expoAssetInterop({ enabled: true })!;
-    const transform = plugin.transform as { filter: Filter; handler: () => unknown };
+  describe('RESOLVE_ASSET_SOURCE_RE filter', () => {
+    it('matches expo-asset resolveAssetSource (native + base)', () => {
+      expect(RESOLVE_ASSET_SOURCE_RE.test('/x/expo-asset/build/resolveAssetSource.native.js')).toBe(
+        true,
+      );
+      expect(RESOLVE_ASSET_SOURCE_RE.test('/x/expo-asset/build/resolveAssetSource.js')).toBe(true);
+    });
 
-    const base = '/store/expo-asset/build/resolveAssetSource.js';
-    const native = '/store/expo-asset/build/resolveAssetSource.native.js';
-    const unrelated = '/store/expo-asset/build/Asset.js';
-
-    expect(interpreter(transform.filter, undefined, base)).toBe(true);
-    expect(interpreter(transform.filter, undefined, native)).toBe(true);
-    expect(interpreter(transform.filter, undefined, unrelated)).toBe(false);
+    it('does NOT match React Native core resolveAssetSource', () => {
+      expect(
+        RESOLVE_ASSET_SOURCE_RE.test('/x/react-native/Libraries/Image/resolveAssetSource.js'),
+      ).toBe(false);
+    });
   });
 });

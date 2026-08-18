@@ -48,8 +48,16 @@ export function rewriteSourceMappingUrlHost(code: string, host: string): string 
   }
 
   const schemeAuthority = host.includes('://') ? host : `http://${host}`;
-  const original = new URL(match[2]);
-  const incoming = new URL(schemeAuthority);
+  let original: URL;
+  let incoming: URL;
+  try {
+    original = new URL(match[2]);
+    incoming = new URL(schemeAuthority);
+  } catch {
+    // Missing/invalid host header (or malformed source URL) — leave the
+    // comment untouched rather than failing the whole bundle response.
+    return code;
+  }
   original.host = incoming.host;
   original.protocol = incoming.protocol;
   const rewritten = `${match[1]}${original.origin}${match[3]}`;

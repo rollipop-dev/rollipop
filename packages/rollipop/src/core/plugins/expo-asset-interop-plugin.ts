@@ -18,7 +18,8 @@ import { id, include } from '@rollipop/rolldown/filter';
  * bump that moves the file still matches by basename as long as it lives under
  * an `expo-asset/` directory.
  */
-const RESOLVE_ASSET_SOURCE_RE = /(^|\/)expo-asset\/.{0,40}resolveAssetSource(\.[^/\\]+)?\.js$/;
+export const RESOLVE_ASSET_SOURCE_RE =
+  /(^|\/)expo-asset\/.{0,40}resolveAssetSource(\.[^/\\]+)?\.js$/;
 
 const RESOLVE_ASSET_SOURCE_FILTER = [include(id(RESOLVE_ASSET_SOURCE_RE))];
 
