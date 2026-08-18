@@ -27,3 +27,6 @@ package.tgz
 
 # coverage
 coverage/
+
+# Local dev-environment notes (port map, agent conventions) — not product source
+AGENTS.md
