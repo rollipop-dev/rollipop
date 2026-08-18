@@ -5,6 +5,7 @@ import { asConst, type FromSchema } from 'json-schema-to-ts';
 
 import { isEventForBundler } from '../../events/utils';
 import { BundleResponse } from '../../utils/response';
+import { rewriteSourceMappingUrlHost } from '../../utils/source-map';
 import { bundleRequestSchema, type BundleRequestSchema } from '../common/schema';
 import type { DevServerContext } from '../types';
 
@@ -39,6 +40,7 @@ async function serveBundle(
   reply: FastifyReply,
   bundler: ReturnType<DevServerContext['bundlerPool']['get']>,
   accept: string | undefined,
+  incomingHost: string | undefined,
   log: { debug: (msg: string) => void },
   eventBus: DevServerContext['eventBus'],
 ): Promise<void> {
@@ -63,7 +65,15 @@ async function serveBundle(
     if (!bundle || typeof bundle.code !== 'string') {
       return;
     }
-    const code = bundle.code;
+    // The bundle's `sourceMappingURL` is baked at build time from the dev
+    // server's bind address (e.g. `0.0.0.0`), which the device cannot route
+    // to. The React Native LogBox inspector fetches that `.map` to render the
+    // error code-frame; with an unreachable host it hangs on
+    // "Loading, please wait". Rewrite the host to the address the client
+    // actually reached (its `host` header) — mirroring how `expo-manifest.ts`
+    // resolves the device-reachable base URL for the manifest.
+    const code =
+      incomingHost != null ? rewriteSourceMappingUrlHost(bundle.code, incomingHost) : bundle.code;
     await reply
       .header('Content-Type', 'application/javascript')
       .header('Content-Length', Buffer.byteLength(code))
@@ -104,7 +114,14 @@ const plugin = fp<ServeBundlePluginOptions>(
 
         const buildOptions = getBundleOptions(query);
         const bundler = context.bundlerPool.get(params.name, buildOptions);
-        await serveBundle(reply, bundler, accept, this.log, context.eventBus);
+        await serveBundle(
+          reply,
+          bundler,
+          accept,
+          request.headers['host'],
+          this.log,
+          context.eventBus,
+        );
       },
     });
 
@@ -119,7 +136,14 @@ const plugin = fp<ServeBundlePluginOptions>(
         const { query, headers } = request;
         const buildOptions = getBundleOptions(query);
         const bundler = context.bundlerPool.get('index', buildOptions);
-        await serveBundle(reply, bundler, headers.accept, this.log, context.eventBus);
+        await serveBundle(
+          reply,
+          bundler,
+          headers.accept,
+          request.headers['host'],
+          this.log,
+          context.eventBus,
+        );
       },
     });
 

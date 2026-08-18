@@ -13,16 +13,10 @@ import { id, include } from '@rollipop/rolldown/filter';
  * import itself — re-introducing the exact self-referential default interop bug
  * (the module body gets dropped and `Image` crashes).
  *
- * HACK WARNING: ideally we would match on the module's *resolved* path. But the
- * rolldown filter runs on the raw specifier / un-resolved id, and the pnpm
- * store layout is non-deterministic (`.pnpm/expo-asset@x.y.z/node_modules/...`
- * vs a hoisted `node_modules/expo-asset/...`). To stay layout-agnostic we anchor
- * on the package directory name `expo-asset` plus the known file basename, which
- * is stable across RN / Expo / layout changes. We no longer hardcode
- * `expo-asset/build/`, so a future RN bump that moves the file still matches by
- * basename as long as it lives under an `expo-asset/` directory. The correct fix
- * is to move this to a `resolveId`-based guard in `@rollipop/rolldown`'s format
- * plugin (where the real path is known) — tracked as debt.
+ * We anchor on the package directory name `expo-asset` plus the known file
+ * basename, which is stable across RN / Expo / pnpm-layout changes. A future RN
+ * bump that moves the file still matches by basename as long as it lives under
+ * an `expo-asset/` directory.
  */
 const RESOLVE_ASSET_SOURCE_RE = /(^|\/)expo-asset\/.{0,40}resolveAssetSource(\.[^/\\]+)?\.js$/;
 
@@ -43,8 +37,15 @@ export interface ExpoAssetInteropPluginOptions {
  *
  * Metro tolerates this via CJS named-export interop, but Rolldown's strict
  * `export *` re-export does not surface the property as a named export, producing
- * a `MISSING_EXPORT` error. This shim re-exports the property as a named export
- * so Expo SDK 57 / RN 0.86 apps bundle without patching upstream `expo-asset`.
+ * a `MISSING_EXPORT` error.
+ *
+ * This shim re-exports the property as a named export so Expo SDK 57 / RN 0.86
+ * apps bundle without patching upstream `expo-asset`.
+ *
+ * NOTE: this is implemented as a `load` hook (not `transform`). In Rolldown's
+ * dev/serve mode, module contents are served through `load` hooks; `transform`
+ * hooks are not invoked for module bodies in that mode, so a `transform`-based
+ * shim would silently never run and the `MISSING_EXPORT` would persist.
  *
  * Scoped to Expo mode only; non-Expo React Native builds are unaffected.
  */
@@ -55,7 +56,7 @@ function expoAssetInteropPlugin(options: ExpoAssetInteropPluginOptions): rolldow
 
   return {
     name: 'rollipop:expo-asset-interop',
-    transform: {
+    load: {
       filter: RESOLVE_ASSET_SOURCE_FILTER,
       handler() {
         // RN 0.86 exposes `setCustomSourceTransformer` as a property of the

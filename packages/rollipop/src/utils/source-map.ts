@@ -20,6 +20,42 @@ export function replaceSourceMappingUrl(code: string, sourceMapUrl: string) {
   return `${code}${endsWithLineBreak(code) ? '' : '\n'}${comment}`;
 }
 
+/**
+ * Rewrite only the *host* of the `//# sourceMappingURL=...` comment so it points
+ * at the address the requesting client can actually reach.
+ *
+ * Rollipop builds the source-map URL from the dev server's bind address (often
+ * `0.0.0.0`), which the device cannot route to. The Dev Client / React Native
+ * LogBox inspector fetches the `.map` from that URL to render the error
+ * code-frame; with an unreachable host it hangs on "Loading, please wait".
+ * Metro avoids this by writing the host the client reached. We mirror that here
+ * by swapping in the incoming request's `host` header (e.g. the LAN IP the
+ * phone used), leaving path/query intact. No-op when there is no sourcemap
+ * comment or the host is missing.
+ */
+export function rewriteSourceMappingUrlHost(code: string, host: string): string {
+  const lastLine = findLastNonEmptyLine(code);
+  if (lastLine == null || !isSourceMappingUrlCommentLine(code, lastLine.start, lastLine.end)) {
+    return code;
+  }
+
+  const prefix = code.slice(0, lastLine.start);
+  const match = code
+    .slice(lastLine.start, lastLine.end)
+    .match(/^(.*sourceMappingURL=)(https?:\/\/[^/]+)(.*)$/s);
+  if (match == null) {
+    return code;
+  }
+
+  const schemeAuthority = host.includes('://') ? host : `http://${host}`;
+  const original = new URL(match[2]);
+  const incoming = new URL(schemeAuthority);
+  original.host = incoming.host;
+  original.protocol = incoming.protocol;
+  const rewritten = `${match[1]}${original.origin}${match[3]}`;
+  return `${prefix}${rewritten}`;
+}
+
 function isSourceMappingUrlCommentLine(code: string, start: number, end: number) {
   if (!code.startsWith(LINE_COMMENT_PREFIX, start)) {
     return false;
