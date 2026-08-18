@@ -182,6 +182,19 @@ const plugin = fp<ExpoManifestPluginOptions>(
     fastify
       .get('/manifest', (_request, reply) => sendManifest(_request, reply))
       .get('/index.exp', (_request, reply) => sendManifest(_request, reply));
+
+    // Metro-compatible file-watch / reload long-poll endpoint used by the Expo
+    // Dev Client (and `expo start` consumers). The client polls `/onchange`
+    // (root path, like Metro) and expects a 200 with a (possibly empty) list
+    // of changed file roots; on a non-empty response it reloads. Rollipop does
+    // not yet push file changes through this channel, so we ack the poll with
+    // an empty change set — the dev client treats that as "no changes" and
+    // re-polls, which keeps the connection alive without surfacing a spurious
+    // load failure. Registered at root (not under a REST prefix) because the
+    // native Dev Client requests `/onchange` exactly as Metro exposes it.
+    fastify.get('/onchange', (_request, reply) => {
+      return reply.status(200).send([]);
+    });
   },
   { name: 'expo-manifest' },
 );
