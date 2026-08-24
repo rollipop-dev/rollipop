@@ -142,7 +142,18 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
          * "[PARSE_ERROR] Flow is not supported".
          */
         filter: {
-          code: /(^|\/)codegenNativeComponent\.(js|jsx|ts|tsx)$|\bNativeComponent\.(js|jsx|ts|tsx)$/,
+          // Precise "source-content detection": match a module whose id ends in
+          // `*NativeComponent.js` AND whose source imports the
+          // `codegenNativeComponent` helper (detected via the import path
+          // string, which survives rollipop's import-rewriting — the binding
+          // name does not). This catches RN-core codegen view modules
+          // (`DebuggingOverlayNativeComponent.js`, `VirtualViewNativeComponent.js`,
+          // …) while excluding legacy `*NativeComponent.js` modules
+          // (`TextNativeComponent.js`, which uses the old
+          // `createReactNativeComponentClass` API and cannot be parsed by the
+          // Flow parser).
+          id: /(^|\/)codegenNativeComponent\.(js|jsx|ts|tsx)$|NativeComponent\.(js|jsx|ts|tsx)$/,
+          code: /codegenNativeComponent['"]/,
         },
       },
       assetRegistryPath: DEFAULT_ASSET_REGISTRY_PATH as NonNullable<
