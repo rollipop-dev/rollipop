@@ -93,7 +93,7 @@ function buildManifest(context: DevServerContext, request: ManifestRequestLike) 
     : context.serverBaseUrl;
   const baseHost = new URL(baseUrl).host;
 
-  const bundleUrl = `${baseUrl}/index.bundle?platform=${platform}&dev=true&lazy=true&minify=false`;
+  const bundleUrl = `${baseUrl}/index.bundle?platform=${platform}&dev=true&lazy=false&minify=false`;
 
   const dependencies: Record<string, string> = {
     ...pkgJson?.dependencies,
