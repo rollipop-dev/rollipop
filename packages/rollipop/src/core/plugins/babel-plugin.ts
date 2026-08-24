@@ -255,8 +255,12 @@ function getPreset(
   // preserved and parsed with the **`flow`** parser — NOT `typescript`, which
   // rejects Flow-only syntax (`Unexpected token, expected ","`). When a codegen
   // file is also a plain `.js`/`.mjs`, add `jsx` too so JSX-bearing codegen
-  // modules parse. The codegen plugin itself is pushed below.
-  const isCodegen = Boolean(flags & TransformFlag.CODEGEN_REQUIRED) && !isServe;
+  // modules parse. The codegen plugin itself is pushed below. Codegen MUST run
+  // in serve (dev) mode too — React Native core view components (e.g.
+  // `DebuggingOverlay` used by `AppContainer`) need their JS view config
+  // generated at dev time, exactly like Metro does. Skipping it in serve mode
+  // leaves those components with no view config ("View config not found").
+  const isCodegen = Boolean(flags & TransformFlag.CODEGEN_REQUIRED);
   if (isCodegen) {
     parserPlugins.add('flow');
     if (jsx || /\.(m?js|c?js|jsx|tsx)$/.test(id)) {
