@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
 
-import { EventBus } from '../../../events/event-bus';
-import { createTestConfig } from '../../../testing/config';
-import { DevServerState } from '../../state/store';
-import type { DevServerContext } from '../../types';
-import type { WebSocketClient } from '../../wss/server';
+import { EventBus } from '../../../../events/event-bus';
+import { createTestConfig } from '../../../../testing/config';
+import { DevServerState } from '../../../state/store';
+import type { DevServerContext } from '../../../types';
+import type { WebSocketClient } from '../../../wss/server';
 import { AppLogDiagnostics } from '../tools/app-log-diagnostics';
 import { BuildDiagnostics } from '../tools/build-diagnostics';
 import { ClientDiagnostics } from '../tools/client-diagnostics';
@@ -34,7 +34,7 @@ function createTestContext(eventBus = new EventBus()): DevServerContext {
   };
 }
 
-describe('MCP diagnostics', () => {
+describe('Devframe agent diagnostics', () => {
   it('tracks HMR clients and client logs from server events', () => {
     const eventBus = new EventBus();
     const context = createTestContext(eventBus);

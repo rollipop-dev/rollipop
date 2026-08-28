@@ -30,6 +30,7 @@ import {
   resetBundlerState as requestResetBundlerState,
   resetCache as requestResetCache,
   triggerBundlerFullBuild as requestTriggerBundlerFullBuild,
+  type DashboardSharedState,
 } from './lib/api';
 import { queryKeys } from './lib/query';
 import { getSystemTheme, readStoredTheme, writeStoredTheme } from './lib/theme';
@@ -59,7 +60,7 @@ type DashboardPagePath =
   | '/logs'
   | '/actions';
 
-const DASHBOARD_API_ERROR_TOAST_ID = 'dashboard-api-error';
+const DASHBOARD_RPC_ERROR_TOAST_ID = 'dashboard-rpc-error';
 const MIN_TRIGGER_BUILD_BUSY_MS = 1000;
 const DASHBOARD_REFRESH_DEBOUNCE_MS = 1000;
 const DASHBOARD_BASENAME = import.meta.env.BASE_URL.replace(/\/+$/, '');
@@ -76,7 +77,7 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? getSystemTheme());
   const [triggeringBuilds, setTriggeringBuilds] = useState<Record<string, number>>({});
   const [devServerConnected, setDevServerConnected] = useState<boolean | null>(null);
-  const dashboardApiErrorVisibleRef = useRef(false);
+  const dashboardRpcErrorVisibleRef = useRef(false);
   const buildTriggerTimersRef = useRef<Record<string, number>>({});
   const refreshDebounceTimerRef = useRef<number | null>(null);
   const pendingRefreshBuildLogsRef = useRef<Set<string>>(new Set());
@@ -102,7 +103,7 @@ export function App() {
   const builds = buildsQuery.data ?? [];
   const featureFlags = featureFlagsQuery.data ?? null;
   const featureFlagsError = getErrorMessage(featureFlagsQuery.error);
-  const dashboardApiErrored =
+  const dashboardRpcErrored =
     snapshotQuery.isError ||
     snapshotQuery.isRefetchError ||
     buildsQuery.isError ||
@@ -111,7 +112,7 @@ export function App() {
     if (snapshot == null) return null;
 
     const serverClosed =
-      devServerConnected === false || (devServerConnected == null && dashboardApiErrored);
+      devServerConnected === false || (devServerConnected == null && dashboardRpcErrored);
     if (!serverClosed || snapshot.project.server.status === 'closed') {
       return snapshot;
     }
@@ -126,7 +127,7 @@ export function App() {
         },
       },
     };
-  }, [dashboardApiErrored, devServerConnected, snapshot]);
+  }, [dashboardRpcErrored, devServerConnected, snapshot]);
   const dataStatus: DataStatus =
     snapshotQuery.isPending || buildsQuery.isPending
       ? 'loading'
@@ -143,18 +144,18 @@ export function App() {
     () => new Set(Object.keys(triggeringBuilds)),
     [triggeringBuilds],
   );
-  const clearDashboardApiError = useCallback(() => {
-    if (!dashboardApiErrorVisibleRef.current) return;
+  const clearDashboardRpcError = useCallback(() => {
+    if (!dashboardRpcErrorVisibleRef.current) return;
 
-    toast.dismiss(DASHBOARD_API_ERROR_TOAST_ID);
-    dashboardApiErrorVisibleRef.current = false;
+    toast.dismiss(DASHBOARD_RPC_ERROR_TOAST_ID);
+    dashboardRpcErrorVisibleRef.current = false;
   }, []);
-  const showDashboardApiError = useCallback((message: string, { force = false } = {}) => {
-    if (!force && dashboardApiErrorVisibleRef.current) return;
+  const showDashboardRpcError = useCallback((message: string, { force = false } = {}) => {
+    if (!force && dashboardRpcErrorVisibleRef.current) return;
 
-    dashboardApiErrorVisibleRef.current = true;
+    dashboardRpcErrorVisibleRef.current = true;
     toast.error(message, {
-      id: DASHBOARD_API_ERROR_TOAST_ID,
+      id: DASHBOARD_RPC_ERROR_TOAST_ID,
     });
   }, []);
 
@@ -189,7 +190,7 @@ export function App() {
         }
 
         await Promise.all(requests);
-        clearDashboardApiError();
+        clearDashboardRpcError();
         setDevServerConnected(true);
 
         if (notify) {
@@ -200,7 +201,7 @@ export function App() {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to refresh dashboard data';
         setDevServerConnected((current) => (current === true ? current : false));
-        showDashboardApiError(message, { force: notify });
+        showDashboardRpcError(message, { force: notify });
 
         if (throwOnError) {
           throw error instanceof Error ? error : new Error(message);
@@ -209,7 +210,7 @@ export function App() {
         return false;
       }
     },
-    [clearDashboardApiError, queryClient, showDashboardApiError],
+    [clearDashboardRpcError, queryClient, showDashboardRpcError],
   );
   const scheduleDashboardDataRefresh = useCallback(
     ({ buildLogsBundlerId }: { buildLogsBundlerId?: string } = {}) => {
@@ -304,13 +305,24 @@ export function App() {
     },
     [scheduleDashboardDataRefresh, syncCompletedBuild],
   );
-  const handleDataEvent = useCallback(() => {
-    void scheduleDashboardDataRefresh();
-  }, [scheduleDashboardDataRefresh]);
+  const handleDashboardState = useCallback(
+    (state: DashboardSharedState) => {
+      queryClient.setQueryData(queryKeys.snapshot, state.snapshot);
+      queryClient.setQueryData(queryKeys.builds, state.builds);
+      queryClient.setQueryData(queryKeys.featureFlags, state.featureFlags);
+      clearDashboardRpcError();
+      setDevServerConnected(true);
+    },
+    [clearDashboardRpcError, queryClient],
+  );
+  const handleConnectionChange = useCallback((connected: boolean) => {
+    setDevServerConnected(connected);
+  }, []);
 
   useDashboardEvents({
+    onState: handleDashboardState,
     onBuildEvent: handleBuildEvent,
-    onDataEvent: handleDataEvent,
+    onConnectionChange: handleConnectionChange,
   });
 
   useEffect(() => {
@@ -318,11 +330,11 @@ export function App() {
     if (message == null || snapshot == null) return;
 
     setDevServerConnected((current) => (current === true ? current : false));
-    showDashboardApiError(message);
+    showDashboardRpcError(message);
   }, [
     buildsQuery.error,
     buildsQuery.errorUpdatedAt,
-    showDashboardApiError,
+    showDashboardRpcError,
     snapshot,
     snapshotQuery.error,
     snapshotQuery.errorUpdatedAt,
@@ -381,39 +393,6 @@ export function App() {
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
   }, [hasStoredTheme]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    let intervalId: number | undefined;
-    const refreshIfVisible = () => {
-      if (document.visibilityState !== 'visible') return;
-
-      void scheduleDashboardDataRefresh();
-    };
-    const syncPolling = () => {
-      if (intervalId != null) {
-        window.clearInterval(intervalId);
-        intervalId = undefined;
-      }
-
-      if (document.visibilityState === 'visible') {
-        refreshIfVisible();
-        intervalId = window.setInterval(refreshIfVisible, 5000);
-      }
-    };
-
-    syncPolling();
-    document.addEventListener('visibilitychange', syncPolling);
-
-    return () => {
-      if (intervalId != null) {
-        window.clearInterval(intervalId);
-      }
-
-      document.removeEventListener('visibilitychange', syncPolling);
-    };
-  }, [scheduleDashboardDataRefresh]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';

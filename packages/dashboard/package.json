@@ -28,6 +28,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "devframe": "catalog:"
+  },
   "devDependencies": {
     "@babel/core": "^7",
     "@rolldown/plugin-babel": "^0.2.3",

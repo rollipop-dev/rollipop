@@ -64,12 +64,6 @@ export function getBundlers(context: DevServerContext) {
     .map((bundler) => serializeBundler(context.serverBaseUrl, bundler));
 }
 
-export function getBundler(context: DevServerContext, bundlerId: string) {
-  const bundler = context.bundlerPool.getInstanceById(bundlerId);
-
-  return bundler == null ? undefined : serializeBundler(context.serverBaseUrl, bundler);
-}
-
 export async function getDevices(context: DevServerContext) {
   const targets = await fetchDevToolsTargets(context.serverBaseUrl);
 

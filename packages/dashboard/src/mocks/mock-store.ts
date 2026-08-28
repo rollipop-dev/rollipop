@@ -46,10 +46,6 @@ export class MockDashboardStore {
     };
   }
 
-  getDevServerStatus(): ProjectInfo['server'] {
-    return clone(this.getProject().server);
-  }
-
   getBundlers(): BundlerInstance[] {
     return clone(this.bundlers);
   }
@@ -66,12 +62,6 @@ export class MockDashboardStore {
 
   getBuilds(): Build[] {
     return clone(this.builds);
-  }
-
-  getBuild(id: string): Build | undefined {
-    const build = this.builds.find((item) => item.id === id);
-
-    return build == null ? undefined : clone(build);
   }
 
   getBuildLogs(id: string): BuildLog[] | undefined {
@@ -496,6 +486,92 @@ function createBuildLogs(): Map<string, BuildLog[]> {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+export function invokeMockDashboardRpc(method: string, ...args: unknown[]): unknown {
+  const first = args[0];
+
+  switch (method) {
+    case 'get-snapshot':
+      return mockDashboardStore.getSnapshot();
+    case 'get-builds':
+      return mockDashboardStore.getBuilds();
+    case 'get-build-logs': {
+      const bundlerId = requireString(first, 'bundlerId');
+      const logs = mockDashboardStore.getBuildLogs(bundlerId);
+      if (logs == null) throw new Error('Build logs not found: ' + bundlerId);
+      return logs;
+    }
+    case 'delete-build-logs': {
+      const bundlerId = requireString(first, 'bundlerId');
+      if (!mockDashboardStore.deleteBuildLogs(bundlerId)) {
+        throw new Error('Build logs not found: ' + bundlerId);
+      }
+      return;
+    }
+    case 'get-config':
+      return mockDashboardStore.getConfig();
+    case 'get-feature-flags':
+      return mockDashboardStore.getFeatureFlags();
+    case 'get-device': {
+      const deviceId = requireString(first, 'deviceId');
+      const device = mockDashboardStore.getDevice(deviceId);
+      if (device == null) throw new Error('Device not found: ' + deviceId);
+      return device;
+    }
+    case 'trigger-full-build': {
+      const bundlerId = requireString(first, 'bundlerId');
+      if (mockDashboardStore.getBundler(bundlerId) == null) {
+        throw new Error('Bundler not found: ' + bundlerId);
+      }
+      mockDashboardStore.triggerFullBuild(bundlerId);
+      return;
+    }
+    case 'reload':
+      mockDashboardStore.reloadDevices();
+      return;
+    case 'reset-cache':
+      mockDashboardStore.resetCache();
+      return;
+    case 'reset-bundler-state':
+      mockDashboardStore.resetBundlerState();
+      return;
+    case 'symbolicate-bundle-position':
+      return createMockSymbolicateResult(args[1], args[2]);
+    default:
+      throw new Error('Unknown dashboard RPC: ' + method);
+  }
+}
+
+function requireString(value: unknown, name: string): string {
+  if (typeof value !== 'string') throw new Error(name + ' must be a string');
+  return value;
+}
+
+function createMockSymbolicateResult(lineValue: unknown, columnValue: unknown) {
+  if (typeof lineValue !== 'number' || typeof columnValue !== 'number') {
+    throw new Error('line and column must be numbers');
+  }
+
+  const sourceLine = Math.max(1, Math.floor((lineValue + 1) / 8));
+  const sourceColumn = Math.max(0, Math.floor(columnValue / 2));
+
+  return {
+    stack: [
+      {
+        file: 'src/App.tsx',
+        lineNumber: sourceLine,
+        column: sourceColumn,
+        methodName: 'render',
+        collapse: false,
+      },
+    ],
+    codeFrame: {
+      content: 'export function App() { return <Root />; }',
+      fileName: 'src/App.tsx',
+      location: { row: sourceLine, column: sourceColumn },
+    },
+  };
 }
 
 export const mockDashboardStore = new MockDashboardStore();

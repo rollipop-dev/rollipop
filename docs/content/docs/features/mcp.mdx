@@ -2,14 +2,14 @@
 title: MCP Server
 ---
 
-The dev server can expose an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server at `/mcp`, allowing LLM agents like Claude Code to interact with the bundler through standard MCP tooling.
+The dev server exposes Rollipop diagnostics through Devframe's [MCP (Model Context Protocol)](https://modelcontextprotocol.io) adapter. The Streamable HTTP endpoint is available at `/__rollipop/__mcp` whenever the server is running.
 
 ## Setup
 
-Start the dev server with MCP enabled:
+Start the dev server:
 
 ```bash
-rollipop start --mcp
+rollipop start
 ```
 
 Then add the MCP server to your project's `.mcp.json`:
@@ -19,14 +19,16 @@ Then add the MCP server to your project's `.mcp.json`:
   "mcpServers": {
     "rollipop": {
       "type": "http",
-      "url": "http://localhost:8081/mcp"
+      "url": "http://localhost:8081/__rollipop/__mcp",
+      "headers": {
+        "Origin": "http://localhost:8081"
+      }
     }
   }
 }
 ```
 
-Make sure the dev server is running with `--mcp` before starting the LLM agent.
-When `--mcp` is omitted, `/mcp` responds with an error explaining that the MCP server is disabled.
+Devframe applies a loopback Origin gate to the endpoint, so HTTP clients must send an `Origin` header matching the MCP URL. Keep both values on a loopback host and adjust both ports when using custom `--port`. A non-loopback `--host` is not automatically allowed.
 
 ## Tool Discovery
 
@@ -54,11 +56,9 @@ Returns a JSON array of events collected during the listening period. Event type
 
 Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `hmr_failed`. Client lifecycle, server, and cache events omit `bundlerId`.
 
-App console logs are not build events. Use the SSE `/sse/client-logs` stream for live HMR-forwarded app logs, or `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
+App console logs are not build events. Use `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
 
 `bundle_build_done` also includes `bundleFilePath`, the file-system copy of the generated bundle. Rollipop normally keeps the latest bundle in memory, but if this file is edited after the build, the dev server serves the edited file content. Agents can use this path for bundle-level debugging.
-
-See [SSE](/docs/features/sse) for the full event type reference.
 
 ### `reset_cache`
 
@@ -68,7 +68,7 @@ Clears the entire build cache. The bundler will rebuild from scratch on next fil
 
 Rollipop MCP stays focused on bundler-facing diagnostics: build state, build logs, connected HMR clients, reload, sourcemap symbolication, and app logs forwarded through HMR `client_log`.
 
-Use `get_console_logs` for buffered app logs and `clear_console_logs` before a focused repro when older app logs may be noisy. For live streaming, use `/sse/client-logs`.
+Use `get_console_logs` for buffered app logs and `clear_console_logs` before a focused repro when older app logs may be noisy.
 
 Build diagnostics and app logs are intentionally separate. Use `build_errors` for Rolldown warnings, Rollipop build crashes, and HMR update failures. Use `get_console_logs` for app logs that the React Native HMR client forwards to Rollipop.
 

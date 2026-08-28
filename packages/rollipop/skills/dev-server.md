@@ -1,6 +1,6 @@
 ---
 name: dev-server
-description: Rollipop dev server workflow. Use for rollipop start, HMR, React Native DevTools, ports, HTTPS, interactive mode, MCP/SSE endpoint setup, custom terminal commands, and programmatic runServer usage.
+description: Rollipop dev server workflow. Use for rollipop start, HMR, React Native DevTools, ports, HTTPS, interactive mode, Devframe MCP setup, custom terminal commands, and programmatic runServer usage.
 allowed-tools: Bash(npx:*), Bash(npm:*), Bash(pnpm:*), Bash(rollipop:*), Bash(curl:*), Bash(yarn:*), Bash(node:*)
 ---
 
@@ -18,11 +18,7 @@ Use Rollipop's dev server for React Native HMR, source maps, multi-platform deve
 
 ## MCP Server
 
-Use `--mcp` when an agent needs structured diagnostics from the running dev server. Read https://rollipop.dev/docs/features/mcp.md.
-
-## Server-Sent Events
-
-Use SSE for lightweight event or client-log streaming. Read https://rollipop.dev/docs/features/sse.md.
+The Devframe MCP endpoint is available whenever the dev server is running. Read https://rollipop.dev/docs/features/mcp.md.
 
 ## Interactive Tools
 

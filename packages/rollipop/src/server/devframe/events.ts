@@ -1,9 +1,27 @@
 import stripAnsi from 'strip-ansi';
 
 import type { ReportableEvent } from '../../types';
-import type { SSEBuildEvent, SSEClientLogEvent } from './types';
 
-type SSEBundlerEvent = Extract<
+export type DevframeEvent =
+  | { type: 'bundle_build_started'; bundlerId: string }
+  | {
+      type: 'bundle_build_done';
+      bundlerId: string;
+      totalModules: number;
+      transformedModules: number;
+      cacheHitModules: number;
+      duration: number;
+      bundleFilePath?: string;
+    }
+  | { type: 'bundle_build_failed'; bundlerId: string; error: string }
+  | { type: 'hmr_failed'; bundlerId: string; error: string }
+  | { type: 'watch_change'; bundlerId: string; file: string }
+  | { type: 'client_connected'; clientId: number }
+  | { type: 'client_disconnected'; clientId: number }
+  | { type: 'server_ready'; host: string; port: number }
+  | { type: 'cache_reset' };
+
+type DevframeBundlerEvent = Extract<
   ReportableEvent,
   {
     type:
@@ -15,7 +33,7 @@ type SSEBundlerEvent = Extract<
   }
 >;
 
-export function toSSEEvent(event: ReportableEvent): SSEBuildEvent | null {
+export function toDevframeEvent(event: ReportableEvent): DevframeEvent | null {
   switch (event.type) {
     case 'client_log':
       return null;
@@ -35,7 +53,7 @@ export function toSSEEvent(event: ReportableEvent): SSEBuildEvent | null {
     case 'bundle_build_failed':
     case 'hmr_failed':
     case 'watch_change':
-      return bundlerEventToSSEEvent(event);
+      return bundlerEventToDevframeEvent(event);
 
     case 'hmr_updates':
     case 'client_message':
@@ -47,19 +65,7 @@ export function toSSEEvent(event: ReportableEvent): SSEBuildEvent | null {
   }
 }
 
-export function toSSEClientLogEvent(event: ReportableEvent): SSEClientLogEvent | null {
-  if (event.type !== 'client_log') {
-    return null;
-  }
-
-  return {
-    type: 'client_log',
-    ...(event.bundlerId != null ? { bundlerId: event.bundlerId } : {}),
-    data: event.data,
-  };
-}
-
-function bundlerEventToSSEEvent(event: SSEBundlerEvent): SSEBuildEvent | null {
+function bundlerEventToDevframeEvent(event: DevframeBundlerEvent): DevframeEvent | null {
   if (event.bundlerId == null) {
     return null;
   }

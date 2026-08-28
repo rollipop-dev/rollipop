@@ -17,10 +17,8 @@ export async function runServer(
 
   await devServer.instance.listen({ port, host });
 
-  if (options.mcp === true) {
-    const protocol = https ? 'https' : 'http';
-    logger.info(`MCP server listening at ${protocol}://${host}:${port}/mcp`);
-  }
+  const protocol = https ? 'https' : 'http';
+  logger.info(`MCP server listening at ${protocol}://${host}:${port}/__rollipop/__mcp`);
 
   return devServer;
 }
