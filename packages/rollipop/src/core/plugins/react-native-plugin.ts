@@ -163,7 +163,23 @@ function reactNativePlugin(options: ReactNativePluginOptions): rolldown.Plugin[]
     ? [rollipopReactNativePlugin(builtinPluginConfig)]
     : [codegenPlugin, stripFlowSyntaxPlugin];
 
-  return [...transformPlugins, assetPlugin];
+  // Metro maps the virtual `react-native/asset-registry` specifier (required by
+  // `expo-asset`) to `react-native/Libraries/Image/AssetRegistry.js` via a
+  // `resolveRequest` hook in `@react-native/metro-config`. Rollipop must do the
+  // same: without it, `__rollipop_require__('react-native/asset-registry')`
+  // fails at runtime with "Module react-native/asset-registry is not registered".
+  // `assetRegistryPath` defaults to exactly that file path.
+  const assetRegistryResolver: rolldown.Plugin = {
+    name: 'rollipop:react-native-asset-registry',
+    resolveId(source) {
+      if (source === 'react-native/asset-registry') {
+        return { id: assetRegistryPath };
+      }
+      return null;
+    },
+  };
+
+  return [...transformPlugins, assetRegistryResolver, assetPlugin];
 }
 
 export { reactNativePlugin as reactNative };
