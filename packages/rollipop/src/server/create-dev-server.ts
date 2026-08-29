@@ -1,3 +1,4 @@
+import os from 'node:os';
 import url from 'node:url';
 
 import { createDevServerMiddleware } from '@react-native-community/cli-server-api';
@@ -36,6 +37,34 @@ import type { DevServer, DevServerContext, DevServerEvents, ServerOptions } from
 import { HMRServer } from './wss/hmr-server';
 import { getWebSocketUpgradeHandler } from './wss/server';
 
+/**
+ * Map a wildcard bind host to a client-routable host.
+ *
+ * `0.0.0.0` / `::` mean "listen on every interface" but are not addresses a
+ * client can connect *to*. For the URL we advertise (which the bundle bakes
+ * into the HMR/Fast-Refresh WebSocket endpoint), pick the machine's primary
+ * LAN IPv4 so devices on the network can actually reach the server. A concrete
+ * host (e.g. `localhost`, `192.168.x.x`) is returned unchanged.
+ */
+function resolveAdvertisedHost(host: string): string {
+  if (host !== '0.0.0.0' && host !== '::' && host !== '[::]') {
+    return host;
+  }
+
+  const interfaces = os.networkInterfaces();
+  for (const list of Object.values(interfaces)) {
+    if (!list) continue;
+    for (const iface of list) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+
+  // Fall back to loopback if no external interface is found.
+  return 'localhost';
+}
+
 export async function createDevServer(
   config: ResolvedConfig,
   options?: ServerOptions,
@@ -47,7 +76,18 @@ export async function createDevServer(
     throw new Error('HTTPS is not supported yet');
   }
 
-  const serverBaseUrl = url.format({ protocol: https ? 'https' : 'http', hostname: host, port });
+  // The dev server binds `host` (often a wildcard like `0.0.0.0`/`::` so it is
+  // reachable on every interface), but the URL we *advertise* to clients must be
+  // routable from their network. A device on the LAN cannot route to `0.0.0.0`,
+  // so the HMR/Fast-Refresh WebSocket (baked into the bundle from this URL) would
+  // never connect. Resolve a wildcard bind host to the machine's primary LAN IPv4,
+  // mirroring how Metro/Expo advertise a concrete host.
+  const advertisedHost = resolveAdvertisedHost(host);
+  const serverBaseUrl = url.format({
+    protocol: https ? 'https' : 'http',
+    hostname: advertisedHost,
+    port,
+  });
   await assertDevServerStatus({ devServerUrl: serverBaseUrl, projectRoot, port });
 
   const emitter = mitt<DevServerEvents>();
@@ -58,7 +98,7 @@ export async function createDevServer(
 
   const eventBus = new EventBus();
   const state = new DevServerState({ eventBus });
-  const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
+  const bundlerPool = new BundlerPool(config, { host: advertisedHost, port }, eventBus);
 
   const {
     middleware: communityMiddleware,
