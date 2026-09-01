@@ -57,7 +57,6 @@ export class RollipopDevframeController {
       capabilities: {
         dev: true,
         build: false,
-        spa: false,
       },
       setup: async (devframeContext) => {
         const scope = devframeContext.scope(ROLLIPOP_DEVFRAME_SCOPE);

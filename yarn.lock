@@ -12932,14 +12932,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"devframe@npm:0.9.0-beta.2":
-  version: 0.9.0-beta.2
-  resolution: "devframe@npm:0.9.0-beta.2"
+"devframe@npm:0.9.5":
+  version: 0.9.5
+  resolution: "devframe@npm:0.9.5"
   dependencies:
     "@standard-schema/spec": "npm:^1.1.0"
     birpc: "npm:^4.1.0"
     crossws: "npm:^0.4.10"
-    destr: "npm:^2.0.5"
     h3: "npm:^2.0.1-rc.26"
     mrmime: "npm:^2.0.1"
     nostics: "npm:^1.2.0"
@@ -12958,7 +12957,7 @@ __metadata:
       optional: true
   bin:
     devframe: ./bin/devframe.mjs
-  checksum: 10c0/5edbd510ec561244647dbd6c36bb21c90c3f0231fea14b9a3a69652b387379a929ffa0eb2812ac90e322c1dec1b98246cc7432c9f31d828673f94a35d1ff1a6f
+  checksum: 10c0/ec85c540afb4e51b66f7862b6807b8f306ab43b1cee68824069ae0d9941aebd03df6e33df5de5e6c1d4236f08c1604f62c76b437157401cd4d3cacd9687a0290
   languageName: node
   linkType: hard
 
