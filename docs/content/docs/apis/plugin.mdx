@@ -219,6 +219,76 @@ export default function myPlugin() {
 
 **Note:** The `configureServer` hook only runs in development mode (when using the `start` command). It will not run during production builds.
 
+### `devtools`
+
+Add development UI and tooling to the Rollipop dashboard with the `devtools` option. It follows the [`devtools.setup(context)` pattern from Vite DevTools Kit](https://devtools.vite.dev/kit/devtools-plugin.html): the setup context exposes the shared Devframe Hub surfaces for docks, RPC, commands, messages, and terminals, along with `rollipopConfig` and `rollipopServer`.
+
+The following example registers a dock for an iframe UI that the plugin serves at `/__rollipop/inspector/`:
+
+```ts title="plugin.ts"
+import type { Plugin } from 'rollipop';
+
+export default function inspectorPlugin(): Plugin {
+  return {
+    name: 'rollipop-plugin-inspector',
+    devtools: {
+      setup(context) {
+        context.docks.register({
+          id: 'inspector',
+          title: 'Inspector',
+          icon: 'ph:magnifying-glass-duotone',
+          type: 'iframe',
+          url: '/__rollipop/inspector/',
+        });
+      },
+    },
+  };
+}
+```
+
+Use `capabilities.dev: false` to skip setup for the development server. Build-mode capabilities are reserved for hosts that support a build-time DevTools surface.
+
+#### Adapting a Devframe
+
+A portable [Devframe](https://devfra.me/) definition can be mounted without rewriting it as a Rollipop-specific plugin. Wrap it with `createPluginFromDevframe` from `@rollipop/devtools-kit/node`:
+
+```ts title="plugin.ts"
+import { createPluginFromDevframe } from '@rollipop/devtools-kit/node';
+import { defineDevframe } from 'devframe';
+import type { Plugin } from 'rollipop';
+
+const inspectorDevframe = defineDevframe({
+  id: 'inspector',
+  name: 'Inspector',
+  version: '1.0.0',
+  packageName: 'rollipop-plugin-inspector',
+  importMetaUrl: import.meta.url,
+  homepage: 'https://example.com/rollipop-plugin-inspector',
+  description: 'Inspect project state from the Rollipop dashboard.',
+  icon: 'ph:magnifying-glass-duotone',
+  clientAssets: './client/dist',
+  capabilities: {
+    dev: true,
+    build: false,
+  },
+  async setup(context) {
+    await context.scope('inspector').rpc.sharedState('summary', {
+      initialValue: { files: 0 },
+    });
+  },
+});
+
+export default function inspectorPlugin(): Plugin {
+  return createPluginFromDevframe(inspectorDevframe, {
+    base: '/__rollipop/inspector/',
+  });
+}
+```
+
+The adapter mounts `clientAssets`, installs the Devframe definition into Rollipop's shared Hub, and derives an iframe dock entry from the definition's `id`, `name`, `icon`, and mount path. Use the adapter's `dock` option to override dock metadata, or its `setup` option for Rollipop-only Hub setup.
+
+This keeps the definition portable across hosts while letting Rollipop own the dashboard integration. See [Using Devframe in Vite DevTools Kit](https://devtools.vite.dev/kit/devtools-plugin.html#use-devframe) for the equivalent Vite integration pattern.
+
 ## Plugin Ordering
 
 A Rollipop plugin can additionally specify an `order` property to adjust its application order. The value of `order` can be either `'pre'` or `'post'`.

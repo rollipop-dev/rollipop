@@ -2,7 +2,6 @@ import url from 'node:url';
 
 import { createDevServerMiddleware } from '@react-native-community/cli-server-api';
 import { createDevMiddleware } from '@react-native/dev-middleware';
-import { initDevframe } from 'devframe/initiate';
 import Fastify, { LogController } from 'fastify';
 import mitt from 'mitt';
 import type * as ws from 'ws';
@@ -20,8 +19,7 @@ import { EventBus } from '../events/event-bus';
 import { assertDevServerStatus } from '../utils/dev-server';
 import { BundlerPool } from './bundler-pool';
 import { DEFAULT_HOST, DEFAULT_PORT } from './constants';
-import { ROLLIPOP_DEVFRAME_BASE, RollipopDevframeController } from './devframe';
-import { createAgentToolContext } from './devframe/agent/context';
+import { setupDevframe } from './devframe/setup';
 import { errorHandler } from './error';
 import { DevServerLogger, logger } from './logger';
 import { dashboard } from './middlewares/dashboard';
@@ -134,30 +132,11 @@ export async function createDevServer(
     config.plugins ?? [],
   );
 
-  const agentToolContext = createAgentToolContext(context);
-  const devframeController = new RollipopDevframeController(context, agentToolContext);
-  const devframe = initDevframe(devframeController.definition, {
-    base: ROLLIPOP_DEVFRAME_BASE,
-    distDir: false,
-    ws: false,
-    sse: true,
-    auth: false,
-    mcp: true,
-    origin: serverBaseUrl,
-  });
-  await devframe.ready;
-
-  fastify.addHook('onListen', () => {
-    void devframeController.refresh();
-  });
-  fastify.addHook('onClose', async () => {
-    devframeController.dispose();
-    await devframe.close();
-  });
+  const devframeMiddleware = await setupDevframe(context, devServer);
 
   fastify
     .use(requestLogger)
-    .use(devframe.nodeMiddleware)
+    .use(devframeMiddleware)
     .use(communityMiddleware)
     .use(devMiddleware)
     .register(dashboard, { context })

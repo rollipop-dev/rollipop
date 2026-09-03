@@ -464,7 +464,7 @@ export function App() {
           onToggleTheme={toggleTheme}
           onReloadData={reloadDashboardData}
         />
-        <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[220px_1fr] md:px-6">
+        <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-6 px-4 pt-6 pb-14 md:grid-cols-[220px_1fr] md:px-6">
           <Sidebar />
           <main className="min-w-0">
             <DashboardActivityPages

@@ -35,7 +35,12 @@ export * from './server';
 
 // Plugins
 export * as plugins from './core/plugins';
-export type { Plugin, PluginConfig } from './core/plugins/types';
+export type {
+  DevToolsPluginOptions,
+  Plugin,
+  PluginConfig,
+  RollipopDevToolsNodeContext,
+} from './core/plugins/types';
 
 // Assets
 export * as AssetUtils from './core/assets';
