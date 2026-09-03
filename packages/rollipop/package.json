@@ -89,7 +89,7 @@
     "dotenv-expand": "13.0.0",
     "es-toolkit": "catalog:",
     "fast-flow-transform": "0.0.3",
-    "fastify": "5.10.0",
+    "fastify": "5.12.1",
     "fastify-plugin": "6.0.0",
     "gradient-string": "3.0.0",
     "image-size": "2.0.2",
