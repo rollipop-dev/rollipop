@@ -18,7 +18,6 @@ import {
 } from './data';
 import { toDevframeEvent, type DevframeEvent } from './events';
 
-export const ROLLIPOP_DEVFRAME_BASE = '/__rollipop/';
 export const ROLLIPOP_DEVFRAME_SCOPE = 'rollipop';
 export const DASHBOARD_SHARED_STATE_KEY = 'dashboard';
 

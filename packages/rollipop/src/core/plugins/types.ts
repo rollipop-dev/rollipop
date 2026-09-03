@@ -1,3 +1,4 @@
+import type { DevframeCapabilities, DevframeHubContext } from '@devframes/hub/types';
 import type * as rolldown from '@rollipop/rolldown';
 
 import type { Config, ResolvedConfig } from '../../config';
@@ -9,6 +10,19 @@ export type PluginConfig = Omit<Config, 'plugins'>;
 export type ResolvedPluginConfig = Omit<ResolvedConfig, 'plugins'>;
 type InternalRolldownHook = 'transformCacheHit';
 
+export interface DevToolsPluginOptions {
+  capabilities?: {
+    dev?: DevframeCapabilities | boolean;
+    build?: DevframeCapabilities | boolean;
+  };
+  setup: (context: RollipopDevToolsNodeContext) => AsyncResult<void>;
+}
+
+export interface RollipopDevToolsNodeContext extends DevframeHubContext {
+  readonly rollipopConfig: ResolvedConfig;
+  readonly rollipopServer?: DevServer;
+}
+
 export type Plugin = Omit<rolldown.Plugin, InternalRolldownHook> & {
   config?:
     | PluginConfig
@@ -18,4 +32,5 @@ export type Plugin = Omit<rolldown.Plugin, InternalRolldownHook> & {
     this: PluginContext,
     server: DevServer,
   ) => AsyncResult<void | (() => AsyncResult<void>)>;
+  devtools?: DevToolsPluginOptions;
 };

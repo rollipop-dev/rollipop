@@ -7,6 +7,7 @@ import { staticPath as dashboardStaticPath } from '@rollipop/dashboard';
 import { connectDevframe, type DevframeConnection, type DevframeRpcClient } from 'devframe/client';
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
+import type { RollipopDevToolsNodeContext } from '../../core/plugins/types';
 import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
 import type { BundlerDevEngine } from '../bundler-pool';
@@ -82,6 +83,47 @@ describe('createDevServer', () => {
     await devServer.instance.close();
   });
 
+  it('should serve the embedded Hub UI', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+
+    try {
+      const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      const response = await fetch(new URL('/__rollipop/embedded.js', address));
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/javascript');
+      expect((await response.text()).length).toBeGreaterThan(0);
+    } finally {
+      await devServer.instance.close();
+    }
+  });
+
+  it('should expose Devframe endpoints only under the Rollipop namespace', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+
+    try {
+      await devServer.instance.ready();
+
+      for (const endpoint of [
+        '/__connection.json',
+        '/__index.json',
+        '/__client-imports.js',
+        '/__sse',
+        '/__mcp',
+        '/embedded.js',
+      ]) {
+        const response = await devServer.instance.inject({
+          method: 'GET',
+          url: endpoint,
+        });
+
+        expect(response.statusCode).toBe(404);
+      }
+    } finally {
+      await devServer.instance.close();
+    }
+  });
+
   it('should expose dashboard state through Devframe RPC', async () => {
     const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
     let client: DevframeRpcClient | undefined;
@@ -93,8 +135,22 @@ describe('createDevServer', () => {
       expect(response.status).toBe(200);
       await expect(response.json()).resolves.toEqual({
         backend: 'sse',
-        sse: { path: '__sse' },
+        sse: { path: '/__rollipop/__sse' },
         mcp: { path: '__mcp' },
+        configs: {
+          ui: {
+            branding: {
+              productName: 'Rollipop',
+              primaryColor: 'hsl(207, 90%, 61%)',
+              logo: '/dashboard/logo.svg',
+              favicon: '/dashboard/favicon.ico',
+            },
+            dockPreferences: {
+              defaultMode: 'edge',
+              defaultPosition: 'bottom',
+            },
+          },
+        },
       });
 
       client = await connectDashboardRpc(address);
@@ -225,7 +281,7 @@ describe('createDevServer', () => {
       expect(response.status).toBe(200);
       const sessionId = response.headers.get('mcp-session-id') ?? '';
       expect(sessionId).not.toBe('');
-      expect(await response.text()).toContain('"name":"rollipop (devframe)"');
+      expect(await response.text()).toContain('"name":"Rollipop"');
 
       const toolsResponse = await fetch(new URL('/__rollipop/__mcp', address), {
         method: 'POST',
@@ -551,6 +607,55 @@ describe('createDevServer', () => {
     expect(pre).toHaveBeenCalledWith(true);
     expect(post).toHaveBeenCalledWith(true);
     expect(invokedOrder).toEqual(['pre', 'pre-async', 'post', 'post-async']);
+    await devServer.instance.close();
+  });
+
+  it('should invoke enabled `devtools.setup` hooks with the Rollipop context', async () => {
+    const config = createTestConfig('/root/project');
+    let context: RollipopDevToolsNodeContext | undefined;
+    const setup = vi.fn((value: RollipopDevToolsNodeContext) => {
+      context = value;
+      value.docks.register({
+        id: 'example',
+        title: 'Example',
+        icon: 'ph:puzzle-piece-duotone',
+        type: 'iframe',
+        url: '/__example/',
+      });
+    });
+    const disabledSetup = vi.fn();
+    config.plugins = [
+      {
+        name: 'enabled-devtools',
+        devtools: { setup },
+      },
+      {
+        name: 'disabled-devtools',
+        devtools: {
+          capabilities: { dev: false },
+          setup: disabledSetup,
+        },
+      },
+    ];
+
+    const devServer = await createDevServer(config, { port: 0 });
+
+    expect(setup).toHaveBeenCalledOnce();
+    expect(disabledSetup).not.toHaveBeenCalled();
+    expect(context?.rollipopConfig).toBe(config);
+    expect(context?.rollipopServer).toBe(devServer);
+    expect(context?.mode).toBe('dev');
+    expect(context?.docks.values()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'example',
+          title: 'Example',
+          type: 'iframe',
+          url: '/__example/',
+        }),
+      ]),
+    );
+
     await devServer.instance.close();
   });
   async function connectDashboardRpc(address: string): Promise<DevframeRpcClient> {

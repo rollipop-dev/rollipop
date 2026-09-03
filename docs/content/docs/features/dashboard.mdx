@@ -33,6 +33,17 @@ The dashboard uses a [Devframe](https://devfra.me/) scope mounted at `/__rollipo
 
 Devframe also exposes the Rollipop MCP server from the same integration. Dashboard and agent tools therefore operate on the same development-server state and actions.
 
+All Devframe-owned endpoints stay under the Rollipop namespace; no root-level aliases such as `/__sse` or `/__mcp` are exposed.
+
+| Purpose             | Endpoint                        |
+| ------------------- | ------------------------------- |
+| Connection metadata | `/__rollipop/__connection.json` |
+| SSE transport       | `/__rollipop/__sse`             |
+| MCP                 | `/__rollipop/__mcp`             |
+| Embedded dock UI    | `/__rollipop/embedded.js`       |
+
+Devframe's internal index, client-import, and renderer routes use the same `/__rollipop/` prefix.
+
 ## Bundle Analysis
 
 The Analyze tab depends on the analyzer configuration and generated report files. See [Bundle Analysis](/docs/features/analyze) for setup and options.

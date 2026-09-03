@@ -1,7 +1,9 @@
+import { createPluginFromDevframe } from '@rollipop/devtools-kit/node';
 import { rozenite } from '@rollipop/plugin-rozenite';
 import { svg } from '@rollipop/plugin-svg';
 import { defineConfig, type PluginOption } from 'rollipop';
 
+import { counterDevframe } from './devtools/counter';
 import { config, hot } from './plugins';
 
 function myPlugin(): PluginOption {
@@ -22,6 +24,13 @@ export default defineConfig({
   plugins: [
     svg(),
     myPlugin(),
+    createPluginFromDevframe(counterDevframe, {
+      base: '/__rollipop/counter/',
+      dock: {
+        category: 'project',
+        title: 'Shared Counter',
+      },
+    }),
     rozenite({ enabled: process.env.WITH_ROZENITE === 'true', logLevel: 'debug' }),
   ],
   terminal: {

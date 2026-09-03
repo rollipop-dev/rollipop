@@ -47,6 +47,10 @@
       "project": ["src/**/*.{js,jsx,ts,tsx}"],
       "ignoreDependencies": ["shadcn", "tailwindcss", "tw-animate-css"]
     },
+    "packages/devtools-kit": {
+      "entry": ["src/node.ts", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
+    },
     "packages/init": {
       "entry": ["src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]

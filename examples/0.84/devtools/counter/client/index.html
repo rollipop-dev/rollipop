@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shared Counter</title>
+  </head>
+  <body>
+    <main class="card">
+      <div class="eyebrow">
+        <span class="status-dot"></span>
+        <span id="connection-status">Connecting</span>
+      </div>
+      <p class="label">DEVFRAME SHARED STATE</p>
+      <h1>Shared Counter</h1>
+      <p class="description">Every connected dashboard observes the same server-owned value.</p>
+
+      <section class="counter" aria-live="polite">
+        <span id="count">0</span>
+      </section>
+
+      <div class="actions">
+        <button id="decrement" type="button" aria-label="Decrease counter">−</button>
+        <button id="reset" class="secondary" type="button">Reset</button>
+        <button id="increment" type="button" aria-label="Increase counter">+</button>
+      </div>
+
+      <p id="last-action" class="last-action">Ready</p>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

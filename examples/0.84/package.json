@@ -4,9 +4,12 @@
   "scripts": {
     "pod:install": "cd ios && bundle exec pod install",
     "android": "react-native run-android",
+    "devtools:build": "vite build --config devtools/counter/vite.config.ts",
+    "devtools:typecheck": "tsc --noEmit -p devtools/counter/tsconfig.json",
     "ios": "react-native run-ios",
+    "prestart": "yarn devtools:build",
     "start": "react-native start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && yarn devtools:typecheck",
     "test": "jest"
   },
   "dependencies": {
@@ -30,6 +33,7 @@
     "@react-native/babel-preset": "0.84.1",
     "@react-native/metro-config": "0.84.1",
     "@react-native/typescript-config": "0.84.1",
+    "@rollipop/devtools-kit": "workspace:*",
     "@rollipop/jest-preset": "workspace:*",
     "@rollipop/plugin-rozenite": "workspace:*",
     "@rollipop/plugin-svg": "workspace:*",
@@ -40,11 +44,14 @@
     "@types/node": "^24",
     "@types/react": "^19.2.14",
     "@types/react-test-renderer": "^19.1.0",
+    "chalk": "^6.0.0",
+    "devframe": "catalog:",
     "jest": "^29.6.3",
     "react-native-svg-transformer": "^1.5.3",
     "react-test-renderer": "19.2.3",
     "rollipop": "workspace:*",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "8.0.16"
   },
   "engines": {
     "node": ">=22.11.0"

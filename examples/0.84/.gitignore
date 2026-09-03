@@ -65,6 +65,7 @@ yarn-error.log
 
 # testing
 /coverage
+/devtools/counter/dist
 
 # Yarn
 .yarn/*

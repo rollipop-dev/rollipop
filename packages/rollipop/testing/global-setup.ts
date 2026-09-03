@@ -10,5 +10,10 @@ export function setup() {
     stdio: 'inherit',
     timeout: 300_000,
   });
+  execSync('yarn workspace example-0.84 devtools:build', {
+    cwd: monorepoRoot,
+    stdio: 'inherit',
+    timeout: 300_000,
+  });
   console.log('Build complete.');
 }
