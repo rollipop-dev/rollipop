@@ -126,7 +126,41 @@ describe('resolveRolldownOptions', () => {
     const pluginNames = (await getResolvedPlugins(options)).map((plugin) => plugin.name);
 
     expect(pluginNames).not.toContain('rollipop:replace-hmr-client');
+    expect(pluginNames).not.toContain('rollipop:resolution-topology');
     expect(pluginNames.some((name) => name.includes('refresh'))).toBe(false);
+  });
+
+  it('installs resolution topology after user plugins for an HMR dev server', async () => {
+    resolveRolldownOptions.cache.clear();
+
+    const root = process.cwd();
+    const config = createTestConfig(root);
+    config.plugins = [{ name: 'test:user-resolver' }];
+    config.reactNative.assetRegistryPath = path.join(root, 'package.json');
+    config.reactNative.hmrClientPath = path.join(root, 'package.json');
+    const options = await resolveRolldownOptions(
+      {
+        id: 'test-dev-server-resolution-topology',
+        root,
+        buildType: 'serve',
+        storage: {
+          get: () => ({ build: {} }),
+          set: () => {},
+        } as unknown as BundlerContext['storage'],
+        eventBus: new EventBus(),
+        state: { revision: 0, latestBuildStartTime: 0 },
+      },
+      config,
+      resolveBuildOptions(config, { platform: 'ios', dev: true }),
+      { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
+    );
+
+    const pluginNames = getPlugins(options).map((plugin) => plugin.name);
+
+    expect(pluginNames).toContain('rollipop:resolution-topology');
+    expect(pluginNames.indexOf('rollipop:resolution-topology')).toBeGreaterThan(
+      pluginNames.indexOf('test:user-resolver'),
+    );
   });
 
   it('uses custom React Refresh filters for both transform and wrapper plugins', async () => {

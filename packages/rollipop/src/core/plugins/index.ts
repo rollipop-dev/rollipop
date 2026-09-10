@@ -7,3 +7,4 @@ export * from './dev-server-plugin';
 export * from './analyze-plugin';
 export * from './import-glob-plugin';
 export * from './alias-plugin';
+export * from './resolution-topology-plugin';

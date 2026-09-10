@@ -33,6 +33,7 @@ import {
   type ReactNativePluginOptions,
   type ReactRefreshFilter,
   type ReporterPluginOptions,
+  type ResolutionTopologyPluginOptions,
   type SwcPluginOptions,
   alias,
   analyze,
@@ -42,6 +43,7 @@ import {
   importGlob,
   reactNative,
   reporter,
+  resolutionTopology,
   swc,
   DEFAULT_REACT_REFRESH_INCLUDE_PATTERNS,
   DEFAULT_REACT_REFRESH_EXCLUDE_PATTERNS,
@@ -197,6 +199,14 @@ export async function resolveRolldownOptions(
   );
   const reporterPluginOptions = resolveReporterPluginOptions(config, context, buildOptions);
   const analyzePluginOptions = resolveAnalyzePluginOptions(config, context);
+  const resolutionTopologyPluginOptions: ResolutionTopologyPluginOptions | undefined =
+    isDevServerMode && hmrEnabled
+      ? {
+          root: config.root,
+          resolve: mergedResolveOptions,
+          tsconfig: config.tsconfig,
+        }
+      : undefined;
 
   const inputOptions: rolldown.InputOptions = {
     ...rolldownInput,
@@ -222,6 +232,7 @@ export async function resolveRolldownOptions(
       reporter(reporterPluginOptions),
       analyze(analyzePluginOptions),
       userPlugins,
+      resolutionTopology(resolutionTopologyPluginOptions),
     ]),
     checks: {
       /**
@@ -288,6 +299,11 @@ export async function resolveRolldownOptions(
     rolldownOptions,
     rolldownOptionsContext,
   );
+
+  if (resolutionTopologyPluginOptions != null) {
+    resolutionTopologyPluginOptions.resolve = finalOptions.input?.resolve ?? {};
+    resolutionTopologyPluginOptions.tsconfig = finalOptions.input?.tsconfig;
+  }
 
   resolveRolldownOptions.cache.set(cacheKey, finalOptions);
 
