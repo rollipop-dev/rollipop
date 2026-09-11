@@ -255,11 +255,9 @@ class HMRClient implements HMRClientNativeInterface {
 
     DevLoadingView.hide();
     if (this.enabled) {
-      DevLoadingView.showMessage(
-        `Fast Refresh disconnected (${connection.graph.id}). Reload app to reconnect.`,
-        'error',
-        { dismissButton: true },
-      );
+      DevLoadingView.showMessage('Fast Refresh disconnected. Reload app to reconnect.', 'error', {
+        dismissButton: true,
+      });
       console.warn(connection.unavailableMessage);
     }
   }
