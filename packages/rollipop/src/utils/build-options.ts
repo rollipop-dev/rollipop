@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { merge, cloneDeep } from 'es-toolkit';
+import { cloneDeep, toMerged } from 'es-toolkit';
 
 import type { ResolvedConfig } from '../config';
 import type { BuildOptions } from '../core/types';
@@ -27,7 +27,7 @@ export function resolveBuildOptions(config: ResolvedConfig, buildOptions: BuildO
     );
   }
 
-  return merge(cloneDeep(DEFAULT_BUILD_OPTIONS), {
+  return toMerged(DEFAULT_BUILD_OPTIONS, {
     ...resolvedBuildOptions,
     dev: resolvedBuildOptions.dev ?? config.mode === 'development',
   });

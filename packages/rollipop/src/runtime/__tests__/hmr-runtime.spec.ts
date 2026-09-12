@@ -122,6 +122,7 @@ describe('HMR runtime', () => {
   });
 
   it('evaluates a patch, acknowledges delivery, and applies accepted updates', async () => {
+    // oxlint-disable-next-line no-eval
     const evaluate = vi.fn((source: string) => (0, eval)(source));
     globalThis.globalEvalWithSourceUrl = evaluate;
     const { runtime, socket } = await setupRuntime();
@@ -232,6 +233,7 @@ describe('HMR runtime', () => {
   });
 
   it('disposes hot data and removes stale contexts when an update drops import.meta.hot', async () => {
+    // oxlint-disable-next-line no-eval
     const evaluate = vi.fn((source: string) => (0, eval)(source));
     globalThis.globalEvalWithSourceUrl = evaluate;
     const { runtime, socket } = await setupRuntime();

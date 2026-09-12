@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { merge } from 'es-toolkit';
+import { toMerged } from 'es-toolkit';
 
 import { ROLLIPOP_VERSION } from '../constants';
 
@@ -68,7 +68,7 @@ export class FileStorage {
   }
 
   set(data: Partial<FileStorageData>) {
-    this.data = merge(this.data, data);
+    this.data = toMerged(this.data, data);
   }
 
   flush() {

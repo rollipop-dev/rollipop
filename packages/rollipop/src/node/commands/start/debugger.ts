@@ -1,5 +1,5 @@
 import { select } from '@inquirer/prompts';
-import { merge } from 'es-toolkit';
+import { toMerged } from 'es-toolkit';
 
 import { Logger } from '../../../common/logger';
 import { loadSettings, saveSettings, type Settings } from '../../../core/settings';
@@ -119,7 +119,9 @@ export class DebuggerOpener {
   }
 
   setAutoOpenEnabled(enabled: boolean) {
-    const newSettings = (this.settings = merge(this.settings, { devtools: { autoOpen: enabled } }));
+    const newSettings = (this.settings = toMerged(this.settings, {
+      devtools: { autoOpen: enabled },
+    }));
     saveSettings(this.projectRoot, newSettings);
   }
 }

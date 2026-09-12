@@ -1,4 +1,4 @@
-import { merge } from 'es-toolkit';
+import { toMerged } from 'es-toolkit';
 
 import type {
   RolldownOptions,
@@ -15,7 +15,7 @@ export async function applyRolldownOptionsConfig(
     return await config(options, context);
   }
 
-  return merge(options, config);
+  return toMerged(options, config);
 }
 
 export function composeRolldownOptions(
@@ -26,7 +26,7 @@ export function composeRolldownOptions(
   if (target == null) return source;
 
   if (typeof target !== 'function' && typeof source !== 'function') {
-    return merge(target, source);
+    return toMerged(target, source);
   }
 
   return async (options: RolldownOptions, context: RolldownOptionsContext) => {

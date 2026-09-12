@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type * as rolldown from '@rollipop/rolldown';
 import type { TransformOptions as RollipopTransformOptions } from '@rollipop/rolldown/utils';
-import { invariant, isNotNil, merge } from 'es-toolkit';
+import { invariant, isNotNil, toMerged } from 'es-toolkit';
 
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
@@ -139,7 +139,7 @@ export async function resolveRolldownOptions(
   const userPlugins = config.plugins;
   const { rolldownAlias, aliasPluginOptions } = resolveAliasPluginOptions(config);
 
-  const mergedResolveOptions = merge(
+  const mergedResolveOptions = toMerged(
     {
       extensions: getResolveExtensions({
         sourceExtensions,
@@ -174,8 +174,8 @@ export async function resolveRolldownOptions(
       mode: 'Runtime',
     },
   } satisfies RollipopTransformOptions;
-  const mergedTransformOptions = merge(defaultTransformOptions, rolldownTransform);
-  applyReactCompilerDefaults(merge(defaultTransformOptions, rolldownTransform));
+  const mergedTransformOptions = toMerged(defaultTransformOptions, rolldownTransform);
+  applyReactCompilerDefaults(mergedTransformOptions);
 
   const reactRefreshFilter = resolveReactRefreshFilter(mergedTransformOptions);
   const entryPluginOptions = resolveEntryPluginOptions(config, context);
@@ -205,7 +205,7 @@ export async function resolveRolldownOptions(
     input: ROLLIPOP_VIRTUAL_ENTRY_ID,
     resolve: mergedResolveOptions,
     transform: mergedTransformOptions,
-    experimental: merge(
+    experimental: toMerged(
       { ...rolldownExperimental },
       isDevServerMode
         ? { devMode: hmrConfig ? { implement: hmrConfig.runtimeImplement } : false }
@@ -246,7 +246,7 @@ export async function resolveRolldownOptions(
     id: context.id,
   };
 
-  const outputOptions: rolldown.OutputOptions = merge(
+  const outputOptions: rolldown.OutputOptions = toMerged(
     { ...rolldownOutput },
     {
       file: buildOptions.outfile,
@@ -274,8 +274,8 @@ export async function resolveRolldownOptions(
     ? getOverrideOptionsForDevServer(buildOptions, hmrEnabled, reactRefreshFilter)
     : getOverrideOptions();
   const rolldownOptions: RolldownOptions = {
-    input: merge(inputOptions, overrideOptions.input),
-    output: merge(outputOptions, overrideOptions.output),
+    input: toMerged(inputOptions, overrideOptions.input),
+    output: toMerged(outputOptions, overrideOptions.output),
   };
   const rolldownOptionsContext: RolldownOptionsContext = Object.freeze({
     id: context.id,
@@ -382,7 +382,7 @@ function resolveWorkletsConfig(
     return undefined;
   }
 
-  return merge(
+  return toMerged(
     {
       isRelease: config.mode === 'production',
       pluginVersion: resolvePackageJson(config.root, 'react-native-worklets')?.version,
@@ -689,8 +689,8 @@ export function getOverrideOptionsForDevServer(
   };
 
   return {
-    input: merge(overrideOptions.input, input),
-    output: merge(overrideOptions.output, output),
+    input: toMerged(overrideOptions.input, input),
+    output: toMerged(overrideOptions.output, output),
   };
 }
 

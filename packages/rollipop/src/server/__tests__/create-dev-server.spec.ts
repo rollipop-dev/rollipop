@@ -279,8 +279,7 @@ describe('createDevServer', () => {
       });
 
       expect(response.status).toBe(200);
-      const sessionId = response.headers.get('mcp-session-id') ?? '';
-      expect(sessionId).not.toBe('');
+      expect(response.headers.get('mcp-session-id')).toBeNull();
       expect(await response.text()).toContain('"name":"Rollipop"');
 
       const toolsResponse = await fetch(new URL('/__rollipop/__mcp', address), {
@@ -288,7 +287,6 @@ describe('createDevServer', () => {
         headers: {
           accept: 'application/json, text/event-stream',
           'content-type': 'application/json',
-          'mcp-session-id': sessionId,
           origin,
         },
         body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }),
@@ -304,7 +302,6 @@ describe('createDevServer', () => {
         headers: {
           accept: 'application/json, text/event-stream',
           'content-type': 'application/json',
-          'mcp-session-id': sessionId,
           origin,
         },
         body: JSON.stringify({

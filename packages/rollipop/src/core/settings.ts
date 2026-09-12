@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { merge } from 'es-toolkit';
+import { toMerged } from 'es-toolkit';
 
 import { FileStorage } from '../storage/file-storage';
 
@@ -25,6 +25,6 @@ export function loadSettings(basePath: string) {
 
 export function saveSettings(basePath: string, settings: Partial<Settings>) {
   const existingSettings = loadSettings(basePath);
-  const newSettings = merge(existingSettings, settings);
+  const newSettings = toMerged(existingSettings, settings);
   fs.writeFileSync(getSettingsPath(basePath), JSON.stringify(newSettings, null, 2));
 }
