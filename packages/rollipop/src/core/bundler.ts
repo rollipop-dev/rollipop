@@ -32,10 +32,12 @@ export class Bundler {
     );
     const { input = {}, output = {} } = rolldownOptions;
 
-    const devEngine = await dev(input, output, {
+    const resolvedDevEngineOptions = {
       watch: config.dev.watch,
       ...devEngineOptions,
-    });
+      hotUpdate: true,
+    };
+    const devEngine = await dev(input, output, resolvedDevEngineOptions);
 
     Object.defineProperties(devEngine, {
       getContext: {

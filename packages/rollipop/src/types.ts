@@ -1,3 +1,5 @@
+import type * as rolldown from '@rollipop/rolldown';
+
 import type { ReportableEvent } from './events/types';
 
 export type { BuildDiagnosticLog, ReportableEvent } from './events/types';
@@ -18,4 +20,20 @@ export interface PackageJson {
   version?: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+}
+
+// Rolldown internal types
+export type ChangeEvent = 'create' | 'update' | 'delete';
+
+export interface HotUpdateOptions {
+  type: ChangeEvent;
+  file: string;
+  modules: string[];
+}
+
+export interface PluginWithHotUpdate extends rolldown.Plugin {
+  hotUpdate?: (
+    this: rolldown.PluginContext,
+    options: HotUpdateOptions,
+  ) => Promise<string[] | null | undefined | void> | string[] | null | undefined | void;
 }

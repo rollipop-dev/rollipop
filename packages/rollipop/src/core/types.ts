@@ -57,7 +57,7 @@ export type DevEngine = BaseDevEngine & {
   rolldownOptions: RolldownOptions;
 };
 
-export type DevEngineOptions = Omit<DevOptions, 'watch'> & {
+export type DevEngineOptions = Omit<DevOptions, 'watch' | 'hotUpdate'> & {
   /** Bundle path sent during the HMR WebSocket handshake. */
   bundleEntry: string;
   /**
