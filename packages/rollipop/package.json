@@ -67,7 +67,6 @@
     "@fastify/middie": "9.3.3",
     "@fastify/static": "10.1.2",
     "@inquirer/prompts": "8.5.2",
-    "@modelcontextprotocol/server": "2.0.0",
     "@react-native-community/cli-server-api": "20.2.0",
     "@react-native-community/cli-types": "20.2.0",
     "@react-native/babel-plugin-codegen": "0.86.1",

@@ -3787,7 +3787,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modelcontextprotocol/server@npm:2.0.0, @modelcontextprotocol/server@npm:^2.0.0":
+"@modelcontextprotocol/server@npm:^2.0.0":
   version: 2.0.0
   resolution: "@modelcontextprotocol/server@npm:2.0.0"
   dependencies:
@@ -21725,7 +21725,6 @@ __metadata:
     "@fastify/middie": "npm:9.3.3"
     "@fastify/static": "npm:10.1.2"
     "@inquirer/prompts": "npm:8.5.2"
-    "@modelcontextprotocol/server": "npm:2.0.0"
     "@react-native-community/cli-server-api": "npm:20.2.0"
     "@react-native-community/cli-types": "npm:20.2.0"
     "@react-native/babel-plugin-codegen": "npm:0.86.1"
