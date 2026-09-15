@@ -126,12 +126,6 @@ describe('resolutionTopology', () => {
     const plugin = createPlugin(root);
     const context = createContext([importer, indexJs]);
     const resolveId = getResolveId(plugin);
-    const createdAt = Math.max(
-      fs.statSync(indexJs).birthtimeMs,
-      fs.statSync(indexJs).ctimeMs,
-      fs.statSync(indexJs).mtimeMs,
-    );
-    vi.spyOn(Date, 'now').mockReturnValue(Math.ceil(createdAt) + 1);
 
     callBuildStart(plugin, context);
     callResolveId(resolveId, context, './feature', importer);
@@ -139,6 +133,19 @@ describe('resolutionTopology', () => {
     callWatchChange(plugin, context, 'create', importer);
     expect(callHotUpdate(plugin, context, 'create', importer, [importer])).toEqual([]);
     expect(callHotUpdate(plugin, context, 'create', indexJs, [indexJs])).toEqual([]);
+  });
+
+  it('does not suppress create events for files changed after tracking', () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    const resolveId = getResolveId(plugin);
+
+    callBuildStart(plugin, context);
+    callResolveId(resolveId, context, './feature', importer);
+    fs.writeFileSync(importer, "import { value } from './feature';\n// changed\n");
+
+    callWatchChange(plugin, context, 'create', importer);
+    expect(callHotUpdate(plugin, context, 'create', importer, [importer])).toBeUndefined();
   });
 
   it('passes ordinary file updates through to the default HMR path', () => {
@@ -229,6 +236,21 @@ describe('resolutionTopology', () => {
       otherModule,
       importer,
     ]);
+  });
+
+  it('does not use filesystem timestamps to classify create events', () => {
+    const indexTs = path.join(featureDirectory, 'index.ts');
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    const resolveId = getResolveId(plugin);
+    const skewedBuildTime = Date.now() + 1_000;
+    vi.spyOn(Date, 'now').mockReturnValue(skewedBuildTime);
+
+    callBuildStart(plugin, context);
+    callResolveId(resolveId, context, './feature', importer);
+    fs.writeFileSync(indexTs, "export const value = 'ts';\n");
+
+    expect(callHotUpdate(plugin, context, 'create', indexTs, [])).toEqual([importer]);
   });
 
   it('replaces a missing update module with all of its graph importers', () => {

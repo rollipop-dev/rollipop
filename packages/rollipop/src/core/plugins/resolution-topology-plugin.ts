@@ -32,6 +32,14 @@ interface ResolutionEdge {
   directories: string[];
 }
 
+interface FileSnapshot {
+  device: bigint;
+  inode: bigint;
+  size: bigint;
+  modifiedAt: bigint;
+  changedAt: bigint;
+}
+
 type ResolutionOverride =
   | {
       result: {
@@ -73,9 +81,9 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
   const edgeKeysByImporterFile = new Map<string, Set<string>>();
   const edgeKeysToRevalidate = new Set<string>();
   const watchedDirectories = new Set<string>();
+  const initialFileSnapshots = new Map<string, FileSnapshot>();
   const overrides = new Map<string, ResolutionOverride>();
   let resolver: ResolverFactory | undefined;
-  let buildStartedAt = 0;
 
   function clear() {
     edges.clear();
@@ -84,6 +92,7 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
     edgeKeysByImporterFile.clear();
     edgeKeysToRevalidate.clear();
     watchedDirectories.clear();
+    initialFileSnapshots.clear();
     overrides.clear();
     resolver = undefined;
   }
@@ -175,7 +184,12 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
     }
     linkKey(edgeKeysByImporter, graphImporter, key);
     linkKey(edgeKeysByImporterFile, importerFile, key);
-
+    if (previous == null) {
+      rememberInitialFileSnapshot(initialFileSnapshots, importerFile);
+      for (const candidate of getResolutionCandidates(edge, pluginOptions.resolve)) {
+        rememberInitialFileSnapshot(initialFileSnapshots, candidate);
+      }
+    }
     return edge;
   }
 
@@ -200,21 +214,17 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
   }
 
   function isInitialCreate(file: string, affectedKeys: Set<string>) {
-    if (
-      buildStartedAt === 0 ||
-      (affectedKeys.size === 0 && !edgeKeysByImporterFile.has(path.normalize(file)))
-    ) {
+    if (affectedKeys.size === 0 && !edgeKeysByImporterFile.has(path.normalize(file))) {
       return false;
     }
 
-    return wasPresentAtBuildStart(file, buildStartedAt);
+    return matchesInitialFileSnapshot(initialFileSnapshots, file);
   }
 
   const plugin: PluginWithHotUpdate = {
     name: 'rollipop:resolution-topology',
     buildStart() {
       clear();
-      buildStartedAt = Date.now();
     },
     resolveId: {
       order: 'post',
@@ -252,7 +262,10 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
     },
     watchChange(id, { event }) {
       const normalizedId = path.normalize(id);
-      if (event !== 'create' || !wasPresentAtBuildStart(normalizedId, buildStartedAt)) {
+      const isReplayedCreate =
+        event === 'create' && matchesInitialFileSnapshot(initialFileSnapshots, normalizedId);
+      if (!isReplayedCreate) {
+        initialFileSnapshots.delete(normalizedId);
         const importerStillExists = fs.existsSync(normalizedId);
         const importers = new Set<string>();
         for (const key of edgeKeysByImporterFile.get(normalizedId) ?? []) {
@@ -360,9 +373,44 @@ function isDirectory(file: string) {
   return fs.statSync(file, { throwIfNoEntry: false })?.isDirectory() ?? false;
 }
 
-function wasPresentAtBuildStart(file: string, buildStartedAt: number) {
-  const stat = fs.statSync(file, { throwIfNoEntry: false });
-  return stat != null && Math.max(stat.birthtimeMs, stat.ctimeMs, stat.mtimeMs) < buildStartedAt;
+function rememberInitialFileSnapshot(snapshots: Map<string, FileSnapshot>, file: string) {
+  if (snapshots.has(file)) {
+    return;
+  }
+
+  const snapshot = getFileSnapshot(file);
+  if (snapshot != null) {
+    snapshots.set(file, snapshot);
+  }
+}
+
+function matchesInitialFileSnapshot(snapshots: Map<string, FileSnapshot>, file: string) {
+  const initial = snapshots.get(file);
+  const current = getFileSnapshot(file);
+  return (
+    initial != null &&
+    current != null &&
+    initial.device === current.device &&
+    initial.inode === current.inode &&
+    initial.size === current.size &&
+    initial.modifiedAt === current.modifiedAt &&
+    initial.changedAt === current.changedAt
+  );
+}
+
+function getFileSnapshot(file: string): FileSnapshot | undefined {
+  const stat = fs.statSync(file, { bigint: true, throwIfNoEntry: false });
+  if (stat == null) {
+    return undefined;
+  }
+
+  return {
+    device: stat.dev,
+    inode: stat.ino,
+    size: stat.size,
+    modifiedAt: stat.mtimeNs,
+    changedAt: stat.ctimeNs,
+  };
 }
 
 function canAffectResolution(
@@ -370,30 +418,22 @@ function canAffectResolution(
   file: string,
   resolve: NonNullable<rolldown.InputOptions['resolve']>,
 ) {
-  if (file === edge.target) {
-    return true;
-  }
+  return getResolutionCandidates(edge, resolve).has(file);
+}
 
+function getResolutionCandidates(
+  edge: ResolutionEdge,
+  resolve: NonNullable<rolldown.InputOptions['resolve']>,
+) {
   const extensions = ['', ...(resolve.extensions ?? ['.js', '.json', '.node'])];
-  if (
-    path.dirname(file) === path.dirname(edge.target) &&
-    extensions.some((extension) => file === `${edge.target}${extension}`)
-  ) {
-    return true;
-  }
-
-  if (path.dirname(file) !== edge.target) {
-    return false;
-  }
-
-  if (path.basename(file) === 'package.json') {
-    return true;
-  }
-
   const mainFiles = resolve.mainFiles ?? ['index'];
-  return mainFiles.some((mainFile) =>
-    extensions.some((extension) => file === path.join(edge.target, `${mainFile}${extension}`)),
-  );
+  return new Set([
+    ...extensions.map((extension) => `${edge.target}${extension}`),
+    path.join(edge.target, 'package.json'),
+    ...mainFiles.flatMap((mainFile) =>
+      extensions.map((extension) => path.join(edge.target, `${mainFile}${extension}`)),
+    ),
+  ]);
 }
 
 function toResolverFactoryOptions({
