@@ -37,19 +37,6 @@ describe('transformer', () => {
 
       expect(chunk.code).not.toContain('jsxDEV');
     });
-
-    it('builds with the native transform pipeline enabled', async () => {
-      const chunk = await build('transformer/jsx', {
-        entry: 'index.tsx',
-        external: [/^react/],
-        experimental: {
-          nativeTransformPipeline: true,
-        },
-      });
-
-      expect(chunk.code).toContain('jsx');
-      expect(chunk.code).not.toContain('<div');
-    });
   });
 
   describe('Flow', () => {
@@ -67,19 +54,10 @@ describe('transformer', () => {
       expect(chunk.code).toContain('30');
     });
 
-    it('only processes files matching flow filter', async () => {
-      // .ts files should NOT be processed by flow stripper (only .js/.jsx with @flow)
-      const chunk = await build('optimization/treeshake');
-
-      // Should compile fine without flow processing
-      expect(chunk.code).toContain('add');
-    });
-
-    it('passes Flow options to the native transform pipeline', async () => {
+    it('passes Flow options to the transform pipeline', async () => {
       const chunk = await build('transformer/flow-without-directive', {
         entry: 'index.js',
-        experimental: {
-          nativeTransformPipeline: true,
+        transform: {
           flow: { requireDirective: false },
         },
       });
@@ -90,8 +68,7 @@ describe('transformer', () => {
       await expect(
         build('transformer/flow-without-directive', {
           entry: 'index.js',
-          experimental: {
-            nativeTransformPipeline: true,
+          transform: {
             flow: { requireDirective: true },
           },
         }),

@@ -128,12 +128,7 @@ export async function resolveRolldownOptions(
     config.resolve;
 
   const { intro: rolldownIntro, ...rolldownOutput } = config.output;
-  const {
-    nativeTransformPipeline: _nativeTransformPipeline,
-    flow: _experimentalFlow,
-    worklets: _experimentalWorklets,
-    ...rolldownExperimental
-  } = config.experimental;
+  const { worklets: _experimentalWorklets, ...rolldownExperimental } = config.experimental;
 
   const { flow: _flow, babel: _babel, swc: _swc, ...rolldownTransform } = config.transform;
 
@@ -358,8 +353,6 @@ async function resolveReactNativePluginOptions(
     assetsDir: buildOptions.assetsDir,
     assetExtensions: config.resolve.assetExtensions,
     assetRegistryPath: await resolveAssetRegistryPath(config),
-    flowFilter: config.transform.flow?.filter ?? [],
-    codegenFilter: config.reactNative.codegen?.filter ?? [],
     builtinPluginConfig: resolveReactNativeBuiltinPluginConfig(config),
   };
 }
@@ -377,14 +370,10 @@ async function resolveAssetRegistryPath(config: ResolvedConfig): Promise<string>
 function resolveReactNativeBuiltinPluginConfig(
   config: ResolvedConfig,
 ): ReactNativePluginOptions['builtinPluginConfig'] {
-  if (!config.experimental?.nativeTransformPipeline) {
-    return null;
-  }
-
   return {
     envName: config.mode,
     runtimeTarget: config.runtimeTarget,
-    flow: config.experimental.flow,
+    flow: config.transform.flow,
     worklets: resolveWorkletsConfig(config),
   };
 }
@@ -430,7 +419,6 @@ function resolveBabelPluginOptions(
 ): BabelPluginOptions {
   return {
     context,
-    useNativeTransformPipeline: config.experimental?.nativeTransformPipeline,
     transformConfig: config.transform.babel,
   };
 }
@@ -441,8 +429,6 @@ function resolveSwcPluginOptions(
 ): SwcPluginOptions {
   return {
     context,
-    useNativeTransformPipeline: config.experimental?.nativeTransformPipeline,
-    runtimeTarget: config.runtimeTarget,
     transformConfig: config.transform.swc,
   };
 }

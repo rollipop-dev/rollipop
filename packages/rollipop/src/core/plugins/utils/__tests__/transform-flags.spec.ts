@@ -65,32 +65,12 @@ describe('setFlag', () => {
     const bundlerContext = createBundlerContext();
     expect(hasFlag(pluginContext.meta)).toBe(false);
 
-    const meta = setFlag.call(pluginContext, bundlerContext, id, TransformFlag.CODEGEN_REQUIRED);
-    expect(flag(meta)).toBe(TransformFlag.CODEGEN_REQUIRED);
+    const meta = setFlag.call(pluginContext, bundlerContext, id, TransformFlag.SKIP_ALL);
+    expect(flag(meta)).toBe(TransformFlag.SKIP_ALL);
     expect(revision(meta)).toBe(1);
   });
 
   describe('when the module info exists', () => {
-    it('should merge flags from the same revision', () => {
-      const id = 'test.js';
-      const pluginContext = createPluginContext({
-        [id]: TransformFlag.CODEGEN_REQUIRED,
-      });
-      const bundlerContext = createBundlerContext();
-
-      const meta = setFlag.call(
-        pluginContext,
-        bundlerContext,
-        id,
-        TransformFlag.STRIP_FLOW_REQUIRED,
-      );
-
-      expect(
-        Boolean(flag(meta) & (TransformFlag.CODEGEN_REQUIRED | TransformFlag.STRIP_FLOW_REQUIRED)),
-      ).toBe(true);
-      expect(revision(meta)).toBe(1);
-    });
-
     it('should ignore stale flags from a previous revision', () => {
       const id = 'test.js';
       const pluginContext = createPluginContext({
@@ -98,9 +78,9 @@ describe('setFlag', () => {
       });
       const bundlerContext = createBundlerContext(2);
 
-      const meta = setFlag.call(pluginContext, bundlerContext, id, TransformFlag.CODEGEN_REQUIRED);
+      const meta = setFlag.call(pluginContext, bundlerContext, id, TransformFlag.SKIP_ALL);
 
-      expect(flag(meta)).toBe(TransformFlag.CODEGEN_REQUIRED);
+      expect(flag(meta)).toBe(TransformFlag.SKIP_ALL);
       expect(revision(meta)).toBe(2);
     });
   });

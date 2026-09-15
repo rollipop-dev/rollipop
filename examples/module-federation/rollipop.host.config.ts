@@ -46,7 +46,6 @@ export default defineConfig({
     }),
   ],
   experimental: {
-    nativeTransformPipeline: true,
     worklets: {},
   },
 });

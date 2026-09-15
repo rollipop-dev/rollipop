@@ -43,9 +43,9 @@ describe('createId', () => {
     expect(idA === idC).toBe(false);
     expect([idA, idB, idC]).toMatchInlineSnapshot(`
       [
-        "ced3fc6a99712672db3303fbd827e4a1",
-        "9d9e3706cdff3a6b033a7e47875d6164",
-        "04fe5f1b00e4247c752be0abfa9f9f63",
+        "81b68a61b04841b93d783bc9539611fc",
+        "5c9f074fd993cf1d1b5b68ccb449e3c2",
+        "6389b4414f82505cdca435d2ab4b2f56",
       ]
     `);
   });
@@ -56,19 +56,14 @@ describe('createId', () => {
     ['treeshake', (config) => (config.treeshake = false)],
     ['moduleTypes', (config) => (config.moduleTypes = { '.foo': 'text' })],
     ['tsconfig', (config) => (config.tsconfig = false)],
-    [
-      'reactNative.codegen',
-      (config) => (config.reactNative.codegen = { filter: { code: /codegenNativeCommands/ } }),
-    ],
     ['envDir', (config) => (config.envDir = '/env')],
     ['envFile', (config) => (config.envFile = '.env.rollipop')],
     ['envPrefix', (config) => (config.envPrefix = 'APP_')],
     ['runtimeTarget', (config) => (config.runtimeTarget = 'hermes')],
+    ['transform.flow', (config) => (config.transform.flow = { requireDirective: true })],
     [
-      'experimental',
+      'experimental.worklets',
       (config) => {
-        config.experimental.nativeTransformPipeline = true;
-        config.experimental.flow = { requireDirective: true };
         config.experimental.worklets = { strictGlobal: true };
       },
     ],

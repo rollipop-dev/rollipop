@@ -11,7 +11,7 @@ export function transformWithRollipop(id: string, code: string, config: Resolved
     transformer = new RollipopReactNativeTransformer({
       envName: config.mode,
       runtimeTarget: config.runtimeTarget,
-      flow: config.experimental.flow,
+      flow: config.transform.flow,
       worklets: config.experimental.worklets,
       swc: {
         externalHelpers: false,

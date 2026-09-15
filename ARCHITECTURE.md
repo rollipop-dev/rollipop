@@ -94,8 +94,6 @@ const replaceHMRClientPlugin: rolldown.Plugin = {
 ```ts
 export enum TransformFlag {
   NONE = 0b00000000,
-  CODEGEN_REQUIRED = 0b00000001,
-  STRIP_FLOW_REQUIRED = 0b00000010,
   SKIP_ALL = 0b10000000,
 }
 
@@ -117,10 +115,7 @@ if (flags & TransformFlag.SKIP_ALL) {
   return;
 }
 
-const shouldTransform = useNativeTransformPipeline
-  ? babelOptions.length > 0
-  : flags & TransformFlag.CODEGEN_REQUIRED || babelOptions.length > 0;
-if (!shouldTransform) {
+if (babelOptions.length === 0) {
   return;
 }
 ```
@@ -204,7 +199,7 @@ At a high level, the transformer owns React Native-specific source transforms su
 
 The transformer is exposed through native bindings instead of being hidden inside the bundler plugin. Other tools can reuse the same bundler-level transform pipeline without reimplementing a parallel Babel path.
 
-The native transformer is also parameterized by runtime target. Rollipop config exposes `runtimeTarget`, currently `hermes` or `hermes-v1`, and passes the resolved value into the native plugin configuration when the native transform pipeline is enabled. This keeps Hermes compatibility policy in Rollipop config while letting the Rust transformer select the concrete preset.
+The native transformer is also parameterized by runtime target. Rollipop config exposes `runtimeTarget`, currently `hermes` or `hermes-v1`, and passes the resolved value into the native plugin configuration. This keeps Hermes compatibility policy in Rollipop config while letting the Rust transformer select the concrete preset.
 
 ```ts
 // Rollipop config surface
@@ -214,7 +209,7 @@ runtimeTarget?: 'hermes' | 'hermes-v1';
 return {
   envName: config.mode,
   runtimeTarget: resolveRuntimeTarget(config.runtimeTarget),
-  flow: config.experimental.flow,
+  flow: config.transform.flow,
   worklets: resolveWorkletsConfig(config),
 };
 ```

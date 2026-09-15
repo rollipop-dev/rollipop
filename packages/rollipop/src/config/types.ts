@@ -221,13 +221,9 @@ export type TransformConfig = Omit<
   'cwd' | 'lang' | 'sourceType' | 'plugins'
 > & {
   /**
-   * Flow specific configuration.
-   *
-   * Only applied when `experimental.nativeTransformPipeline` is **disabled** (the
-   * default). With the native pipeline enabled, the rust-side plugin
-   * handles Flow stripping internally.
+   * Flow handling configuration for the built-in transform pipeline.
    */
-  flow?: FlowConfig;
+  flow?: RollipopReactNativeFlowConfig;
   /**
    * Babel transformation configuration.
    */
@@ -246,36 +242,9 @@ export interface TransformRule<T = unknown> {
   options: T | ((code: string, id: string) => T);
 }
 
-export interface FlowConfig {
-  /**
-   * Filter for Flow transformation pipeline.
-   */
-  filter?: rolldown.HookFilter | TopLevelFilterExpression[];
-}
-
 export interface ExperimentalConfig extends RolldownExperimentalOptions {
   /**
-   * Enables the native (rust) transform pipeline, which replaces the
-   * legacy JS-side codegen marker, Flow strip, and SWC/babel preset
-   * machinery with a single built-in `rollipopReactNativePlugin`.
-   *
-   * This is a breaking change for projects that customised the legacy
-   * pipeline via `transformer.flow.filter`, `reactNative.codegen.filter`,
-   * or `runtimeTarget`. Opt in once you have validated builds locally.
-   *
-   * Defaults to `false`.
-   */
-  nativeTransformPipeline?: boolean;
-  /**
-   * Flow handling configuration for the native transform pipeline.
-   *
-   * Only applied when `experimental.nativeTransformPipeline` is enabled.
-   */
-  flow?: RollipopReactNativeFlowConfig;
-  /**
    * `react-native-worklets` transformation configuration.
-   *
-   * Only applied when `experimental.nativeTransformPipeline` is enabled.
    */
   worklets?: RollipopReactNativeWorkletsConfig;
 }
@@ -329,14 +298,6 @@ export interface ReactNativeConfig {
    */
   reactNativePath?: string;
   /**
-   * Codegen specific configuration.
-   *
-   * Only applied when `experimental.nativeTransformPipeline` is **disabled** (the
-   * default). With the native pipeline enabled, the rust-side plugin
-   * handles codegen marking internally.
-   */
-  codegen?: CodegenConfig;
-  /**
    * Path to asset registry file.
    *
    * Defaults to: `react-native/Libraries/Image/AssetRegistry.js`
@@ -348,13 +309,6 @@ export interface ReactNativeConfig {
    * Defaults to: `react-native/Libraries/Utilities/HMRClient.js`
    */
   hmrClientPath?: string | ((root: string) => MaybePromise<string>);
-}
-
-export interface CodegenConfig {
-  /**
-   * Filter for codegen transformation pipeline.
-   */
-  filter?: rolldown.HookFilter | TopLevelFilterExpression[];
 }
 
 export interface AnalyzerConfig {

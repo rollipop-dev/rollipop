@@ -19,8 +19,6 @@ type CurrentTransformMeta = TransformMeta & {
 
 export enum TransformFlag {
   NONE = 0b00000000,
-  CODEGEN_REQUIRED = 0b00000001,
-  STRIP_FLOW_REQUIRED = 0b00000010,
   SKIP_ALL = 0b10000000,
 }
 
@@ -29,19 +27,12 @@ export function setFlag(
   context: BundlerContext,
   id: string,
   flag: TransformFlag,
-  options?: { override?: boolean },
 ): rolldown.CustomPluginOptions {
   const revision = context.state.revision;
   const moduleInfo = this.getModuleInfo(id);
   if (moduleInfo) {
     const meta = moduleInfo.meta as Partial<TransformMeta>;
-    if (options?.override) {
-      meta[TRANSFORM_FLAGS_KEY] = flag;
-    } else if (isCurrentRevision(moduleInfo.meta, revision)) {
-      moduleInfo.meta[TRANSFORM_FLAGS_KEY] |= flag;
-    } else {
-      meta[TRANSFORM_FLAGS_KEY] = flag;
-    }
+    meta[TRANSFORM_FLAGS_KEY] = flag;
     meta[REVISION_KEY] = revision;
     return moduleInfo.meta;
   } else {

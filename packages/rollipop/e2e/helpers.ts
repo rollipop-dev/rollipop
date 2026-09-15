@@ -68,10 +68,7 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       symlinks: true,
       ...options.resolve,
     },
-    transform: {
-      flow: { filter: { id: /\.jsx?$/, code: /@flow/ } },
-      ...options.transform,
-    },
+    transform: options.transform ?? {},
     prelude: options.prelude ?? [],
     polyfills: options.polyfills ?? [],
     output: options.output ?? {},
@@ -82,7 +79,6 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
     },
     reactNative: {
       reactNativePath: '',
-      codegen: { filter: { code: /(?!)/ } },
       assetRegistryPath: '/dummy-asset-registry.js',
       hmrClientPath: path.resolve(FIXTURES_DIR, '_mock', 'hmr-client.js'),
       ...options.reactNative,
@@ -95,10 +91,7 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       ...options.analyzer,
     },
     dev: { watch: { skipWrite: true, useDebounce: true, debounceDuration: 50 }, hmr: false },
-    experimental: {
-      nativeTransformPipeline: false,
-      ...options.experimental,
-    },
+    experimental: options.experimental ?? {},
     reporter: options.reporter,
     terminal: { status: 'none' },
     envDir: options.envDir ?? root,

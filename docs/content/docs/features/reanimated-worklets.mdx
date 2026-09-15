@@ -2,24 +2,22 @@
 title: Reanimated & Worklets
 ---
 
-Rollipop ships with a built-in worklet transformation that enables the native worklet syntax used by [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) (v4+). It runs as part of the SWC-based pass inside rolldown's [native transform pipeline](/docs/features/experimental#native-transform-pipeline).
+Rollipop ships with a built-in worklet transformation that enables the native worklet syntax used by [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) (v4+). It runs as part of the SWC-based transform pass inside rolldown.
 
 <Callout type="warn">
-  Worklet transformation is an experimental feature and only runs when
-  `experimental.nativeTransformPipeline` is enabled. See [Experimental
+  Worklet transformation is an experimental feature. See [Experimental
   Features](/docs/features/experimental) for stability notes.
 </Callout>
 
 ## Setup
 
-Enable the native transform pipeline and turn worklets on under `experimental`:
+Turn worklets on under `experimental`:
 
 ```ts title="rollipop.config.ts"
 import { defineConfig } from 'rollipop';
 
 export default defineConfig({
   experimental: {
-    nativeTransformPipeline: true,
     // Pass an empty object to opt in with defaults.
     worklets: {},
   },
@@ -47,7 +45,7 @@ The transformer automatically detects the installed `react-native-worklets` vers
 
 ## How It Works
 
-The worklet transform converts functions marked with the `'worklet'` directive into a form that can be executed on the UI thread. Unlike Babel-based alternatives, the transform runs as a native SWC visitor inside rolldown's Rust core, alongside the rest of the [native transform pipeline](/docs/features/experimental#native-transform-pipeline) — avoiding the JS-side Babel round trip.
+The worklet transform converts functions marked with the `'worklet'` directive into a form that can be executed on the UI thread. Unlike Babel-based alternatives, the transform runs as a native SWC visitor inside rolldown's Rust core — avoiding the JS-side Babel round trip.
 
 - **SWC-based**: Native performance without Babel overhead
 - **Auto-detection**: Reads the `react-native-worklets` version from your project
@@ -55,6 +53,5 @@ The worklet transform converts functions marked with the `'worklet'` directive i
 
 ## Requirements
 
-- `experimental.nativeTransformPipeline` must be set to `true`
 - `react-native-worklets` must be installed in your project
 - Compatible with React Native Reanimated 4+

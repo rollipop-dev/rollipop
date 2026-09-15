@@ -31,25 +31,13 @@ export function createTestConfig(basePath: string): ResolvedConfig {
       preferNativePlatform: true,
       symlinks: true,
     },
-    transform: {
-      flow: {
-        filter: {
-          id: /\.jsx?$/,
-          code: /@flow/,
-        },
-      },
-    },
+    transform: {},
     prelude: [path.join(basePath, '__tests__/react-native/Libraries/Core/InitializeCore.js')],
     polyfills: [{ type: 'iife', code: 'console.log("[TEST] Polyfill")' }],
     output: {},
     treeshake: true,
     reactNative: {
       reactNativePath: '__tests__/react-native',
-      codegen: {
-        filter: {
-          code: /\bcodegenNativeComponent</,
-        },
-      },
       assetRegistryPath: DEFAULT_ASSET_REGISTRY_PATH,
       hmrClientPath: DEFAULT_HMR_CLIENT_PATH,
     },
@@ -77,9 +65,7 @@ export function createTestConfig(basePath: string): ResolvedConfig {
     envFile: DEFAULT_ENV_FILE,
     envPrefix: DEFAULT_ENV_PREFIX,
     runtimeTarget: DEFAULT_RUNTIME_TARGET,
-    experimental: {
-      nativeTransformPipeline: false,
-    },
+    experimental: {},
   } satisfies Config;
 
   return {

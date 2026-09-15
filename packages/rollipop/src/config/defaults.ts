@@ -54,14 +54,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       preferNativePlatform: true,
       symlinks: true,
     },
-    transform: {
-      flow: {
-        filter: {
-          id: /\.jsx?$/,
-          code: /@flow/,
-        },
-      },
-    },
+    transform: {},
     prelude: [getInitializeCorePath(projectRoot)] as string[],
     polyfills: (await Promise.all(
       getPolyfillScriptPaths(reactNativePath).map(async (path) => {
@@ -78,14 +71,6 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
     treeshake: true as NonNullable<Config['treeshake']>,
     reactNative: {
       reactNativePath,
-      codegen: {
-        /**
-         * @see {@link https://github.com/facebook/react-native/blob/v0.83.1/packages/react-native-babel-preset/src/configs/main.js#L78}
-         */
-        filter: {
-          code: /\bcodegenNativeComponent</,
-        },
-      },
       assetRegistryPath: DEFAULT_ASSET_REGISTRY_PATH as NonNullable<
         NonNullable<ReactNativeConfig>['assetRegistryPath']
       >,
@@ -123,9 +108,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
     envFile: DEFAULT_ENV_FILE as NonNullable<Config['envFile']>,
     envPrefix: DEFAULT_ENV_PREFIX as NonNullable<Config['envPrefix']>,
     runtimeTarget: DEFAULT_RUNTIME_TARGET as NonNullable<Config['runtimeTarget']>,
-    experimental: {
-      nativeTransformPipeline: false as boolean,
-    },
+    experimental: {},
   } satisfies Config;
 
   return defaultConfig;

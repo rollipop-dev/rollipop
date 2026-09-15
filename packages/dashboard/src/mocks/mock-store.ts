@@ -209,9 +209,7 @@ function createConfig(): DashboardConfig {
       hmr: true,
     },
     runtimeTarget: 'hermes',
-    experimental: {
-      nativeTransformPipeline: false,
-    },
+    experimental: {},
   };
 
   return {

@@ -199,14 +199,26 @@ Source code transformation configuration.
 
 ### transform.flow
 
-Flow type syntax transformation configuration.
+- **Type:** `RollipopReactNativeFlowConfig`
 
-`flow.filter`
+Flow parsing configuration for the built-in transform pipeline.
 
-- **Type:** `HookFilter | TopLevelFilterExpression[]`
-- **Default:** `{ id: /\.jsx?$/, code: /@flow/ }`
+`transform.flow.requireDirective`
 
-Filter for Flow transformation pipeline. Uses Rolldown's [hook filter feature](https://rolldown.rs/apis/plugin-hook-filters) to determine which files should be processed.
+- **Type:** `boolean`
+- **Default:** `false`
+
+When `true`, only files containing an `@flow` or `@noflow` directive comment are parsed as Flow. By default, every JavaScript module is parsed as Flow to match Metro and Babel behavior.
+
+```ts
+export default defineConfig({
+  transform: {
+    flow: {
+      requireDirective: true,
+    },
+  },
+});
+```
 
 ### transform.babel
 
@@ -433,45 +445,6 @@ Resolution order (highest priority first):
 export default defineConfig({
   reactNative: {
     reactNativePath: '/path/to/custom/react-native',
-  },
-});
-```
-
-### reactNative.codegen
-
-React Native Codegen configuration.
-
-`reactNative.codegen.filter`
-
-- **Type:** `HookFilter | TopLevelFilterExpression[]`
-- **Default:** `{ code: /\bcodegenNativeComponent</ }`
-
-Filter for codegen transformation pipeline. Only files matching this filter will be processed for React Native Codegen.
-
-```ts
-export default defineConfig({
-  reactNative: {
-    codegen: {
-      filter: {
-        // Process files containing `codegenNativeComponent<`
-        code: /\bcodegenNativeComponent</,
-      },
-    },
-  },
-});
-```
-
-You can customize to match additional patterns:
-
-```ts
-export default defineConfig({
-  reactNative: {
-    codegen: {
-      filter: {
-        // Match files with codegen functions
-        code: /(codegenNativeComponent|TurboModuleRegistry\.get)/,
-      },
-    },
   },
 });
 ```
