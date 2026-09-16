@@ -77,7 +77,7 @@ function swcPlugin({ context, transformConfig }: SwcPluginOptions): rolldown.Plu
     },
   };
 
-  return [swcHelpersResolvePlugin, ...swcRules, swcPlugin];
+  return [swcHelpersResolvePlugin, ...(swcRules.length > 0 ? [...swcRules, swcPlugin] : [])];
 }
 
 export { swcPlugin as swc };

@@ -69,7 +69,7 @@ function babelPlugin({ context, transformConfig }: BabelPluginOptions): rolldown
     },
   };
 
-  return [...babelRules, babelPlugin];
+  return babelRules.length > 0 ? [...babelRules, babelPlugin] : [];
 }
 
 export { babelPlugin as babel };
