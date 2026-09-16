@@ -1,0 +1,8 @@
+{
+  "name": "package-name",
+  "version": "1.2.3",
+  "nested": { "value": 42 },
+  "dashed-key": true,
+  "default": "field",
+  "unused": "drop-me"
+}
