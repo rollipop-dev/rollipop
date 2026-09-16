@@ -258,7 +258,36 @@ interface BabelTransformRule {
 
 ### transform.swc
 
-Custom SWC transformation rules.
+Native React Native SWC pipeline options and custom SWC transformation rules.
+
+`swc.native`
+
+- **Type:** `RollipopReactNativeSwcConfig`
+
+Configure the native React Native SWC pipeline, including WASM plugins. Plugin entries use the
+resolved `.wasm` path and their plugin-specific configuration.
+
+`native.runPluginFirst` defaults to `false`, matching `@swc/core`: plugins run after TypeScript/Flow
+type stripping. Set it to `true` to run plugins before stripping. Scope resolution runs before
+plugins in both cases.
+
+```ts
+import { createRequire } from 'node:module';
+import { defineConfig } from 'rollipop';
+
+const require = createRequire(import.meta.url);
+
+export default defineConfig({
+  transform: {
+    swc: {
+      native: {
+        plugins: [[require.resolve('@swc/plugin-remove-console'), {}]],
+        runPluginFirst: true,
+      },
+    },
+  },
+});
+```
 
 `swc.rules`
 

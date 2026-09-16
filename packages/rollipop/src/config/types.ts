@@ -3,12 +3,17 @@ import type * as rolldown from '@rollipop/rolldown';
 import type {
   DevWatchOptions,
   RollipopReactNativeFlowConfig,
+  RollipopReactNativeSwcConfig,
   RollipopReactNativeWorkletsConfig,
 } from '@rollipop/rolldown/experimental';
 import type { TopLevelFilterExpression } from '@rollipop/rolldown/filter';
 import type * as swc from '@swc/core';
 
-export type { RollipopReactNativeFlowConfig, RollipopReactNativeWorkletsConfig };
+export type {
+  RollipopReactNativeFlowConfig,
+  RollipopReactNativeSwcConfig,
+  RollipopReactNativeWorkletsConfig,
+};
 
 import type { AliasEntry } from '../core/plugins';
 import type { Plugin } from '../core/plugins/types';
@@ -235,7 +240,10 @@ export type TransformConfig = Omit<
 };
 
 export type BabelTransformConfig = { rules?: TransformRule<babel.InputOptions>[] };
-export type SwcTransformConfig = { rules?: TransformRule<swc.Options>[] };
+export type SwcTransformConfig = {
+  native?: RollipopReactNativeSwcConfig;
+  rules?: TransformRule<swc.Options>[];
+};
 
 export interface TransformRule<T = unknown> {
   filter?: rolldown.HookFilter | TopLevelFilterExpression[];

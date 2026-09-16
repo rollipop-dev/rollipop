@@ -374,6 +374,7 @@ function resolveReactNativeBuiltinPluginConfig(
     envName: config.mode,
     runtimeTarget: config.runtimeTarget,
     flow: config.transform.flow,
+    swc: config.transform.swc?.native,
     worklets: resolveWorkletsConfig(config),
   };
 }

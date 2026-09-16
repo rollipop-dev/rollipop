@@ -26,6 +26,11 @@ describe('transformWithRollipop', () => {
     const config = createTestConfig('/project');
     config.mode = 'production';
     config.runtimeTarget = 'hermes';
+    config.transform.swc = {
+      native: {
+        plugins: [['/plugins/remove-console.wasm', { exclude: ['error'] }]],
+      },
+    };
 
     const result = transformWithRollipop('/polyfill.js', 'const answer = 1;', config);
 
@@ -37,6 +42,7 @@ describe('transformWithRollipop', () => {
       worklets: undefined,
       swc: {
         externalHelpers: false,
+        plugins: [['/plugins/remove-console.wasm', { exclude: ['error'] }]],
       },
     });
   });

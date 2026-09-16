@@ -1,7 +1,12 @@
+import { createRequire } from 'node:module';
+
 import { describe, expect, it } from 'vite-plus/test';
 
 import type { Plugin } from '../src/core/plugins/types';
+import { evaluateContext } from '../src/testing/evaluate-context';
 import { build } from './helpers';
+
+const require = createRequire(import.meta.url);
 
 describe('transformer', () => {
   describe('JSX', () => {
@@ -112,6 +117,69 @@ describe('transformer', () => {
       });
 
       expect(chunk.code).toBeDefined();
+    });
+
+    it.each([
+      ['JavaScript', 'index.js'],
+      ['TypeScript', 'index.ts'],
+      ['Flow', 'flow.js'],
+    ])('applies native SWC plugins and rules to %s', async (_syntax, entry) => {
+      const baseline = await build('transformer/native-swc', { entry });
+      const chunk = await build('transformer/native-swc', {
+        entry,
+        transform: {
+          swc: {
+            native: {
+              plugins: [[require.resolve('@swc/plugin-remove-console'), { exclude: ['error'] }]],
+            },
+            rules: [
+              {
+                filter: { id: /native-swc\/(?:index\.[jt]s|flow\.js)$/ },
+                options: {
+                  jsc: {
+                    transform: {
+                      optimizer: {
+                        globals: {
+                          vars: { __NATIVE_SWC_RULE__: '"swc-rule-applied"' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const evaluate = (code: string) => {
+        const events: string[] = [];
+        evaluateContext({
+          console: {
+            log: (value: string) => events.push(`log:${value}`),
+            warn: (value: string) => events.push(`warn:${value}`),
+            error: (value: string) => events.push(`error:${value}`),
+          },
+          record: (value: string) => events.push(value),
+          __NATIVE_SWC_RULE__: 'without-swc-rule',
+        }).evaluate(code);
+        return events;
+      };
+
+      expect(evaluate(baseline.code)).toEqual([
+        'log:global-log',
+        'warn:global-warn',
+        'error:global-error',
+        'local-log',
+        'retained-side-effect',
+        'without-swc-rule',
+      ]);
+      expect(evaluate(chunk.code)).toEqual([
+        'error:global-error',
+        'local-log',
+        'retained-side-effect',
+        'swc-rule-applied',
+      ]);
     });
   });
 
