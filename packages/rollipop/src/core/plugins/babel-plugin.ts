@@ -1,10 +1,11 @@
 import * as babel from '@babel/core';
 import type * as rolldown from '@rollipop/rolldown';
-import { invariant } from 'es-toolkit';
+import { invariant, partition } from 'es-toolkit';
 
 import type { TransformConfig } from '../../config';
 import { mergeBabelOptions } from '../../utils/babel';
 import type { BundlerContext } from '../types';
+import { ROLLDOWN_RUNTIME_EXCLUDE_FILTER, withRuntimeExclude } from './shared/filters';
 import { getFlag, TransformFlag } from './utils/transform-utils';
 
 export interface BabelPluginOptions {
@@ -15,12 +16,33 @@ export interface BabelPluginOptions {
 function babelPlugin({ context, transformConfig }: BabelPluginOptions): rolldown.Plugin[] {
   const { rules = [] } = transformConfig ?? {};
   const babelOptionsById: Map<string, babel.InputOptions[]> = new Map();
+  const [standaloneRules, mergedRules] = partition(
+    [...rules.entries()],
+    ([, rule]) => rule.standalone,
+  );
 
-  const babelRules = rules.map(({ filter, options }, index) => {
+  const standalonePlugins = standaloneRules.map(
+    ([index, { filter, options }]) =>
+      ({
+        name: `rollipop:babel-standalone-rule-${index}`,
+        transform: {
+          filter: withRuntimeExclude(filter),
+          handler(code, id) {
+            if (getFlag.call(this, context, id) & TransformFlag.SKIP_ALL) {
+              return;
+            }
+
+            return transform(code, id, typeof options === 'function' ? options(code, id) : options);
+          },
+        },
+      }) satisfies rolldown.Plugin,
+  );
+
+  const babelRules = mergedRules.map(([index, { filter, options }]) => {
     return {
       name: `rollipop:babel-rule-${index}`,
       transform: {
-        filter,
+        filter: withRuntimeExclude(filter),
         handler(code, id) {
           const existingBabelOptions = babelOptionsById.get(id);
           const resolvedOptions = typeof options === 'function' ? options(code, id) : options;
@@ -38,6 +60,7 @@ function babelPlugin({ context, transformConfig }: BabelPluginOptions): rolldown
       babelOptionsById.clear();
     },
     transform: {
+      filter: [ROLLDOWN_RUNTIME_EXCLUDE_FILTER],
       handler(code, id) {
         const flags = getFlag.call(this, context, id);
         if (flags & TransformFlag.SKIP_ALL) {
@@ -49,27 +72,32 @@ function babelPlugin({ context, transformConfig }: BabelPluginOptions): rolldown
           return;
         }
 
-        const result = babel.transformSync(code, {
-          filename: id,
-          babelrc: false,
-          configFile: false,
-          sourceMaps: true,
-          ...mergeBabelOptions(babelOptions),
-        });
-        invariant(result?.code, `Failed to transform with babel: ${id}`);
-
-        const map = result.map && {
-          ...result.map,
-          names: [...result.map.names],
-          sources: [...result.map.sources],
-          sourcesContent: result.map.sourcesContent ? [...result.map.sourcesContent] : undefined,
-        };
-        return { code: result.code, map };
+        return transform(code, id, mergeBabelOptions(babelOptions));
       },
     },
   };
 
-  return babelRules.length > 0 ? [...babelRules, babelPlugin] : [];
+  return [...standalonePlugins, ...(babelRules.length > 0 ? [...babelRules, babelPlugin] : [])];
+}
+
+function transform(code: string, id: string, options: babel.InputOptions) {
+  const result = babel.transformSync(code, {
+    filename: id,
+    babelrc: false,
+    configFile: false,
+    sourceMaps: true,
+    ...options,
+  });
+  invariant(result?.code, `Failed to transform with babel: ${id}`);
+
+  const map = result.map && {
+    ...result.map,
+    names: [...result.map.names],
+    sources: [...result.map.sources],
+    sourcesContent: result.map.sourcesContent ? [...result.map.sourcesContent] : undefined,
+  };
+
+  return { code: result.code, map };
 }
 
 export { babelPlugin as babel };

@@ -253,8 +253,21 @@ export default defineConfig({
 interface BabelTransformRule {
   filter?: HookFilter | TopLevelFilterExpression[];
   options: babel.TransformOptions | ((code: string, id: string) => babel.TransformOptions);
+  standalone?: boolean;
 }
 ```
+
+With `standalone: false` (the default), options from matching rules are merged, and Babel parses and transforms each matching module once.
+
+With `standalone: true`, the rule runs independently in its own filtered transform hook. Standalone rules run in declaration order before the merged rules, regardless of their positions in the array. Code-based filters and options callbacks receive the output of preceding transforms.
+
+If all Babel rules are standalone, the shared transform hook is omitted, avoiding JavaScript hook calls for modules that do not match any rule's filter.
+
+<Callout type="warn">
+
+Each standalone Babel rule parses and transforms matching modules separately, which can hurt build performance, especially when multiple standalone rules match the same modules. Use `standalone: true` only when needed, and set a narrow `filter` so the rule runs only on modules that require it.
+
+</Callout>
 
 ### transform.swc
 
@@ -264,12 +277,9 @@ Native React Native SWC pipeline options and custom SWC transformation rules.
 
 - **Type:** `RollipopReactNativeSwcConfig`
 
-Configure the native React Native SWC pipeline, including WASM plugins. Plugin entries use the
-resolved `.wasm` path and their plugin-specific configuration.
+Configure the native React Native SWC pipeline, including WASM plugins. Plugin entries use the resolved `.wasm` path and their plugin-specific configuration.
 
-`native.runPluginFirst` defaults to `false`, matching `@swc/core`: plugins run after TypeScript/Flow
-type stripping. Set it to `true` to run plugins before stripping. Scope resolution runs before
-plugins in both cases.
+`native.runPluginFirst` defaults to `false`, matching `@swc/core`: plugins run after TypeScript/Flow type stripping. Set it to `true` to run plugins before stripping. Scope resolution runs before plugins in both cases.
 
 ```ts
 import { createRequire } from 'node:module';
@@ -322,8 +332,21 @@ export default defineConfig({
 interface SwcTransformRule {
   filter?: HookFilter | TopLevelFilterExpression[];
   options: swc.Options | ((code: string, id: string) => swc.Options);
+  standalone?: boolean;
 }
 ```
+
+With `standalone: false` (the default), options from matching rules are merged, and SWC parses and transforms each matching module once.
+
+With `standalone: true`, the rule runs independently in its own filtered transform hook. Standalone rules run in declaration order before the merged rules, regardless of their positions in the array. Code-based filters and options callbacks receive the output of preceding transforms.
+
+If all SWC rules are standalone, the shared transform hook is omitted, avoiding JavaScript hook calls for modules that do not match any rule's filter.
+
+<Callout type="warn">
+
+Each standalone SWC rule parses and transforms matching modules separately, which can hurt build performance, especially when multiple standalone rules match the same modules. Use `standalone: true` only when needed, and set a narrow `filter` so the rule runs only on modules that require it.
+
+</Callout>
 
 ## prelude
 

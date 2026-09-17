@@ -1,11 +1,12 @@
 import type * as rolldown from '@rollipop/rolldown';
 import { id, include } from '@rollipop/rolldown/filter';
 import * as swc from '@swc/core';
+import { partition } from 'es-toolkit';
 
 import type { TransformConfig } from '../../config';
 import { mergeSwcOptions } from '../../utils/swc';
 import type { BundlerContext } from '../types';
-import { ROLLDOWN_RUNTIME_EXCLUDE_FILTER } from './shared/filters';
+import { ROLLDOWN_RUNTIME_EXCLUDE_FILTER, withRuntimeExclude } from './shared/filters';
 import { getFlag, TransformFlag } from './utils/transform-utils';
 
 export interface SwcPluginOptions {
@@ -16,6 +17,10 @@ export interface SwcPluginOptions {
 function swcPlugin({ context, transformConfig }: SwcPluginOptions): rolldown.Plugin[] {
   const { rules = [] } = transformConfig ?? {};
   const swcOptionsById: Map<string, swc.Options[]> = new Map();
+  const [standaloneRules, mergedRules] = partition(
+    [...rules.entries()],
+    ([, rule]) => rule.standalone,
+  );
 
   const swcHelpersResolvePlugin: rolldown.Plugin = {
     name: 'rollipop:swc-helpers-resolve',
@@ -28,16 +33,33 @@ function swcPlugin({ context, transformConfig }: SwcPluginOptions): rolldown.Plu
     },
   };
 
-  const swcRules = rules.map(({ filter, options }, index) => {
+  const standalonePlugins = standaloneRules.map(
+    ([index, { filter, options }]) =>
+      ({
+        name: `rollipop:swc-standalone-rule-${index}`,
+        transform: {
+          filter: withRuntimeExclude(filter),
+          handler(code, id) {
+            if (getFlag.call(this, context, id) & TransformFlag.SKIP_ALL) {
+              return;
+            }
+
+            return transform(code, id, typeof options === 'function' ? options(code, id) : options);
+          },
+        },
+      }) satisfies rolldown.Plugin,
+  );
+
+  const swcRules = mergedRules.map(([index, { filter, options }]) => {
     return {
       name: `rollipop:swc-rule-${index}`,
       transform: {
-        filter,
+        filter: withRuntimeExclude(filter),
         handler(code, id) {
-          const existingBabelOptions = swcOptionsById.get(id);
+          const existingSwcOptions = swcOptionsById.get(id);
           const resolvedOptions = typeof options === 'function' ? options(code, id) : options;
-          void (existingBabelOptions
-            ? existingBabelOptions.push(resolvedOptions)
+          void (existingSwcOptions
+            ? existingSwcOptions.push(resolvedOptions)
             : swcOptionsById.set(id, [resolvedOptions]));
         },
       },
@@ -61,23 +83,31 @@ function swcPlugin({ context, transformConfig }: SwcPluginOptions): rolldown.Plu
           return;
         }
 
-        const result = swc.transformSync(code, {
-          filename: id,
-          configFile: false,
-          swcrc: false,
-          sourceMaps: true,
-          // Disables the input source map to prevent error logs when
-          // swc cannot find the source map file (e.g., in Yarn PnP environments).
-          inputSourceMap: false,
-          ...mergeSwcOptions(swcOptions),
-        });
-
-        return { code: result.code, map: result.map };
+        return transform(code, id, mergeSwcOptions(swcOptions));
       },
     },
   };
 
-  return [swcHelpersResolvePlugin, ...(swcRules.length > 0 ? [...swcRules, swcPlugin] : [])];
+  return [
+    swcHelpersResolvePlugin,
+    ...standalonePlugins,
+    ...(swcRules.length > 0 ? [...swcRules, swcPlugin] : []),
+  ];
+}
+
+function transform(code: string, id: string, options: swc.Options) {
+  const result = swc.transformSync(code, {
+    filename: id,
+    configFile: false,
+    swcrc: false,
+    sourceMaps: true,
+    // Disables the input source map to prevent error logs when
+    // swc cannot find the source map file (e.g., in Yarn PnP environments).
+    inputSourceMap: false,
+    ...options,
+  });
+
+  return { code: result.code, map: result.map };
 }
 
 export { swcPlugin as swc };

@@ -248,6 +248,12 @@ export type SwcTransformConfig = {
 export interface TransformRule<T = unknown> {
   filter?: rolldown.HookFilter | TopLevelFilterExpression[];
   options: T | ((code: string, id: string) => T);
+  /**
+   * Transform independently in a filtered hook instead of merging options with other rules.
+   * Standalone rules run in declaration order before the merged rules.
+   * @default false
+   */
+  standalone?: boolean;
 }
 
 export interface ExperimentalConfig extends RolldownExperimentalOptions {
