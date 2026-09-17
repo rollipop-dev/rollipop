@@ -314,7 +314,8 @@ export interface ReactNativeConfig {
   /**
    * Path to asset registry file.
    *
-   * Defaults to: `react-native/Libraries/Image/AssetRegistry.js`
+   * Defaults to: `react-native/asset-registry`, with the legacy
+   * `react-native/Libraries/Image/AssetRegistry.js` path as a fallback.
    */
   assetRegistryPath?: string | ((root: string) => MaybePromise<string>);
   /**

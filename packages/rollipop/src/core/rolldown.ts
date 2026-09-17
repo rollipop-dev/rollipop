@@ -347,6 +347,7 @@ async function resolveReactNativePluginOptions(
   return {
     context,
     projectRoot: config.root,
+    reactNativePath: config.reactNative.reactNativePath,
     platform: buildOptions.platform,
     preferNativePlatform: config.resolve.preferNativePlatform,
     buildType: context.buildType,

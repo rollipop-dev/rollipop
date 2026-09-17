@@ -32,12 +32,42 @@ describe('stripFlowTypes', () => {
   boom();
   `;
 
+  const FLOW_READONLY_INTERFACE = dedent`
+  // @flow
+  interface Spec {
+    readonly now: () => number;
+  }
+
+  const spec: Spec = {now: () => 1};
+  assert(spec.now() === 1);
+  `;
+
   it('should strip Flow syntax', async () => {
     const { code, map } = await stripFlowTypes('test.js', FLOW_1);
     const { evaluate } = evaluateContext();
     expect(code).not.toContain('@flow');
     expect(() => evaluate(code)).not.toThrow();
     expect(map?.sources).toContain('test.js');
+  });
+
+  it('should strip readonly Flow interface syntax', async () => {
+    const { code, map } = await stripFlowTypes('test.js', FLOW_READONLY_INTERFACE);
+    const { evaluate } = evaluateContext();
+    expect(code).not.toContain('interface Spec');
+    expect(() => evaluate(code)).not.toThrow();
+    expect(map?.sources).toContain('test.js');
+  });
+
+  it('allows a Babel fallback result with empty code', async () => {
+    const { code, map } = await stripFlowTypes(
+      'types.js',
+      dedent`
+      // @flow
+      interface Spec { readonly now: () => number }
+      `,
+    );
+    expect(code.trim()).toBe('');
+    expect(map?.sources).toContain('types.js');
   });
 
   it('should return the correct source map', async () => {
