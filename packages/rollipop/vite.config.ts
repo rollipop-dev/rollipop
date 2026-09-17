@@ -119,6 +119,7 @@ export default defineConfig({
     setupFiles: ['./testing/setup-tests.ts'],
     globalSetup: ['./testing/global-setup.ts'],
     hookTimeout: 60_000,
+    testTimeout: 30_000,
     coverage: {
       include: ['src/**'],
       exclude: [

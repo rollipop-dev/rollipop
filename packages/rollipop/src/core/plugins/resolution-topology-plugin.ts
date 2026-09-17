@@ -20,6 +20,7 @@ import {
 } from '@rollipop/rolldown/experimental';
 import { and, id, importerId, include, not } from '@rollipop/rolldown/filter';
 
+import { DEFAULT_SOURCE_EXTENSIONS } from '../../constants';
 import type { PluginWithHotUpdate } from '../../types';
 
 interface ResolutionEdge {
@@ -40,6 +41,8 @@ interface FileSnapshot {
   changedAt: bigint;
 }
 
+type DirectoryEntries = Map<string, Set<string> | undefined>;
+
 type ResolutionOverride =
   | {
       result: {
@@ -57,6 +60,7 @@ export interface ResolutionTopologyPluginOptions {
 
 const NODE_MODULES_PATTERN = /\/node_modules\//;
 const RELATIVE_REQUEST_PATTERN = /^\.\.?\//;
+const NON_ASCII_PATTERN = /[\u0080-\uffff]/;
 const RESOLVABLE_IMPORT_KINDS = new Set([
   'dynamic-import',
   'hot-accept',
@@ -83,6 +87,8 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
   const watchedDirectories = new Set<string>();
   const initialFileSnapshots = new Map<string, FileSnapshot>();
   const overrides = new Map<string, ResolutionOverride>();
+  let initialDirectoryEntries: DirectoryEntries | undefined;
+  let initialSnapshotTargets: Set<string> | undefined;
   let resolver: ResolverFactory | undefined;
 
   function clear() {
@@ -185,9 +191,16 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
     linkKey(edgeKeysByImporter, graphImporter, key);
     linkKey(edgeKeysByImporterFile, importerFile, key);
     if (previous == null) {
-      rememberInitialFileSnapshot(initialFileSnapshots, importerFile);
-      for (const candidate of getResolutionCandidates(edge, pluginOptions.resolve)) {
-        rememberInitialFileSnapshot(initialFileSnapshots, candidate);
+      rememberInitialFileSnapshot(initialFileSnapshots, importerFile, initialDirectoryEntries);
+      if (!initialSnapshotTargets?.has(target)) {
+        initialSnapshotTargets?.add(target);
+        for (const candidate of getResolutionCandidates(
+          edge,
+          pluginOptions.resolve,
+          directories.length > 1,
+        )) {
+          rememberInitialFileSnapshot(initialFileSnapshots, candidate, initialDirectoryEntries);
+        }
       }
     }
     return edge;
@@ -225,6 +238,14 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
     name: 'rollipop:resolution-topology',
     buildStart() {
       clear();
+      initialDirectoryEntries = new Map();
+      initialSnapshotTargets = new Set();
+    },
+    buildEnd() {
+      // Keep file identities for watcher replay, but never reuse directory
+      // membership or target deduplication across subsequent HMR updates.
+      initialDirectoryEntries = undefined;
+      initialSnapshotTargets = undefined;
     },
     resolveId: {
       order: 'post',
@@ -373,8 +394,12 @@ function isDirectory(file: string) {
   return fs.statSync(file, { throwIfNoEntry: false })?.isDirectory() ?? false;
 }
 
-function rememberInitialFileSnapshot(snapshots: Map<string, FileSnapshot>, file: string) {
-  if (snapshots.has(file)) {
+function rememberInitialFileSnapshot(
+  snapshots: Map<string, FileSnapshot>,
+  file: string,
+  directories?: DirectoryEntries,
+) {
+  if (snapshots.has(file) || (directories != null && !canExistInDirectory(directories, file))) {
     return;
   }
 
@@ -382,6 +407,33 @@ function rememberInitialFileSnapshot(snapshots: Map<string, FileSnapshot>, file:
   if (snapshot != null) {
     snapshots.set(file, snapshot);
   }
+}
+
+function canExistInDirectory(directories: DirectoryEntries, file: string) {
+  const name = path.basename(file);
+  if (NON_ASCII_PATTERN.test(name)) {
+    return true;
+  }
+  const directory = path.dirname(file);
+  if (!directories.has(directory)) {
+    try {
+      const names = fs.readdirSync(directory);
+      directories.set(
+        directory,
+        names.some((name) => NON_ASCII_PATTERN.test(name))
+          ? undefined
+          : new Set(names.map((name) => name.toLowerCase())),
+      );
+    } catch (error) {
+      const { code } = error as NodeJS.ErrnoException;
+      directories.set(directory, code === 'ENOENT' || code === 'ENOTDIR' ? new Set() : undefined);
+    }
+  }
+
+  // Unicode filesystem equivalence is not JavaScript lowercasing (e.g. ss / sharp s).
+  // Prefilter only ASCII listings; otherwise let stat decide existence and identity.
+  const entries = directories.get(directory);
+  return entries == null || entries.has(name.toLowerCase());
 }
 
 function matchesInitialFileSnapshot(snapshots: Map<string, FileSnapshot>, file: string) {
@@ -424,12 +476,16 @@ function canAffectResolution(
 function getResolutionCandidates(
   edge: ResolutionEdge,
   resolve: NonNullable<rolldown.InputOptions['resolve']>,
+  includeDirectory = true,
 ) {
-  const extensions = ['', ...(resolve.extensions ?? ['.js', '.json', '.node'])];
-  const mainFiles = resolve.mainFiles ?? ['index'];
+  const extensions = [
+    '',
+    ...(resolve.extensions ?? DEFAULT_SOURCE_EXTENSIONS.map((ext) => `.${ext}`)),
+  ];
+  const mainFiles = includeDirectory ? (resolve.mainFiles ?? ['index']) : [];
   return new Set([
     ...extensions.map((extension) => `${edge.target}${extension}`),
-    path.join(edge.target, 'package.json'),
+    ...(includeDirectory ? [path.join(edge.target, 'package.json')] : []),
     ...mainFiles.flatMap((mainFile) =>
       extensions.map((extension) => path.join(edge.target, `${mainFile}${extension}`)),
     ),

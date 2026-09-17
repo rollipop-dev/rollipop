@@ -15,8 +15,6 @@ node_modules
 
 dist
 
-.rollipop
-
 # misc
 .DS_Store
 
@@ -27,3 +25,9 @@ package.tgz
 
 # coverage
 coverage/
+
+# rollipop
+.rollipop
+
+# swc
+.swc

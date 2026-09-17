@@ -122,6 +122,295 @@ describe('resolutionTopology', () => {
     }
   });
 
+  it('does not stat missing extension candidates for every importer during the initial build', () => {
+    fs.rmSync(featureDirectory, { recursive: true });
+    const featureTs = path.join(root, 'feature.ts');
+    const secondImporter = path.join(root, 'Second.tsx');
+    fs.writeFileSync(featureTs, 'export const value = 1;\n');
+    fs.writeFileSync(secondImporter, "import './feature';\n");
+    const plugin = createPlugin(root, {
+      ...resolveOptions,
+      extensions: ['.ts', ...Array.from({ length: 120 }, (_, index) => `.ext${index}`)],
+    });
+    const context = createContext([importer, secondImporter, featureTs]);
+    const stat = vi.spyOn(fs, 'statSync');
+    const readdir = vi.spyOn(fs, 'readdirSync');
+
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    callResolveId(getResolveId(plugin), context, './feature', secondImporter);
+
+    expect(stat.mock.calls.length).toBeLessThan(10);
+    expect(readdir.mock.calls).toEqual([[root]]);
+    expect(callHotUpdate(plugin, context, 'create', featureTs, [featureTs])).toEqual([]);
+  });
+
+  it('keeps snapshots of existing candidates with lower extension priority', () => {
+    const indexTs = path.join(featureDirectory, 'index.ts');
+    fs.writeFileSync(indexTs, 'export const value = 1;\n');
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexTs]);
+
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+
+    expect(callHotUpdate(plugin, context, 'create', indexTs, [indexTs])).toEqual([]);
+    expect(callHotUpdate(plugin, context, 'create', indexJs, [])).toEqual([]);
+  });
+
+  it('does not reuse initial directory listings for edges discovered after buildEnd', async () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    await callBuildEnd(plugin, context);
+    const added = path.join(root, 'added.ts');
+    fs.writeFileSync(added, 'export const value = 1;\n');
+
+    callResolveId(getResolveId(plugin), context, './added', importer);
+
+    expect(callHotUpdate(plugin, context, 'create', added, [])).toEqual([]);
+  });
+
+  it('refreshes directory listings at the next full build', async () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    await callBuildEnd(plugin, context);
+    const featureTs = path.join(root, 'feature.ts');
+    fs.writeFileSync(featureTs, 'export const value = 1;\n');
+
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+
+    expect(callHotUpdate(plugin, context, 'create', featureTs, [])).toEqual([]);
+  });
+
+  it('falls back to stat when a directory cannot be listed', () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    vi.spyOn(fs, 'readdirSync').mockImplementation(() => {
+      throw Object.assign(new Error('Cannot list directory'), { code: 'EACCES' });
+    });
+
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+
+    expect(callHotUpdate(plugin, context, 'create', indexJs, [indexJs])).toEqual([]);
+  });
+
+  it('preserves filesystem case and unicode normalization when filtering candidate names', () => {
+    const indexTs = path.join(featureDirectory, 'index.ts');
+    const unicodeFile = path.join(root, 'caf\u00e9.ts');
+    fs.writeFileSync(indexTs, 'export const value = 1;\n');
+    fs.writeFileSync(unicodeFile, 'export const value = 2;\n');
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs, indexTs]);
+    const readdir = fs.readdirSync;
+    vi.spyOn(fs, 'readdirSync').mockImplementation(((directory: fs.PathLike) =>
+      (readdir(directory) as string[]).map((name) =>
+        name.toUpperCase().normalize('NFD'),
+      )) as typeof fs.readdirSync);
+
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    callResolveId(getResolveId(plugin), context, './caf\u00e9', importer);
+
+    expect(callHotUpdate(plugin, context, 'create', indexTs, [indexTs])).toEqual([]);
+    expect(callHotUpdate(plugin, context, 'create', unicodeFile, [])).toEqual([]);
+  });
+
+  it.each([
+    { requested: '\u03c2', listed: '\u03c3' },
+    { requested: 'stra\u00dfe', listed: 'strasse' },
+    { requested: 'strasse', listed: 'stra\u00dfe' },
+    { requested: 'sample', listed: '\u017fample' },
+  ])(
+    'does not reject filesystem-equivalent names ($requested / $listed)',
+    ({ requested, listed }) => {
+      const file = path.join(root, `${requested}.ts`);
+      fs.writeFileSync(file, 'export const value = 1;\n');
+      const plugin = createPlugin(root);
+      const context = createContext([importer, file]);
+      const readdir = fs.readdirSync;
+      // Model a filesystem listing a different equivalent spelling while stat
+      // accepts the requested name. This is deterministic on case-sensitive hosts too.
+      vi.spyOn(fs, 'readdirSync').mockImplementation(((directory: fs.PathLike) =>
+        (readdir(directory) as string[]).map((name) =>
+          name === `${requested}.ts` ? `${listed}.ts` : name,
+        )) as typeof fs.readdirSync);
+
+      callBuildStart(plugin, context);
+      callResolveId(getResolveId(plugin), context, `./${requested}`, importer);
+
+      expect(callHotUpdate(plugin, context, 'create', file, [file])).toEqual([]);
+    },
+  );
+
+  it('snapshots nested main file candidates and symlinked files', () => {
+    const nestedDirectory = path.join(featureDirectory, 'nested');
+    const nestedIndex = path.join(nestedDirectory, 'entry.ts');
+    fs.mkdirSync(nestedDirectory);
+    fs.symlinkSync(indexJs, nestedIndex);
+    const plugin = createPlugin(root, { ...resolveOptions, mainFiles: ['nested/entry'] });
+    const context = createContext([importer]);
+    const stat = vi.spyOn(fs, 'statSync');
+
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+
+    expect(stat).toHaveBeenCalledWith(nestedIndex, { bigint: true, throwIfNoEntry: false });
+  });
+
+  it('keeps platform and development extension precedence after discarding the startup cache', async () => {
+    const base = path.join(root, 'feature.ts');
+    const preferred = path.join(root, 'feature.dev.ios.ts');
+    fs.writeFileSync(base, 'export const value = 1;\n');
+    const plugin = createPlugin(root, {
+      ...resolveOptions,
+      extensions: ['.dev.ios.ts', '.ios.ts', '.native.ts', '.ts', '.js'],
+    });
+    const context = createContext([importer, base]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    await callBuildEnd(plugin, context);
+    fs.writeFileSync(preferred, 'export const value = 2;\n');
+
+    callWatchChange(plugin, context, 'create', preferred);
+    expect(callHotUpdate(plugin, context, 'create', preferred, [])).toEqual([importer]);
+    expect(callResolveId(getResolveId(plugin), context, './feature', importer)).toEqual({
+      id: fs.realpathSync(preferred),
+    });
+  });
+
+  it('does not suppress a new candidate created after the initial directory listing', () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    const added = path.join(root, 'added.ts');
+    fs.writeFileSync(added, 'export const value = 2;\n');
+    callResolveId(getResolveId(plugin), context, './added', importer);
+
+    callWatchChange(plugin, context, 'create', added);
+    expect(callHotUpdate(plugin, context, 'create', added, [])).toEqual([importer]);
+    expect(callResolveId(getResolveId(plugin), context, './added', importer)).toEqual({
+      id: fs.realpathSync(added),
+    });
+  });
+
+  it('retains all importers and query suffixes when snapshots are deduplicated by target', () => {
+    const second = path.join(root, 'Second.tsx');
+    fs.writeFileSync(second, "import './feature';\n");
+    const plugin = createPlugin(root);
+    const context = createContext([importer, second, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature?one', importer);
+    callResolveId(getResolveId(plugin), context, './feature#two', second);
+    const preferred = path.join(root, 'feature.ts');
+    fs.writeFileSync(preferred, 'export const value = 2;\n');
+
+    callWatchChange(plugin, context, 'create', preferred);
+    expect(callHotUpdate(plugin, context, 'create', preferred, [])).toEqual([importer, second]);
+    expect(callResolveId(getResolveId(plugin), context, './feature?one', importer)).toEqual({
+      id: `${fs.realpathSync(preferred)}?one`,
+    });
+    expect(callResolveId(getResolveId(plugin), context, './feature#two', second)).toEqual({
+      id: `${fs.realpathSync(preferred)}#two`,
+    });
+  });
+
+  it('discards directory membership when a build ends with an error', async () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    await callBuildEnd(plugin, context, new Error('Build failed'));
+    const added = path.join(root, 'added.ts');
+    fs.writeFileSync(added, 'export const value = 1;\n');
+    const readdir = vi.spyOn(fs, 'readdirSync');
+
+    callResolveId(getResolveId(plugin), context, './added', importer);
+
+    expect(readdir).not.toHaveBeenCalled();
+    expect(callHotUpdate(plugin, context, 'create', added, [])).toEqual([]);
+  });
+
+  it('does not suppress an atomic replacement with the same contents and mtime', () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    const original = fs.statSync(indexJs);
+    const replacement = path.join(featureDirectory, 'replacement.js');
+    fs.writeFileSync(replacement, fs.readFileSync(indexJs));
+    fs.utimesSync(replacement, original.atime, original.mtime);
+    fs.renameSync(replacement, indexJs);
+    expect(fs.statSync(indexJs).ino).not.toBe(original.ino);
+
+    expect(callHotUpdate(plugin, context, 'create', indexJs, [indexJs])).toEqual([
+      indexJs,
+      importer,
+    ]);
+  });
+
+  it('re-resolves a symlink candidate after its target is replaced', async () => {
+    const linked = path.join(root, 'linked.ts');
+    const replacement = path.join(root, 'replacement.ts');
+    fs.symlinkSync(indexJs, linked);
+    fs.writeFileSync(replacement, 'export const value = 2;\n');
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './linked', importer);
+    await callBuildEnd(plugin, context);
+    fs.unlinkSync(linked);
+    fs.symlinkSync(replacement, linked);
+
+    callWatchChange(plugin, context, 'create', linked);
+    expect(callHotUpdate(plugin, context, 'create', linked, [])).toEqual([importer]);
+    expect(callResolveId(getResolveId(plugin), context, './linked', importer)).toEqual({
+      id: fs.realpathSync(replacement),
+    });
+  });
+
+  it('discovers a directory index created after the target was snapshotted as a file', async () => {
+    fs.rmSync(featureDirectory, { recursive: true });
+    fs.writeFileSync(featureDirectory, 'export const value = 1;\n');
+    const plugin = createPlugin(root);
+    const context = createContext([importer, featureDirectory]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    await callBuildEnd(plugin, context);
+    fs.unlinkSync(featureDirectory);
+    fs.mkdirSync(featureDirectory);
+    fs.writeFileSync(indexJs, 'export const value = 2;\n');
+
+    callWatchChange(plugin, context, 'create', featureDirectory);
+    expect(callHotUpdate(plugin, context, 'create', featureDirectory, [])).toEqual([importer]);
+    expect(callResolveId(getResolveId(plugin), context, './feature', importer)).toEqual({
+      id: fs.realpathSync(indexJs),
+    });
+    expect(context.addWatchFile).toHaveBeenCalledWith(featureDirectory);
+  });
+
+  it('re-resolves when a directory target is replaced by an extensionless file', async () => {
+    const plugin = createPlugin(root);
+    const context = createContext([importer, indexJs]);
+    callBuildStart(plugin, context);
+    callResolveId(getResolveId(plugin), context, './feature', importer);
+    await callBuildEnd(plugin, context);
+    fs.rmSync(featureDirectory, { recursive: true });
+    fs.writeFileSync(featureDirectory, 'export const value = 2;\n');
+
+    callWatchChange(plugin, context, 'create', featureDirectory);
+    expect(callHotUpdate(plugin, context, 'create', featureDirectory, [])).toEqual([importer]);
+    expect(callResolveId(getResolveId(plugin), context, './feature', importer)).toEqual({
+      id: fs.realpathSync(featureDirectory),
+    });
+  });
+
   it('suppresses pre-existing create events replayed when the watcher starts', () => {
     const plugin = createPlugin(root);
     const context = createContext([importer, indexJs]);
@@ -442,6 +731,12 @@ function getResolveId(plugin: rolldown.Plugin) {
 function callBuildStart(plugin: rolldown.Plugin, context: rolldown.PluginContext) {
   expect(typeof plugin.buildStart).toBe('function');
   return (plugin.buildStart as (this: rolldown.PluginContext) => unknown).call(context);
+}
+
+function callBuildEnd(plugin: rolldown.Plugin, context: rolldown.PluginContext, error?: Error) {
+  if (typeof plugin.buildEnd === 'function') {
+    return plugin.buildEnd.call(context, error);
+  }
 }
 
 function callResolveId(
