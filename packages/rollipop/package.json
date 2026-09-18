@@ -106,7 +106,7 @@
     "react-refresh": "0.18.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "engines": {
     "node": ">=22.12.0"
