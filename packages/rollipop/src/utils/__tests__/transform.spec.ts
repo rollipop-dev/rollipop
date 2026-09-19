@@ -41,7 +41,7 @@ describe('transformWithRollipop', () => {
       flow: undefined,
       worklets: undefined,
       swc: {
-        externalHelpers: false,
+        externalHelpers: true,
         plugins: [['/plugins/remove-console.wasm', { exclude: ['error'] }]],
       },
     });

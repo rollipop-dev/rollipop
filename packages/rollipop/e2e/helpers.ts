@@ -68,7 +68,16 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
       symlinks: true,
       ...options.resolve,
     },
-    transform: options.transform ?? {},
+    transform: {
+      ...options.transform,
+      swc: {
+        ...options.transform?.swc,
+        native: {
+          externalHelpers: true,
+          ...options.transform?.swc?.native,
+        },
+      },
+    },
     prelude: options.prelude ?? [],
     polyfills: options.polyfills ?? [],
     output: options.output ?? {},

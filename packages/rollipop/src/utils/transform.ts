@@ -14,7 +14,7 @@ export function transformWithRollipop(id: string, code: string, config: Resolved
       flow: config.transform.flow,
       worklets: config.experimental.worklets,
       swc: {
-        externalHelpers: false,
+        externalHelpers: true,
         ...config.transform.swc?.native,
       },
     });

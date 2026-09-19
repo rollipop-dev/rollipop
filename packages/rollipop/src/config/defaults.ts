@@ -54,7 +54,13 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       preferNativePlatform: true,
       symlinks: true,
     },
-    transform: {},
+    transform: {
+      swc: {
+        native: {
+          externalHelpers: true,
+        },
+      },
+    } as NonNullable<Config['transform']>,
     prelude: [getInitializeCorePath(projectRoot)] as string[],
     polyfills: (await Promise.all(
       getPolyfillScriptPaths(reactNativePath).map(async (path) => {

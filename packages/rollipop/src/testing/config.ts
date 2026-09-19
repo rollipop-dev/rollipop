@@ -31,7 +31,13 @@ export function createTestConfig(basePath: string): ResolvedConfig {
       preferNativePlatform: true,
       symlinks: true,
     },
-    transform: {},
+    transform: {
+      swc: {
+        native: {
+          externalHelpers: true,
+        },
+      },
+    },
     prelude: [path.join(basePath, '__tests__/react-native/Libraries/Core/InitializeCore.js')],
     polyfills: [{ type: 'iife', code: 'console.log("[TEST] Polyfill")' }],
     output: {},
