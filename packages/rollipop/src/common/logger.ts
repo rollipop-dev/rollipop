@@ -5,6 +5,9 @@ import { invariant } from 'es-toolkit';
 import { isDebugEnabled } from './env';
 
 export type LogLevel = 'trace' | 'debug' | 'log' | 'info' | 'warn' | 'error';
+export interface LoggerOptions {
+  forcePrint?: boolean;
+}
 
 export class Logger {
   private static blocked = false;
@@ -36,7 +39,10 @@ export class Logger {
     Logger.queuedMessages.length = 0;
   }
 
-  constructor(private readonly scope?: string) {
+  constructor(
+    private readonly scope?: string,
+    private readonly options?: LoggerOptions,
+  ) {
     this.debugEnabled = isDebugEnabled();
   }
 
@@ -72,12 +78,12 @@ export class Logger {
 
   trace(...args: unknown[]) {
     // oxlint-disable-next-line no-unused-expressions
-    this.debugEnabled && this.print('trace', ...args);
+    (this.options?.forcePrint || this.debugEnabled) && this.print('trace', ...args);
   }
 
   debug(...args: unknown[]) {
     // oxlint-disable-next-line no-unused-expressions
-    this.debugEnabled && this.print('debug', ...args);
+    (this.options?.forcePrint || this.debugEnabled) && this.print('debug', ...args);
   }
 
   log(...args: unknown[]) {

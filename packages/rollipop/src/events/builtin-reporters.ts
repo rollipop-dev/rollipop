@@ -8,7 +8,7 @@ import { logger } from '../logger';
 import type { ReportableEvent, Reporter } from '../types';
 
 export class ClientLogReporter implements Reporter {
-  private logger = new Logger('app');
+  private logger = new Logger('app', { forcePrint: true });
 
   update(event: ReportableEvent): void {
     if (event.type === 'client_log') {
