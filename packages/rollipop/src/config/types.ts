@@ -87,9 +87,9 @@ export interface Config extends Omit<rolldown.InputOptions, RollipopManagedInput
    */
   reactNative?: ReactNativeConfig;
   /**
-   * Terminal configuration.
+   * Custom commands to display in the interactive mode.
    */
-  terminal?: TerminalConfig;
+  commands?: InteractiveCommand[];
   /**
    * Reporter configuration.
    */
@@ -351,17 +351,4 @@ export interface AnalyzerConfig {
    * Defaults to: `false`
    */
   autoOpen?: boolean;
-}
-
-export interface TerminalConfig {
-  /**
-   * Status of the terminal.
-   *
-   * Defaults to: `process.stderr.isTTY ? 'progress' : 'compat'`
-   */
-  status?: 'none' | 'compat' | 'progress';
-  /**
-   * Extra commands to display in the interactive mode.
-   */
-  extraCommands?: InteractiveCommand[];
 }

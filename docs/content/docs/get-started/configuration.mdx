@@ -537,22 +537,7 @@ export default defineConfig({
 });
 ```
 
-## terminal
-
-Terminal output configuration.
-
-### terminal.status
-
-- **Type:** `'none' | 'compat' | 'progress'`
-- **Default:** `isTTY ? 'progress' : 'compat'`
-
-Terminal status display mode:
-
-- `'none'`: No status display
-- `'progress'`: Interactive progress display (when TTY is available)
-- `'compat'`: Compatible mode for non-TTY environments
-
-### terminal.extraCommands
+## commands
 
 - **Type:** `InteractiveCommand[]`
 
@@ -560,17 +545,15 @@ Add custom interactive commands to the development server's interactive mode.
 
 ```ts
 export default defineConfig({
-  terminal: {
-    extraCommands: [
-      {
-        key: 'c',
-        description: 'Clear console',
-        handler() {
-          console.clear();
-        },
+  commands: [
+    {
+      key: 'c',
+      description: 'Clear console',
+      handler() {
+        console.clear();
       },
-    ],
-  },
+    },
+  ],
 });
 ```
 

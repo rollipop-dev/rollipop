@@ -36,6 +36,6 @@ export const action: CommandAction<StartCommandOptions> = async function (option
   });
 
   if (options.interactive) {
-    setupInteractiveMode({ devServer, extraCommands: config.terminal?.extraCommands });
+    setupInteractiveMode({ devServer, commands: config.commands });
   }
 };

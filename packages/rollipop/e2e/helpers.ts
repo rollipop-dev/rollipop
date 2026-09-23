@@ -102,7 +102,6 @@ export function createConfig(fixture: string, options: TestConfigOptions = {}): 
     dev: { watch: { skipWrite: true, useDebounce: true, debounceDuration: 50 }, hmr: false },
     experimental: options.experimental ?? {},
     reporter: options.reporter,
-    terminal: { status: 'none' },
     envDir: options.envDir ?? root,
     envFile: options.envFile ?? DEFAULT_ENV_FILE,
     envPrefix: options.envPrefix ?? DEFAULT_ENV_PREFIX,

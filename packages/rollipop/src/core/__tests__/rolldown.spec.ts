@@ -3,7 +3,7 @@ import path from 'node:path';
 import type * as rolldown from '@rollipop/rolldown';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
-import { ProgressBarStatusReporter } from '../../events/builtin-reporters';
+import { CompatStatusReporter, ProgressBarStatusReporter } from '../../events/builtin-reporters';
 import { EventBus } from '../../events/event-bus';
 import { createTestConfig } from '../../testing/config';
 import type { ReportableEvent } from '../../types';
@@ -413,10 +413,12 @@ describe('resolveRolldownOptions', () => {
     const reporter = { update: vi.fn() };
     const eventBus = new EventBus();
     const builtinUpdate = vi
-      .spyOn(ProgressBarStatusReporter.prototype, 'update')
+      .spyOn(
+        process.stderr.isTTY ? ProgressBarStatusReporter.prototype : CompatStatusReporter.prototype,
+        'update',
+      )
       .mockImplementation(() => {});
     config.reporter = reporter;
-    config.terminal.status = 'progress';
     config.dev.hmr = false;
     config.reactNative.assetRegistryPath = path.join(root, 'package.json');
     const context = {

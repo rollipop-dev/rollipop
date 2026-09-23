@@ -64,9 +64,6 @@ export function createTestConfig(basePath: string): ResolvedConfig {
       reportFile: DEFAULT_ANALYZE_REPORT_FILE,
       autoOpen: false,
     },
-    terminal: {
-      status: process.stderr.isTTY ? 'progress' : 'compat',
-    },
     envDir: basePath,
     envFile: DEFAULT_ENV_FILE,
     envPrefix: DEFAULT_ENV_PREFIX,

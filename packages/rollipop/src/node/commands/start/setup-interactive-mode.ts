@@ -27,11 +27,11 @@ export interface InteractiveCommandContext {
 
 export interface InteractiveModeOptions {
   devServer: DevServer;
-  extraCommands?: InteractiveCommand[];
+  commands?: InteractiveCommand[];
 }
 
 export function setupInteractiveMode(options: InteractiveModeOptions) {
-  const { devServer, extraCommands = [] } = options;
+  const { devServer, commands = [] } = options;
 
   if (!devServer.instance.server.listening) {
     throw new Error(
@@ -50,8 +50,8 @@ export function setupInteractiveMode(options: InteractiveModeOptions) {
   );
 
   const defaultCommands = getDefaultCommands(devServer, debuggerOpener);
-  const allCommands = [...defaultCommands, ...extraCommands];
-  assertHasNoDuplicateCommands(defaultCommands, extraCommands);
+  const allCommands = [...defaultCommands, ...commands];
+  assertHasNoDuplicateCommands(defaultCommands, commands);
 
   readline.emitKeypressEvents(process.stdin);
   process.stdin.setRawMode(true);

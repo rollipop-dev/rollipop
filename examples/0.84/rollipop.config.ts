@@ -33,25 +33,23 @@ export default defineConfig({
     }),
     rozenite({ enabled: process.env.WITH_ROZENITE === 'true', logLevel: 'debug' }),
   ],
-  terminal: {
-    extraCommands: [
-      {
-        key: 'a',
-        description: 'My custom command 1',
-        handler: () => {
-          console.log('My custom command 1');
-        },
+  commands: [
+    {
+      key: 'a',
+      description: 'My custom command 1',
+      handler: () => {
+        console.log('My custom command 1');
       },
-      {
-        key: 'a',
-        shift: true,
-        description: 'My custom command 2',
-        handler: () => {
-          console.log('My custom command 2');
-        },
+    },
+    {
+      key: 'a',
+      shift: true,
+      description: 'My custom command 2',
+      handler: () => {
+        console.log('My custom command 2');
       },
-    ],
-  },
+    },
+  ],
   experimental: {
     worklets: {},
   },

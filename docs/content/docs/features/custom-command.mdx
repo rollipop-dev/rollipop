@@ -6,23 +6,21 @@ Rollipop allows you to add custom interactive commands to the dev server termina
 
 ## Configuration
 
-To add custom commands, configure the `terminal.extraCommands` option in your `rollipop.config.ts` file:
+To add custom commands, configure the `commands` option in your `rollipop.config.ts` file:
 
 ```ts title="rollipop.config.ts"
 import { defineConfig } from 'rollipop';
 
 export default defineConfig({
-  terminal: {
-    extraCommands: [
-      {
-        key: 'a',
-        description: 'My custom command',
-        handler: () => {
-          console.log('My custom command executed!');
-        },
+  commands: [
+    {
+      key: 'a',
+      description: 'My custom command',
+      handler: () => {
+        console.log('My custom command executed!');
       },
-    ],
-  },
+    },
+  ],
 });
 ```
 
@@ -43,17 +41,15 @@ Each command object has the following properties:
 
 ```ts title="rollipop.config.ts"
 export default defineConfig({
-  terminal: {
-    extraCommands: [
-      {
-        key: 'a',
-        description: 'Clear console',
-        handler: () => {
-          console.clear();
-        },
+  commands: [
+    {
+      key: 'a',
+      description: 'Clear console',
+      handler: () => {
+        console.clear();
       },
-    ],
-  },
+    },
+  ],
 });
 ```
 
@@ -63,25 +59,23 @@ You can assign multiple commands to the same key by using the `shift` modifier:
 
 ```ts title="rollipop.config.ts"
 export default defineConfig({
-  terminal: {
-    extraCommands: [
-      {
-        key: 'a',
-        description: 'My custom command 1',
-        handler: () => {
-          console.log('My custom command 1');
-        },
+  commands: [
+    {
+      key: 'a',
+      description: 'My custom command 1',
+      handler: () => {
+        console.log('My custom command 1');
       },
-      {
-        key: 'a',
-        shift: true,
-        description: 'My custom command 2',
-        handler: () => {
-          console.log('My custom command 2');
-        },
+    },
+    {
+      key: 'a',
+      shift: true,
+      description: 'My custom command 2',
+      handler: () => {
+        console.log('My custom command 2');
       },
-    ],
-  },
+    },
+  ],
 });
 ```
 

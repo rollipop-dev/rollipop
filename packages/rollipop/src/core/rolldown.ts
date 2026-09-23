@@ -110,7 +110,7 @@ export async function resolveRolldownOptions(
     output: _output,
     plugins: _plugins,
     reactNative: _reactNative,
-    terminal: _terminal,
+    commands: _commands,
     reporter: _reporter,
     analyzer: _analyzer,
     dev: _dev,
@@ -506,19 +506,17 @@ function createStatusReporter(
   config: ResolvedConfig,
   context: BundlerContext,
   buildOptions: ResolvedBuildOptions,
-): Reporter | undefined {
-  switch (config.terminal.status) {
-    case 'compat':
-      return new CompatStatusReporter();
-
-    case 'progress':
-      return new ProgressBarStatusReporter(
-        config.root,
-        context.id,
-        `[${buildOptions.platform}, ${buildOptions.dev ? 'dev' : 'prod'}]`,
-        getBuildTotalModules(context.storage, context.id),
-      );
+): Reporter {
+  if (process.stderr.isTTY) {
+    return new ProgressBarStatusReporter(
+      config.root,
+      context.id,
+      `[${buildOptions.platform}, ${buildOptions.dev ? 'dev' : 'prod'}]`,
+      getBuildTotalModules(context.storage, context.id),
+    );
   }
+
+  return new CompatStatusReporter();
 }
 
 export interface GetResolveExtensionsOptions {

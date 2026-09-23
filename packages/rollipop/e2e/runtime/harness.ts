@@ -80,9 +80,6 @@ export async function startTestServer(fixtureDir: string): Promise<TestServer> {
   const entryAbs = path.resolve(config.root, config.entry);
   (config as any).entry = entryAbs;
 
-  // Silence terminal reporter in tests.
-  (config as any).terminal = { status: 'none' };
-
   const server = await runServer(config, {
     host,
     port,

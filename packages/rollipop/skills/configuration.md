@@ -1,6 +1,6 @@
 ---
 name: configuration
-description: Rollipop configuration workflow. Use for rollipop.config.ts, defineConfig, resolve, transform, output, React Native options, env files, sourcemaps, optimization, terminal, reporter, and experimental options.
+description: Rollipop configuration workflow. Use for rollipop.config.ts, defineConfig, resolve, transform, output, React Native options, env files, sourcemaps, optimization, commands, reporter, and experimental options.
 allowed-tools: Bash(npx:*), Bash(npm:*), Bash(pnpm:*), Bash(rollipop:*), Bash(yarn:*), Bash(node:*)
 ---
 

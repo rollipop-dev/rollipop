@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 
-import { isDebugEnabled } from '../common/env';
 import { stripFlowTypes } from '../common/transformer';
 import {
   DEFAULT_ANALYZE_FILE,
@@ -21,14 +20,7 @@ import { getInitializeCorePath, getPolyfillScriptPaths } from '../internal/react
 import type { Reporter } from '../types';
 import { resolvePackagePath } from '../utils/node-resolve';
 import type { PluginFlattenConfig } from './merge-config';
-import type {
-  AnalyzerConfig,
-  Config,
-  DevConfig,
-  Polyfill,
-  ReactNativeConfig,
-  TerminalConfig,
-} from './types';
+import type { AnalyzerConfig, Config, DevConfig, Polyfill, ReactNativeConfig } from './types';
 
 export async function getDefaultConfig(projectRoot: string, mode?: Config['mode']) {
   let reactNativePath: string;
@@ -99,17 +91,6 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
       reportFile: DEFAULT_ANALYZE_REPORT_FILE,
       autoOpen: false,
     } as Required<AnalyzerConfig>,
-    terminal: {
-      status: ((): TerminalConfig['status'] => {
-        if (isDebugEnabled()) {
-          return 'compat';
-        }
-        if (process.stderr.isTTY) {
-          return 'progress';
-        }
-        return 'compat';
-      })(),
-    },
     envDir: projectRoot,
     envFile: DEFAULT_ENV_FILE as NonNullable<Config['envFile']>,
     envPrefix: DEFAULT_ENV_PREFIX as NonNullable<Config['envPrefix']>,
