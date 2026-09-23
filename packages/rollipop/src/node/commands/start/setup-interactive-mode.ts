@@ -89,7 +89,7 @@ export function setupInteractiveMode(options: InteractiveModeOptions) {
   console.log();
   allCommands.forEach((command, index) => {
     if (defaultCommands.length === index) {
-      console.log(); // Extra commands separator
+      console.log('          •'); // Extra commands separator
     }
 
     const leadingLabel = command.shift ? '»' : '» Press';
