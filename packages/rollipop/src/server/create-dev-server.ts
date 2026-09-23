@@ -38,7 +38,7 @@ export async function createDevServer(
   options?: ServerOptions,
 ): Promise<DevServer> {
   const projectRoot = config.root;
-  const { port = DEFAULT_PORT, host = DEFAULT_HOST, https = false } = options ?? {};
+  const { port = DEFAULT_PORT, host = DEFAULT_HOST, https = false, buildOptions } = options ?? {};
 
   if (https) {
     throw new Error('HTTPS is not supported yet');
@@ -55,7 +55,7 @@ export async function createDevServer(
 
   const eventBus = new EventBus();
   const state = new DevServerState({ eventBus });
-  const bundlerPool = new BundlerPool(config, { host, port }, eventBus);
+  const bundlerPool = new BundlerPool(config, { host, port, buildOptions }, eventBus);
 
   const {
     middleware: communityMiddleware,

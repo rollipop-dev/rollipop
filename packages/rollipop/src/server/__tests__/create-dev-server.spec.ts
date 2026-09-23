@@ -7,10 +7,13 @@ import { staticPath as dashboardStaticPath } from '@rollipop/dashboard';
 import { connectDevframe, type DevframeConnection, type DevframeRpcClient } from 'devframe/client';
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
 
+import { Bundler } from '../../core/bundler';
 import type { RollipopDevToolsNodeContext } from '../../core/plugins/types';
+import type { DevEngine } from '../../core/types';
+import { EventBus } from '../../events/event-bus';
 import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
-import type { BundlerDevEngine } from '../bundler-pool';
+import { type BundlerDevEngine, BundlerPool } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
 
 vitest.mock('@react-native-community/cli-server-api', () => ({
@@ -36,6 +39,43 @@ vitest.mock('@react-native/dev-middleware', () => ({
 }));
 
 describe('createDevServer', () => {
+  it.each([
+    { buildOptions: { cache: false }, expectedCache: false },
+    { buildOptions: { cache: true }, expectedCache: true },
+    { buildOptions: {}, expectedCache: true },
+    { buildOptions: undefined, expectedCache: true },
+  ])(
+    'should use cache=$expectedCache with buildOptions=$buildOptions',
+    async ({ buildOptions, expectedCache }) => {
+      const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'rollipop-server-cache-'));
+      const devEngine = vi.spyOn(Bundler, 'devEngine').mockResolvedValue({
+        run: vi.fn().mockResolvedValue(undefined),
+        getContext: () => ({ eventBus: new EventBus() }),
+      } as unknown as DevEngine);
+      const devServer = await createDevServer(createTestConfig(projectRoot), {
+        port: 0,
+        buildOptions,
+      });
+
+      try {
+        const bundler = devServer.bundlerPool.get('index.bundle', { platform: 'ios', dev: true });
+        await bundler.ensureInitialized;
+
+        expect(bundler.buildOptions.cache).toBe(expectedCache);
+        expect(devEngine).toHaveBeenCalledExactlyOnceWith(
+          expect.anything(),
+          expect.objectContaining({ platform: 'ios', dev: true, cache: expectedCache }),
+          expect.anything(),
+        );
+      } finally {
+        devEngine.mockRestore();
+        (BundlerPool as any).instances.clear();
+        await devServer.instance.close();
+        await fs.rm(projectRoot, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('should create a dev server', async () => {
     const config = createTestConfig('/root/project');
     const devServer = await createDevServer(config, { port: 0 });

@@ -269,7 +269,8 @@ export class BundlerPool {
 
   constructor(
     private readonly config: ResolvedConfig,
-    private readonly resolvedServerOptions: Required<Pick<ServerOptions, 'host' | 'port'>>,
+    private readonly resolvedServerOptions: Required<Pick<ServerOptions, 'host' | 'port'>> &
+      Pick<ServerOptions, 'buildOptions'>,
     private readonly eventBus: EventBus,
   ) {
     this.hotUpdateStore = new HotUpdateStore(config.root);
@@ -278,7 +279,10 @@ export class BundlerPool {
 
   get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev'>) {
     const baseBundleName = getBaseBundleName(bundleName);
-    const resolvedBuildOptions = resolveBuildOptions(this.config, buildOptions);
+    const resolvedBuildOptions = resolveBuildOptions(this.config, {
+      ...this.resolvedServerOptions.buildOptions,
+      ...buildOptions,
+    });
     const bundlerId = Bundler.createId(this.config, resolvedBuildOptions);
     const key = `${baseBundleName}-${bundlerId}`;
     const instance = BundlerPool.instances.get(key);
