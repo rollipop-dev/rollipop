@@ -32,7 +32,11 @@ export async function loadConfig(options: LoadConfigOptions = {}) {
 
   const { config: userConfig, configFile: resolvedConfigFile } = await c12.loadConfig<Config>(
     configFile
-      ? { configFile: path.resolve(cwd, configFile), configFileRequired: true }
+      ? {
+          configFile: path.resolve(cwd, configFile),
+          configFileRequired: true,
+          ...commonOptions,
+        }
       : {
           cwd,
           defaultConfig,

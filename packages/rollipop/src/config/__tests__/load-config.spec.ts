@@ -1,4 +1,8 @@
-import { describe, it, expect, vitest } from 'vite-plus/test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import { afterEach, beforeEach, describe, it, expect, vitest } from 'vite-plus/test';
 
 import type { Plugin } from '../../core/plugins/types';
 import type {
@@ -6,9 +10,79 @@ import type {
   RolldownOptionsContext,
   RolldownOptionsFunction,
 } from '../../core/rolldown';
+import { createTestConfig } from '../../testing/config';
+import * as defaults from '../defaults';
 import type { ResolvedConfig } from '../defaults';
-import { invokeConfigResolved, resolvePluginConfig } from '../load-config';
+import { invokeConfigResolved, loadConfig, resolvePluginConfig } from '../load-config';
 import type { Config } from '../types';
+
+describe('loadConfig', () => {
+  let projectRoot: string;
+  let configPath: string;
+
+  beforeEach(() => {
+    projectRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-config-')));
+    configPath = path.join(projectRoot, 'rollipop.config.mjs');
+    vitest.spyOn(defaults, 'getDefaultConfig').mockResolvedValue(createTestConfig(projectRoot));
+    fs.writeFileSync(
+      configPath,
+      'export default ({ command, defaultConfig }) => ({ entry: command + "-" + defaultConfig.entry });',
+    );
+  });
+
+  afterEach(() => {
+    vitest.restoreAllMocks();
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  });
+
+  it.each(['automatic', 'relative', 'absolute'] as const)(
+    'passes command and defaults to a config function using %s file selection',
+    async (mode) => {
+      const configFiles = {
+        automatic: undefined,
+        relative: './rollipop.config.mjs',
+        absolute: configPath,
+      };
+      const config = await loadConfig({
+        cwd: projectRoot,
+        configFile: configFiles[mode],
+        context: { command: 'start' },
+      });
+
+      expect(config.configFile).toBe(configPath);
+      expect(config.entry).toBe(path.join(projectRoot, 'start-index.js'));
+    },
+  );
+
+  it('passes context to an explicitly selected async config function', async () => {
+    fs.writeFileSync(
+      configPath,
+      'export default async ({ command, defaultConfig }) => ({ entry: command + "-" + defaultConfig.entry });',
+    );
+
+    const config = await loadConfig({
+      cwd: projectRoot,
+      configFile: configPath,
+      context: { command: 'bundle' },
+    });
+
+    expect(config.entry).toBe(path.join(projectRoot, 'bundle-index.js'));
+  });
+
+  it('still loads an explicitly selected object config', async () => {
+    fs.writeFileSync(configPath, 'export default { entry: "custom.js" };');
+
+    const config = await loadConfig({ cwd: projectRoot, configFile: configPath });
+
+    expect(config.entry).toBe(path.join(projectRoot, 'custom.js'));
+  });
+
+  it('still rejects a missing explicitly selected config file', async () => {
+    await expect(
+      loadConfig({ cwd: projectRoot, configFile: './missing.config.mjs' }),
+    ).rejects.toThrow();
+  });
+});
 
 const rolldownOptionsContext = {
   id: 'test-bundler',
