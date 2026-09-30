@@ -7,6 +7,7 @@ import type { FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
 import { FileStorage } from '../../storage/file-storage';
+import { getServerDisplayUrl } from '../../utils/server';
 import { logger } from '../logger';
 import type { DevServerContext } from '../types';
 
@@ -85,7 +86,7 @@ const plugin = fp<DashboardPluginOptions>(
       );
 
     fastify.addHook('onListen', () => {
-      const dashboardPath = context.serverBaseUrl + DASHBOARD_PATH;
+      const dashboardPath = getServerDisplayUrl(fastify.listeningOrigin, DASHBOARD_PATH);
       logger.info(`Dashboard is available at ${dashboardPath}`);
     });
 

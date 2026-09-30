@@ -15,6 +15,7 @@ import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
 import { type BundlerDevEngine, BundlerPool } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
+import { logger } from '../logger';
 
 vitest.mock('@react-native-community/cli-server-api', () => ({
   createDevServerMiddleware: vi.fn().mockReturnValue({
@@ -39,6 +40,30 @@ vitest.mock('@react-native/dev-middleware', () => ({
 }));
 
 describe('createDevServer', () => {
+  it.each(['127.0.0.1', '::1'])(
+    'should announce localhost URLs with the bound port after listening on %s',
+    async (host) => {
+      const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+      const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+
+      try {
+        await devServer.instance.ready();
+        expect(info).not.toHaveBeenCalled();
+
+        const address = await devServer.instance.listen({ host, port: 0 });
+        const displayAddress = `http://localhost:${new URL(address).port}`;
+
+        expect(info).toHaveBeenCalledWith(
+          `MCP server listening at ${displayAddress}/__rollipop/__mcp`,
+        );
+        expect(info).toHaveBeenCalledWith(`Dashboard is available at ${displayAddress}/dashboard`);
+      } finally {
+        await devServer.instance.close();
+        info.mockRestore();
+      }
+    },
+  );
+
   it.each([
     { buildOptions: { cache: false }, expectedCache: false },
     { buildOptions: { cache: true }, expectedCache: true },
