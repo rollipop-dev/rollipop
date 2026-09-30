@@ -149,14 +149,17 @@ describe('swc plugin', () => {
     const merged = plugins[2]!;
     const transform = transformHook(merged);
     const ctx = pluginContext();
+    const getModuleInfo = vi.spyOn(ctx, 'getModuleInfo');
 
     expect(collect.handler.call(ctx, 'input', moduleId)).toBeUndefined();
     expect(transform.handler.call(ctx, 'other', '/project/other.js')).toBeUndefined();
+    expect(getModuleInfo).not.toHaveBeenCalled();
     expect(transformSync).not.toHaveBeenCalled();
     expect(transform.handler.call(ctx, 'input', moduleId)).toEqual({
       code: 'input;',
       map: 'source-map',
     });
+    expect(getModuleInfo).toHaveBeenCalledExactlyOnceWith(moduleId);
 
     (merged.buildStart as () => void)();
     expect(transform.handler.call(ctx, 'input', moduleId)).toBeUndefined();
@@ -179,6 +182,90 @@ describe('swc plugin', () => {
     ).toBeUndefined();
     expect(options).not.toHaveBeenCalled();
     expect(transformSync).not.toHaveBeenCalled();
+  });
+
+  it('collects only matching rules for each transform without another build start', () => {
+    const [, always, conditional, aggregate] = swc({
+      context,
+      transformConfig: {
+        rules: [
+          { options: { minify: true } },
+          { filter: { code: 'first' }, options: { sourceMaps: false } },
+        ],
+      },
+    });
+    const ctx = pluginContext();
+
+    transformHook(always!).handler.call(ctx, 'first', moduleId);
+    transformHook(conditional!).handler.call(ctx, 'first', moduleId);
+    transformHook(aggregate!).handler.call(ctx, 'first', moduleId);
+    transformHook(always!).handler.call(ctx, 'second', moduleId);
+    transformHook(aggregate!).handler.call(ctx, 'second', moduleId);
+
+    expect(transformSync).toHaveBeenNthCalledWith(
+      1,
+      'first',
+      expect.objectContaining({ minify: true, sourceMaps: false }),
+    );
+    expect(transformSync).toHaveBeenNthCalledWith(
+      2,
+      'second',
+      expect.objectContaining({ minify: true, sourceMaps: true }),
+    );
+  });
+
+  it.each(['skip', 'error'])('discards collected options after a transform %s', (outcome) => {
+    const [, rule, aggregate] = swc({
+      context,
+      transformConfig: { rules: [{ options: { minify: true } }] },
+    });
+    const ctx = pluginContext();
+
+    transformHook(rule!).handler.call(ctx, 'first', moduleId);
+    if (outcome === 'skip') {
+      transformHook(aggregate!).handler.call(
+        pluginContext(TransformFlag.SKIP_ALL),
+        'first',
+        moduleId,
+      );
+    } else {
+      vi.mocked(transformSync).mockImplementationOnce(() => {
+        throw new Error('invalid source');
+      });
+      expect(() => transformHook(aggregate!).handler.call(ctx, 'first', moduleId)).toThrow(
+        'invalid source',
+      );
+    }
+
+    expect(transformHook(aggregate!).handler.call(ctx, 'second', moduleId)).toBeUndefined();
+  });
+
+  it('discards partial collection when resolving a rule throws', () => {
+    const options = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('invalid options');
+      })
+      .mockReturnValue({ minify: true });
+    const [, previous, current, aggregate] = swc({
+      context,
+      transformConfig: {
+        rules: [{ options: { sourceMaps: false } }, { options }],
+      },
+    });
+    const ctx = pluginContext();
+
+    transformHook(previous!).handler.call(ctx, 'first', moduleId);
+    expect(() => transformHook(current!).handler.call(ctx, 'first', moduleId)).toThrow(
+      'invalid options',
+    );
+    transformHook(current!).handler.call(ctx, 'second', moduleId);
+    transformHook(aggregate!).handler.call(ctx, 'second', moduleId);
+
+    expect(transformSync).toHaveBeenCalledExactlyOnceWith(
+      'second',
+      expect.objectContaining({ minify: true, sourceMaps: true }),
+    );
   });
 
   it('excludes runtime modules before matching composable includes without mutating the filter', () => {

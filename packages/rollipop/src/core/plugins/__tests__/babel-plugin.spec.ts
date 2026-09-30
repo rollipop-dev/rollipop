@@ -250,9 +250,14 @@ describe('babel', () => {
       context: createContext(),
       transformConfig: { rules: [{ options: { comments: false } }] },
     });
+    const ctx = createPluginContext();
+    const getModuleInfo = vi.spyOn(ctx, 'getModuleInfo');
 
     await callTransform(rule!, 'input');
-    await callTransform(aggregate!, 'other', '/src/other.js');
+    await getTransform(aggregate!).handler.call(ctx, 'other', '/src/other.js', {
+      moduleType: 'js',
+    });
+    expect(getModuleInfo).not.toHaveBeenCalled();
     expect(mocks.transformSync).not.toHaveBeenCalled();
 
     const buildStart = aggregate!.buildStart!;
@@ -260,6 +265,84 @@ describe('babel', () => {
     await handler.call(createPluginContext(), {} as rolldown.NormalizedInputOptions);
     await callTransform(aggregate!, 'input');
     expect(mocks.transformSync).not.toHaveBeenCalled();
+  });
+
+  it('collects only matching rules for each transform without another build start', async () => {
+    const [always, conditional, aggregate] = babel({
+      context: createContext(),
+      transformConfig: {
+        rules: [
+          { options: { plugins: ['always'] } },
+          { filter: { code: 'first' }, options: { plugins: ['conditional'] } },
+        ],
+      },
+    });
+
+    await callTransform(always!, 'first');
+    await callTransform(conditional!, 'first');
+    await callTransform(aggregate!, 'first');
+    await callTransform(always!, 'second');
+    await callTransform(aggregate!, 'second');
+
+    expect(mocks.transformSync).toHaveBeenNthCalledWith(
+      1,
+      'first',
+      expect.objectContaining({ plugins: ['always', 'conditional'] }),
+    );
+    expect(mocks.transformSync).toHaveBeenNthCalledWith(
+      2,
+      'second',
+      expect.objectContaining({ plugins: ['always'] }),
+    );
+  });
+
+  it.each(['skip', 'error'])('discards collected options after a transform %s', async (outcome) => {
+    const [rule, aggregate] = babel({
+      context: createContext(),
+      transformConfig: { rules: [{ options: { plugins: ['once'] } }] },
+    });
+
+    await callTransform(rule!, 'first');
+    if (outcome === 'skip') {
+      await callTransform(aggregate!, 'first', '/src/input.js', TransformFlag.SKIP_ALL);
+    } else {
+      mocks.transformSync.mockImplementationOnce(() => {
+        throw new Error('invalid source');
+      });
+      await expect(callTransform(aggregate!, 'first')).rejects.toThrow('invalid source');
+    }
+    await callTransform(rule!, 'second');
+    await callTransform(aggregate!, 'second');
+
+    expect(mocks.transformSync).toHaveBeenLastCalledWith(
+      'second',
+      expect.objectContaining({ plugins: ['once'] }),
+    );
+  });
+
+  it('discards partial collection when resolving a rule throws', async () => {
+    const options = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('invalid options');
+      })
+      .mockReturnValue({ plugins: ['current'] });
+    const [previous, current, aggregate] = babel({
+      context: createContext(),
+      transformConfig: {
+        rules: [{ options: { plugins: ['previous'] } }, { options }],
+      },
+    });
+
+    await callTransform(previous!, 'first');
+    await expect(callTransform(current!, 'first')).rejects.toThrow('invalid options');
+    await callTransform(current!, 'second');
+    await callTransform(aggregate!, 'second');
+
+    expect(mocks.transformSync).toHaveBeenCalledExactlyOnceWith(
+      'second',
+      expect.objectContaining({ plugins: ['current'] }),
+    );
   });
 });
 

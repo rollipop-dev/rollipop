@@ -56,11 +56,16 @@ function swcPlugin({ context, transformConfig }: SwcPluginOptions): rolldown.Plu
       transform: {
         filter: withRuntimeExclude(filter),
         handler(code, id) {
-          const existingSwcOptions = swcOptionsById.get(id);
-          const resolvedOptions = typeof options === 'function' ? options(code, id) : options;
-          void (existingSwcOptions
-            ? existingSwcOptions.push(resolvedOptions)
-            : swcOptionsById.set(id, [resolvedOptions]));
+          try {
+            const existingSwcOptions = swcOptionsById.get(id);
+            const resolvedOptions = typeof options === 'function' ? options(code, id) : options;
+            void (existingSwcOptions
+              ? existingSwcOptions.push(resolvedOptions)
+              : swcOptionsById.set(id, [resolvedOptions]));
+          } catch (error) {
+            swcOptionsById.delete(id);
+            throw error;
+          }
         },
       },
     } satisfies rolldown.Plugin;
@@ -74,12 +79,13 @@ function swcPlugin({ context, transformConfig }: SwcPluginOptions): rolldown.Plu
     transform: {
       filter: [ROLLDOWN_RUNTIME_EXCLUDE_FILTER],
       handler(code, id) {
-        if (getFlag.call(this, context, id) & TransformFlag.SKIP_ALL) {
+        const swcOptions = swcOptionsById.get(id);
+        if (swcOptions == null) {
           return;
         }
 
-        const swcOptions = swcOptionsById.get(id) ?? [];
-        if (swcOptions.length === 0) {
+        swcOptionsById.delete(id);
+        if (getFlag.call(this, context, id) & TransformFlag.SKIP_ALL) {
           return;
         }
 

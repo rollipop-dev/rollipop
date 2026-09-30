@@ -44,11 +44,16 @@ function babelPlugin({ context, transformConfig }: BabelPluginOptions): rolldown
       transform: {
         filter: withRuntimeExclude(filter),
         handler(code, id) {
-          const existingBabelOptions = babelOptionsById.get(id);
-          const resolvedOptions = typeof options === 'function' ? options(code, id) : options;
-          void (existingBabelOptions
-            ? existingBabelOptions.push(resolvedOptions)
-            : babelOptionsById.set(id, [resolvedOptions]));
+          try {
+            const existingBabelOptions = babelOptionsById.get(id);
+            const resolvedOptions = typeof options === 'function' ? options(code, id) : options;
+            void (existingBabelOptions
+              ? existingBabelOptions.push(resolvedOptions)
+              : babelOptionsById.set(id, [resolvedOptions]));
+          } catch (error) {
+            babelOptionsById.delete(id);
+            throw error;
+          }
         },
       },
     } satisfies rolldown.Plugin;
@@ -62,13 +67,14 @@ function babelPlugin({ context, transformConfig }: BabelPluginOptions): rolldown
     transform: {
       filter: [ROLLDOWN_RUNTIME_EXCLUDE_FILTER],
       handler(code, id) {
-        const flags = getFlag.call(this, context, id);
-        if (flags & TransformFlag.SKIP_ALL) {
+        const babelOptions = babelOptionsById.get(id);
+        if (babelOptions == null) {
           return;
         }
 
-        const babelOptions = babelOptionsById.get(id) ?? [];
-        if (babelOptions.length === 0) {
+        babelOptionsById.delete(id);
+        const flags = getFlag.call(this, context, id);
+        if (flags & TransformFlag.SKIP_ALL) {
           return;
         }
 
