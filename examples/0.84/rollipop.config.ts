@@ -36,17 +36,17 @@ export default defineConfig({
   commands: [
     {
       key: 'a',
-      description: 'My custom command 1',
-      handler: () => {
-        console.log('My custom command 1');
+      description: 'Custom command 1',
+      handler() {
+        this.logger.info('Custom command 1');
       },
     },
     {
       key: 'a',
       shift: true,
-      description: 'My custom command 2',
-      handler: () => {
-        console.log('My custom command 2');
+      description: 'Custom command 2',
+      handler() {
+        this.logger.info('Custom command 2');
       },
     },
   ],
