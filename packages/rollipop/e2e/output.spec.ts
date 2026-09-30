@@ -30,8 +30,54 @@ describe('output', () => {
       }
     });
 
-    // Note: sourcemap 'inline' and 'hidden' modes are not exposed through Bundler.build()
-    // because it normalizes sourcemap to boolean. These are rolldown-level features.
+    it.each(['inline', 'hidden'] as const)('preserves the %s sourcemap mode', async (sourcemap) => {
+      try {
+        const { outfile, readOutput } = await buildToFile(fixture, outDir, {}, { sourcemap });
+
+        if (sourcemap === 'inline') {
+          expect(fs.existsSync(outfile + '.map')).toBe(false);
+          const encodedMap = readOutput().match(/sourceMappingURL=data:.*;base64,([^\n]+)/)?.[1];
+          expect(encodedMap).toBeDefined();
+          expect(JSON.parse(Buffer.from(encodedMap!, 'base64').toString())).toMatchObject({
+            version: 3,
+          });
+        } else {
+          expect(fs.existsSync(outfile + '.map')).toBe(true);
+          expect(readOutput()).not.toContain('sourceMappingURL=');
+        }
+      } finally {
+        cleanup(fixture, outDir);
+      }
+    });
+
+    it('uses config.output.sourcemap when the build option is omitted', async () => {
+      try {
+        const { outfile, readOutput } = await buildToFile(fixture, outDir, {
+          output: { sourcemap: true },
+        });
+
+        expect(fs.existsSync(outfile + '.map')).toBe(true);
+        expect(readOutput()).toContain('sourceMappingURL=');
+      } finally {
+        cleanup(fixture, outDir);
+      }
+    });
+
+    it('preserves sourcemap options set by the rolldown finalizer', async () => {
+      try {
+        const { outfile, readOutput } = await buildToFile(
+          fixture,
+          outDir,
+          { rolldownOptions: { output: { sourcemap: 'hidden' } } },
+          { sourcemap: false },
+        );
+
+        expect(fs.existsSync(outfile + '.map')).toBe(true);
+        expect(readOutput()).not.toContain('sourceMappingURL=');
+      } finally {
+        cleanup(fixture, outDir);
+      }
+    });
 
     it('sourcemap: false produces no sourcemap', async () => {
       try {
@@ -85,6 +131,18 @@ describe('output', () => {
       } finally {
         cleanup(fixture, outDir);
       }
+    });
+  });
+
+  describe('minify', () => {
+    it('uses configured minification unless a build option overrides it', async () => {
+      const fixture = 'bundle-output/prelude';
+      const configured = await build(fixture, { output: { minify: true } });
+      const explicit = await build(fixture, { output: { minify: true } }, { minify: true });
+      const overridden = await build(fixture, { output: { minify: true } }, { minify: false });
+
+      expect(configured.code).toBe(explicit.code);
+      expect(configured.code.length).toBeLessThan(overridden.code.length);
     });
   });
 

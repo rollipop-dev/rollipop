@@ -20,7 +20,7 @@ export interface BuildOptions {
   /**
    * Whether to minify the bundle.
    *
-   * This option is overridden by the `minify` option in the config.
+   * Overrides `config.output.minify` when provided.
    *
    * Defaults to `false`.
    */
@@ -38,7 +38,7 @@ export interface BuildOptions {
   /**
    * The sourcemap file.
    *
-   * This option is overridden by the `sourcemap` option in the config.
+   * Overrides `config.output.sourcemap` when provided.
    */
   sourcemap?: rolldown.OutputOptions['sourcemap'];
   /**

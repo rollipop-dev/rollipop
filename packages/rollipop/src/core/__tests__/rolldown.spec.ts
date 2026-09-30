@@ -87,6 +87,17 @@ async function resolveTestRolldownOptions(
 }
 
 describe('resolveRolldownOptions', () => {
+  it('preserves configured output options in dev server overrides', () => {
+    const config = createTestConfig(process.cwd());
+    config.output = { minify: true, sourcemap: false };
+
+    const options = getOverrideOptionsForDevServer(
+      resolveBuildOptions(config, { platform: 'ios', dev: true }),
+    );
+
+    expect(options.output).toMatchObject({ minify: true, sourcemap: false });
+  });
+
   it('disables React Refresh transform options for dev server when HMR is disabled', () => {
     const config = createTestConfig(process.cwd());
     config.dev.hmr = false;

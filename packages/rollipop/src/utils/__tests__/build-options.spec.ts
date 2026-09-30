@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, expectTypeOf, it } from 'vite-plus/test';
 
 import { createTestConfig } from '../../testing/config';
-import { resolveBuildOptions } from '../build-options';
+import { resolveBuildOptions, type ResolvedBuildOptions } from '../build-options';
 
 describe('resolveBuildOptions', () => {
+  it('keeps output fields optional in the resolved options type', () => {
+    expectTypeOf<{ platform: string; dev: boolean }>().toExtend<ResolvedBuildOptions>();
+  });
+
   it('should not share resolved option objects across calls', () => {
     const config = createTestConfig('/root/project');
     const android = resolveBuildOptions(config, { platform: 'android', dev: true });
@@ -37,5 +41,33 @@ describe('resolveBuildOptions', () => {
     resolveBuildOptions(config, buildOptions);
 
     expect(buildOptions.outfile).toBe('dist/index.bundle');
+  });
+
+  it('inherits output options from config before applying defaults', () => {
+    const config = createTestConfig('/root/project');
+    config.output = { minify: true, sourcemap: 'hidden' };
+
+    expect(resolveBuildOptions(config, { platform: 'ios' })).toMatchObject({
+      minify: true,
+      sourcemap: 'hidden',
+    });
+  });
+
+  it('allows explicit build options to override configured output options', () => {
+    const config = createTestConfig('/root/project');
+    config.output = { minify: true, sourcemap: true };
+
+    expect(
+      resolveBuildOptions(config, { platform: 'ios', minify: false, sourcemap: false }),
+    ).toMatchObject({ minify: false, sourcemap: false });
+  });
+
+  it('resolves custom sourcemap paths when generation is enabled through config', () => {
+    const config = createTestConfig('/root/project');
+    config.output.sourcemap = true;
+
+    expect(
+      resolveBuildOptions(config, { platform: 'ios', sourcemapOutfile: 'maps/index.map' }),
+    ).toMatchObject({ sourcemapOutfile: '/root/project/maps/index.map' });
   });
 });

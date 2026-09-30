@@ -87,7 +87,6 @@ export class Bundler {
     const buildType = 'build';
     const resolvedBuildOptions = resolveBuildOptions(this.config, buildOptions);
     const context = Bundler.createContext(buildType, this.config, resolvedBuildOptions);
-    const sourcemap = resolvedBuildOptions.sourcemap ? true : false;
     const { input = {}, output = {} } = await resolveRolldownOptions(
       context,
       this.config,
@@ -96,10 +95,7 @@ export class Bundler {
 
     const rolldownBuildOptions: rolldown.BuildOptions = {
       ...input,
-      output: {
-        ...output,
-        sourcemap,
-      },
+      output,
       write: Boolean(resolvedBuildOptions.outfile),
     };
 

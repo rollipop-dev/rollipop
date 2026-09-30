@@ -7,11 +7,14 @@ import type { BuildOptions } from '../core/types';
 
 const DEFAULT_BUILD_OPTIONS: Partial<BuildOptions> = {
   cache: true,
-  minify: false,
 };
 
 export function resolveBuildOptions(config: ResolvedConfig, buildOptions: BuildOptions) {
-  const resolvedBuildOptions = cloneDeep(buildOptions);
+  const resolvedBuildOptions: BuildOptions = cloneDeep({
+    ...buildOptions,
+    minify: buildOptions.minify ?? config.output.minify ?? false,
+    sourcemap: buildOptions.sourcemap ?? config.output.sourcemap,
+  });
 
   if (resolvedBuildOptions.outfile) {
     resolvedBuildOptions.outfile = path.resolve(config.root, resolvedBuildOptions.outfile);
