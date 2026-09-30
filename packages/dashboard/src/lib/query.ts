@@ -11,7 +11,6 @@ export const queryClient = new QueryClient({
 });
 
 export const queryKeys = {
-  root: ['dashboard'] as const,
   snapshot: ['dashboard', 'snapshot'] as const,
   builds: ['dashboard', 'builds'] as const,
   config: ['dashboard', 'config'] as const,

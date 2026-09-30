@@ -182,13 +182,17 @@ describe('BundlerPool', () => {
     expect(fs.readFileSync(path.join(hotPath, 'current.js'), 'utf-8')).toBe('current');
   });
 
-  it('should return the same instance for identical bundle + build options', () => {
+  it('should initialize once for identical bundle + build options', async () => {
     resetPool();
+    const engine = createMockDevEngine(config);
+    vi.mocked(Bundler).devEngine.mockResolvedValueOnce(engine);
     const pool = createPool();
     const instance1 = pool.get('index.bundle', { platform: 'ios', dev: true });
     const instance2 = pool.get('index.bundle', { platform: 'ios', dev: true });
 
     expect(instance1).toBe(instance2);
+    await Promise.all([instance1.ensureInitialized, instance2.ensureInitialized]);
+    expect(engine.run).toHaveBeenCalledOnce();
   });
 
   it('should return different instances for different platforms', () => {

@@ -38,7 +38,6 @@ export class BundlerDevEngine {
   private bundleStore: BundleStore | null = null;
   private buildFailedError: Error | null = null;
   private _devEngine: DevEngine | null = null;
-  private _state: 'idle' | 'initializing' | 'ready' = 'idle';
   private _status: BundlerStatus = 'idle';
 
   constructor(
@@ -104,12 +103,6 @@ export class BundlerDevEngine {
   }
 
   private async initialize() {
-    if (this._state !== 'idle' || this._devEngine != null) {
-      return;
-    }
-
-    this._state = 'initializing';
-
     let pendingBuildDoneEvent: BundleBuildDoneEvent | null = null;
     let bundlerEventBus: EventBus | null = null;
     const emitEvent = (event: ReportableEvent) => {
@@ -211,7 +204,6 @@ export class BundlerDevEngine {
     bundlerEventBus = devEngine.getContext().eventBus;
     this._devEngine = devEngine;
     await devEngine.run();
-    this._state = 'ready';
   }
 
   private updateBundleStore(output: OutputChunk): BundleStore {
