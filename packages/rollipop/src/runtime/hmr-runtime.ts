@@ -178,6 +178,9 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
   private readonly moduleHotContextsToBeUpdated = new Map<string, ModuleHotContext | null>();
   private readonly moduleHotData = new Map<string, any>();
   private applyQueue = Promise.resolve();
+  private updatesEnabled = Promise.resolve();
+  private resumeUpdates: (() => void) | undefined;
+  private reloadRequested = false;
   private currentFirstInvalidatedBy: string | undefined;
   private lastSeq = 0;
 
@@ -237,33 +240,49 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
 
       switch (message.type) {
         case 'hmr:update':
-          this.enqueueUpdate(message);
+          this.enqueueUpdate(() => this.applyPush(message));
           break;
 
         case 'hmr:reload':
-          this.reload();
+          this.enqueueUpdate(() => this.reload());
           break;
       }
     });
   }
 
-  private enqueueUpdate(message: Extract<HMRServerMessage, { type: 'hmr:update' }>) {
+  setEnabled(enabled: boolean) {
+    if (enabled) {
+      this.resumeUpdates?.();
+      this.resumeUpdates = undefined;
+    } else if (this.resumeUpdates == null) {
+      this.updatesEnabled = new Promise((resolve) => {
+        this.resumeUpdates = resolve;
+      });
+    }
+  }
+
+  private enqueueUpdate(apply: () => void, errorMessage = '[HMR]: Failed to apply update') {
     this.applyQueue = this.applyQueue
-      .then(() => this.applyPush(message))
+      .then(async () => {
+        while (this.resumeUpdates != null) {
+          await this.updatesEnabled;
+        }
+        if (!this.reloadRequested) {
+          apply();
+        }
+      })
       .catch((error) => {
-        console.error('[HMR]: Failed to apply update', error);
+        console.error(errorMessage, error);
         this.reload();
       });
   }
 
   private invalidateLocally(moduleId: string) {
     const firstInvalidatedBy = this.currentFirstInvalidatedBy ?? moduleId;
-    this.applyQueue = this.applyQueue
-      .then(() => this.applyInvalidate(moduleId, firstInvalidatedBy))
-      .catch((error) => {
-        console.error(`[HMR]: Failed to invalidate ${moduleId}`, error);
-        this.reload();
-      });
+    this.enqueueUpdate(
+      () => this.applyInvalidate(moduleId, firstInvalidatedBy),
+      `[HMR]: Failed to invalidate ${moduleId}`,
+    );
   }
 
   private applyPush({
@@ -481,6 +500,10 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
   }
 
   private reload(reason?: string) {
+    if (this.reloadRequested) {
+      return;
+    }
+    this.reloadRequested = true;
     debug(`[HMR]: Reloading${reason == null ? '' : ` (${reason})`}`);
     const moduleName = 'DevSettings';
     (globalThis.__turboModuleProxy

@@ -22,6 +22,7 @@ export interface HMRGraph extends HMRGraphMetadata {
 
 export interface HMRGraphRuntime extends DevRuntimeInterface {
   setup(socket: WebSocket, origin: string): void;
+  setEnabled(enabled: boolean): void;
 }
 
 export interface ModuleGraphDelta {

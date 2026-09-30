@@ -61,12 +61,18 @@ class HMRClient implements HMRClientNativeInterface {
 
     this.enabled = true;
     for (const connection of this.connections.values()) {
+      connection.graph.runtime.setEnabled(true);
+    }
+    for (const connection of this.connections.values()) {
       this.showCompileErrorIfNeeded(connection);
     }
   }
 
   disable() {
     this.enabled = false;
+    for (const connection of this.connections.values()) {
+      connection.graph.runtime.setEnabled(false);
+    }
   }
 
   registerBundle(requestUrl: string) {
@@ -196,6 +202,7 @@ class HMRClient implements HMRClientNativeInterface {
     socket.addEventListener('message', (event) => this.handleMessage(connection, event));
     socket.addEventListener('close', (event) => this.handleClose(connection, event));
 
+    graph.runtime.setEnabled(this.enabled);
     graph.runtime.setup(socket, graph.origin);
   }
 
