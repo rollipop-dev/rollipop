@@ -22,6 +22,7 @@ export interface BundleStore {
 export class FileSystemBundleStore implements BundleStore {
   readonly bundleFilePath: string;
   private readonly _sourceMap: string | undefined;
+  private readonly sourceMapMtimeMs: number;
   private lazySourceMapConsumer: Promise<SourceMapConsumerType> | null = null;
   private holder: { code: string; mtimeMs: number };
 
@@ -39,6 +40,7 @@ export class FileSystemBundleStore implements BundleStore {
 
     this.bundleFilePath = bundleFilePath;
     this._sourceMap = sourceMap;
+    this.sourceMapMtimeMs = stats.mtimeMs;
     this.holder = {
       code,
       mtimeMs: stats.mtimeMs,
@@ -68,11 +70,11 @@ export class FileSystemBundleStore implements BundleStore {
 
   get sourceMap() {
     // A modified fs bundle no longer matches the cached source map.
-    return this.isStale() ? undefined : this._sourceMap;
+    return this.isSourceMapStale() ? undefined : this._sourceMap;
   }
 
   get sourceMapConsumer() {
-    if (this.isStale() || this._sourceMap == null) {
+    if (this.isSourceMapStale() || this._sourceMap == null) {
       return undefined;
     }
     if (this.lazySourceMapConsumer == null) {
@@ -83,5 +85,9 @@ export class FileSystemBundleStore implements BundleStore {
 
   isStale() {
     return this.holder.mtimeMs !== fs.statSync(this.bundleFilePath).mtimeMs;
+  }
+
+  private isSourceMapStale() {
+    return this.sourceMapMtimeMs !== fs.statSync(this.bundleFilePath).mtimeMs;
   }
 }
