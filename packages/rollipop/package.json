@@ -102,7 +102,7 @@
   "devDependencies": {
     "@swc/plugin-remove-console": "14.0.0",
     "@types/react-refresh": "0.14.7",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "react-refresh": "0.18.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

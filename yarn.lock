@@ -8110,7 +8110,7 @@ __metadata:
   resolution: "@rollipop/devtools-kit@workspace:packages/devtools-kit"
   dependencies:
     "@devframes/hub": "catalog:"
-    "@vitest/coverage-v8": "npm:4.1.10"
+    "@vitest/coverage-v8": "npm:4.1.11"
     devframe: "catalog:"
     rollipop: "workspace:*"
     typescript: "catalog:"
@@ -8140,6 +8140,7 @@ __metadata:
   resolution: "@rollipop/jest-preset@workspace:packages/jest-preset"
   dependencies:
     rollipop: "workspace:*"
+    swc-plugin-coverage-instrument: "npm:0.0.33"
     typescript: "catalog:"
     vite-plus: "catalog:"
   peerDependencies:
@@ -8163,7 +8164,7 @@ __metadata:
   dependencies:
     "@module-federation/runtime": "npm:2.8.0"
     "@types/react": "npm:19.2.14"
-    "@vitest/coverage-v8": "npm:4.1.10"
+    "@vitest/coverage-v8": "npm:4.1.11"
     dedent: "npm:1.7.2"
     es-toolkit: "catalog:"
     react: "npm:19.2.3"
@@ -10004,12 +10005,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitest/coverage-v8@npm:4.1.10":
-  version: 4.1.10
-  resolution: "@vitest/coverage-v8@npm:4.1.10"
+"@vitest/coverage-v8@npm:4.1.11":
+  version: 4.1.11
+  resolution: "@vitest/coverage-v8@npm:4.1.11"
   dependencies:
     "@bcoe/v8-coverage": "npm:^1.0.2"
-    "@vitest/utils": "npm:4.1.10"
+    "@vitest/utils": "npm:4.1.11"
     ast-v8-to-istanbul: "npm:^1.0.0"
     istanbul-lib-coverage: "npm:^3.2.2"
     istanbul-lib-report: "npm:^3.0.1"
@@ -10019,12 +10020,12 @@ __metadata:
     std-env: "npm:^4.0.0-rc.1"
     tinyrainbow: "npm:^3.1.0"
   peerDependencies:
-    "@vitest/browser": 4.1.10
-    vitest: 4.1.10
+    "@vitest/browser": 4.1.11
+    vitest: 4.1.11
   peerDependenciesMeta:
     "@vitest/browser":
       optional: true
-  checksum: 10c0/f607ab5610ba93ff586d1680bc6d574ee42606ddafd33d5dca14d568e1ff110bf7aea0c82d87b69003b10604d78ccdb535948704e26bbdbfdda6b27edf524486
+  checksum: 10c0/91127fd40f445b506cc661c54e26defd75d970fa1983cb83442856dd7f295542f0378e0bca847036a7a5be871b3b17c27167d21f277e47368cf7409eafaa1b40
   languageName: node
   linkType: hard
 
@@ -10058,15 +10059,6 @@ __metadata:
     vite:
       optional: true
   checksum: 10c0/3111ea34bd5046f6c70bbd67cf8b89608ee8c41cb27ab2bd61d42f4b68810e9ea16a9a757a71bc254c105f73b407d00ebb6bab1ab0f7f5cdcc9d7d16602a3933
-  languageName: node
-  linkType: hard
-
-"@vitest/pretty-format@npm:4.1.10":
-  version: 4.1.10
-  resolution: "@vitest/pretty-format@npm:4.1.10"
-  dependencies:
-    tinyrainbow: "npm:^3.1.0"
-  checksum: 10c0/1a5daba730ffe23f2000bff484b4b2842f3b178d93663cb487b215516b8d3b62caa3e2bb2a3c63307b61a9fe58fb9bfff38559bc0c5e49d8aa403d6803a1d918
   languageName: node
   linkType: hard
 
@@ -10105,17 +10097,6 @@ __metadata:
   version: 4.1.11
   resolution: "@vitest/spy@npm:4.1.11"
   checksum: 10c0/06c68247a8efd21006abe7532fee17f30ba83c8cda3e0b952ef89e278d58058f4b1de69b6bbaa2ed614c568bf4f5769fcc76be42802dedf2bcdd9c0aae601740
-  languageName: node
-  linkType: hard
-
-"@vitest/utils@npm:4.1.10":
-  version: 4.1.10
-  resolution: "@vitest/utils@npm:4.1.10"
-  dependencies:
-    "@vitest/pretty-format": "npm:4.1.10"
-    convert-source-map: "npm:^2.0.0"
-    tinyrainbow: "npm:^3.1.0"
-  checksum: 10c0/05b0ecec6997ec22fc08377e57dbd8fa37992e05961f3a7a916d98b1ab56d15c2a87dbd83d392b628242bdc156b1705e7fa60a3bf0c54bdb51158c153e05fc5d
   languageName: node
   linkType: hard
 
@@ -21495,7 +21476,7 @@ __metadata:
     "@swc/plugin-remove-console": "npm:14.0.0"
     "@types/react-refresh": "npm:0.14.7"
     "@types/ws": "npm:8.18.1"
-    "@vitest/coverage-v8": "npm:4.1.10"
+    "@vitest/coverage-v8": "npm:4.1.11"
     arktype: "npm:2.2.3"
     c12: "npm:3.3.4"
     chalk: "npm:5.6.2"
@@ -22676,6 +22657,13 @@ __metadata:
   bin:
     svgo: bin/svgo
   checksum: 10c0/c4772b2f5ff164323e37d866d28f05163b78a61c44b3412db724a37175c7cf75261a362df22607c2e4afcc40b96aad77d07e8af1970fb92e5802ee6c76ea2ea4
+  languageName: node
+  linkType: hard
+
+"swc-plugin-coverage-instrument@npm:0.0.33":
+  version: 0.0.33
+  resolution: "swc-plugin-coverage-instrument@npm:0.0.33"
+  checksum: 10c0/317c54de43526c13fb66a370a4371ef3726a6aa62cbe6ea3f25bf2be7e41f3dc4d029056637d67217833789992871b4fabed157c72368e6dbb450d6b38902b2f
   languageName: node
   linkType: hard
 

@@ -35,7 +35,7 @@
     "devframe": "catalog:"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "rollipop": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

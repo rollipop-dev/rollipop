@@ -38,7 +38,11 @@
   "scripts": {
     "prepack": "yarn build",
     "typecheck": "tsc --noEmit",
+    "test": "vp test run",
     "build": "vp pack"
+  },
+  "dependencies": {
+    "swc-plugin-coverage-instrument": "0.0.33"
   },
   "devDependencies": {
     "rollipop": "workspace:*",
