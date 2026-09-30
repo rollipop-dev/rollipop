@@ -53,6 +53,7 @@ function createMockDevEngine(boundConfig: any, run = vi.fn().mockResolvedValue(u
 
   return {
     run,
+    close: vi.fn().mockResolvedValue(undefined),
     getContext: () => ({ eventBus }),
     getBundleState: vi
       .fn()
@@ -77,6 +78,75 @@ describe('BundlerPool', () => {
   afterEach(() => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
+
+  it('propagates initialization failures to bundle requests and rebuilds', async () => {
+    resetPool();
+    const error = new Error('Asset registry could not be resolved');
+    vi.mocked(Bundler).devEngine.mockRejectedValueOnce(error);
+    const eventBus = new EventBus();
+    const onEvent = vi.fn();
+    eventBus.subscribe(onEvent);
+    const pool = new BundlerPool(config, serverOptions, eventBus);
+    const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+    // A rejected initialization must also be safe before a consumer subscribes.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    await expect(instance.ensureInitialized).rejects.toThrow(error.message);
+    await expect(instance.getBundle()).rejects.toThrow(error.message);
+    await expect(instance.triggerFullBuild()).rejects.toThrow(error.message);
+    expect(instance.status).toBe('build-failed');
+    expect(onEvent).toHaveBeenCalledWith({
+      type: 'bundle_build_failed',
+      bundlerId: instance.id,
+      error: expect.objectContaining({ message: error.message }),
+    });
+  });
+
+  it.each([false, true])(
+    'closes a failed engine and preserves the startup error (close fails: %s)',
+    async (closeFails) => {
+      resetPool();
+      const error = new Error('Watcher startup failed');
+      const engine = createMockDevEngine(config, vi.fn().mockRejectedValue(error));
+      if (closeFails) {
+        engine.close.mockRejectedValue(new Error('Cleanup failed'));
+      }
+      vi.mocked(Bundler).devEngine.mockResolvedValueOnce(engine);
+      const instance = createPool().get('index.bundle', { platform: 'ios', dev: true });
+
+      await expect(instance.getBundle()).rejects.toThrow(error.message);
+      expect(engine.close).toHaveBeenCalledOnce();
+      expect(instance.status).toBe('build-failed');
+    },
+  );
+
+  it.each([false, true])(
+    'preserves cleanup and the startup error when a failure listener throws (close fails: %s)',
+    async (closeFails) => {
+      resetPool();
+      const error = new Error('Watcher startup failed');
+      const engine = createMockDevEngine(config, vi.fn().mockRejectedValue(error));
+      if (closeFails) {
+        engine.close.mockRejectedValue(new Error('Cleanup failed'));
+      }
+      vi.mocked(Bundler).devEngine.mockResolvedValueOnce(engine);
+      const eventBus = new EventBus();
+      const onEvent = vi.fn(() => {
+        throw new Error('Reporter failed');
+      });
+      eventBus.subscribe(onEvent);
+      const pool = new BundlerPool(config, serverOptions, eventBus);
+      const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+      await expect(instance.ensureInitialized).rejects.toThrow(error.message);
+      await expect(instance.getBundle()).rejects.toThrow(error.message);
+      expect(engine.close).toHaveBeenCalledOnce();
+      expect(() => instance.devEngine).toThrow('DevEngine is not initialized');
+      expect(instance.status).toBe('build-failed');
+      expect(onEvent).toHaveBeenCalledOnce();
+    },
+  );
 
   it('should return a new instance for a new bundle', () => {
     resetPool();

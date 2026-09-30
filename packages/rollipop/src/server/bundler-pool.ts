@@ -11,7 +11,6 @@ import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-o
 import { getBaseBundleName } from '../utils/bundle';
 import { bindReporter } from '../utils/config';
 import { normalizeRolldownError } from '../utils/errors';
-import { taskHandler } from '../utils/promise';
 import { getBaseUrl } from '../utils/server';
 import { replaceSourceMappingUrl } from '../utils/source-map';
 import { type BundleStore, FileSystemBundleStore } from './bundle';
@@ -33,7 +32,7 @@ export type BundlerStatus = 'idle' | 'building' | 'build-done' | 'build-failed';
 type BundleBuildDoneEvent = Extract<ReportableEvent, { type: 'bundle_build_done' }>;
 
 export class BundlerDevEngine {
-  private readonly initializeHandle: ReturnType<typeof taskHandler>;
+  private readonly initializeTask: Promise<void>;
   private readonly isHmrEnabled: boolean;
   private readonly _id: string;
   private bundleStore: BundleStore | null = null;
@@ -51,10 +50,31 @@ export class BundlerDevEngine {
     private readonly hotUpdateStore: HotUpdateStore,
   ) {
     this._id = Bundler.createId(config, buildOptions);
-    this.initializeHandle = taskHandler();
     this.isHmrEnabled = Boolean(buildOptions.dev && config.dev.hmr);
 
-    void this.initialize();
+    this.initializeTask = this.initialize().catch(async (reason: unknown) => {
+      const error = normalizeRolldownError(
+        reason instanceof Error ? reason : new Error(String(reason)),
+      );
+      this.buildFailedError = error;
+      this._status = 'build-failed';
+
+      try {
+        await this._devEngine?.close();
+      } catch (closeError) {
+        logger.debug('Failed to close dev engine after initialization failure', closeError);
+      }
+      this._devEngine = null;
+
+      try {
+        this.eventBus.emit({ type: 'bundle_build_failed', bundlerId: this.id, error });
+      } catch (reportError) {
+        logger.debug('Failed to report dev engine initialization failure', reportError);
+      }
+      throw error;
+    });
+    // Initialization starts before a request or HMR client begins awaiting it.
+    void this.initializeTask.catch(() => {});
   }
 
   get id() {
@@ -80,12 +100,12 @@ export class BundlerDevEngine {
   }
 
   get ensureInitialized() {
-    return this.initializeHandle.task;
+    return this.initializeTask;
   }
 
   private async initialize() {
     if (this._state !== 'idle' || this._devEngine != null) {
-      return this;
+      return;
     }
 
     this._state = 'initializing';
@@ -189,10 +209,9 @@ export class BundlerDevEngine {
     });
 
     bundlerEventBus = devEngine.getContext().eventBus;
-    await devEngine.run();
     this._devEngine = devEngine;
+    await devEngine.run();
     this._state = 'ready';
-    this.initializeHandle.resolve();
   }
 
   private updateBundleStore(output: OutputChunk): BundleStore {
