@@ -55,7 +55,7 @@ export async function setupDevframe(context: DevServerContext, server: DevServer
     logger.info(`MCP server listening at ${mcpUrl}`);
     void controller.refresh();
   });
-  server.instance.addHook('onClose', async () => {
+  server.instance.addHook('preClose', async () => {
     controller.dispose();
     await devtools.close();
   });

@@ -1,11 +1,14 @@
 // oxlint-disable typescript-eslint(unbound-method)
+import { once } from 'node:events';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createDevMiddleware } from '@react-native/dev-middleware';
 import { staticPath as dashboardStaticPath } from '@rollipop/dashboard';
 import { connectDevframe, type DevframeConnection, type DevframeRpcClient } from 'devframe/client';
 import { describe, expect, it, vi, vitest } from 'vite-plus/test';
+import { WebSocket, WebSocketServer } from 'ws';
 
 import { Bundler } from '../../core/bundler';
 import type { RollipopDevToolsNodeContext } from '../../core/plugins/types';
@@ -18,17 +21,21 @@ import { createDevServer } from '../create-dev-server';
 import { logger } from '../logger';
 
 vitest.mock('@react-native-community/cli-server-api', () => ({
-  createDevServerMiddleware: vi.fn().mockReturnValue({
-    middleware: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
-    websocketEndpoints: {},
-    messageSocketEndpoint: {
-      server: {},
-      broadcast: vi.fn(),
-    },
-    eventsSocketEndpoint: {
-      server: {},
-      reportEvent: vi.fn(),
-    },
+  createDevServerMiddleware: vi.fn(() => {
+    const messageServer = new WebSocketServer({ noServer: true });
+    const eventsServer = new WebSocketServer({ noServer: true });
+    return {
+      middleware: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+      websocketEndpoints: { '/message': messageServer, '/events': eventsServer },
+      messageSocketEndpoint: {
+        server: messageServer,
+        broadcast: vi.fn(),
+      },
+      eventsSocketEndpoint: {
+        server: eventsServer,
+        reportEvent: vi.fn(),
+      },
+    };
   }),
 }));
 
@@ -40,6 +47,84 @@ vitest.mock('@react-native/dev-middleware', () => ({
 }));
 
 describe('createDevServer', () => {
+  it('closes active WebSocket connections before shutting down the HTTP server', async () => {
+    const inspectorServer = new WebSocketServer({ noServer: true });
+    vi.mocked(createDevMiddleware).mockReturnValueOnce({
+      middleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+      websocketEndpoints: {
+        '/inspector/device': inspectorServer,
+        '/inspector/debug': inspectorServer,
+      },
+    });
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    const servers = [devServer.message, devServer.events, devServer.hot, inspectorServer];
+    const closeSpies = servers.map((server) => vi.spyOn(server, 'close'));
+    const clients: WebSocket[] = [];
+
+    try {
+      const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      for (const endpoint of [
+        '/message',
+        '/events',
+        '/hot',
+        '/inspector/device',
+        '/inspector/debug',
+      ]) {
+        const client = new WebSocket(address.replace('http:', 'ws:') + endpoint);
+        clients.push(client);
+        client.on('error', () => {});
+        await once(client, 'open', { signal: AbortSignal.timeout(2_000) });
+      }
+      expect(servers.map((server) => server.clients.size)).toEqual([1, 1, 1, 2]);
+
+      const clientsClosed = clients.map((client) =>
+        once(client, 'close', { signal: AbortSignal.timeout(2_000) }),
+      );
+      await Promise.all([devServer.instance.close(), ...clientsClosed]);
+
+      expect(devServer.instance.server.listening).toBe(false);
+      expect(servers.every((server) => server.clients.size === 0)).toBe(true);
+      expect(clients.every((client) => client.readyState === WebSocket.CLOSED)).toBe(true);
+      for (const close of closeSpies) {
+        expect(close).toHaveBeenCalledOnce();
+      }
+    } finally {
+      for (const client of clients) {
+        client.terminate();
+      }
+      await devServer.instance.close();
+      for (const close of closeSpies) {
+        close.mockRestore();
+      }
+    }
+  });
+
+  it('closes active Devframe SSE streams before shutting down the HTTP server', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    const controller = new AbortController();
+
+    try {
+      const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      const response = await fetch(new URL('/__rollipop/__sse', address), {
+        signal: controller.signal,
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/event-stream');
+
+      const streamDone = response.text();
+      const serverClosed = once(devServer.instance.server, 'close', {
+        signal: AbortSignal.timeout(2_000),
+      });
+      await Promise.all([devServer.instance.close(), serverClosed, streamDone]);
+
+      expect(await streamDone).toContain('event: session');
+      expect(devServer.instance.server.listening).toBe(false);
+    } finally {
+      controller.abort();
+      await devServer.instance.close();
+    }
+  });
+
   it.each(['127.0.0.1', '::1'])(
     'should announce localhost URLs with the bound port after listening on %s',
     async (host) => {

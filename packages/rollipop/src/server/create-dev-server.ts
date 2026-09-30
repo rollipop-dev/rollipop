@@ -147,14 +147,31 @@ export async function createDevServer(
 
   fastify.setErrorHandler(errorHandler);
 
-  fastify.server.on(
-    'upgrade',
-    getWebSocketUpgradeHandler({
-      ...communityWebsocketEndpoints,
-      ...websocketEndpoints,
-      '/hot': hmrServer.server,
-    }),
-  );
+  const upgradeHandler = getWebSocketUpgradeHandler({
+    ...communityWebsocketEndpoints,
+    ...websocketEndpoints,
+    '/hot': hmrServer.server,
+  });
+  fastify.server.on('upgrade', upgradeHandler);
+  fastify.addHook('preClose', async () => {
+    fastify.server.removeListener('upgrade', upgradeHandler);
+    const websocketServers = new Set([
+      ...Object.values(communityWebsocketEndpoints),
+      ...Object.values(websocketEndpoints),
+      hmrServer.server,
+    ]);
+    await Promise.all(
+      [...websocketServers].map(
+        (server) =>
+          new Promise<void>((resolve) => {
+            for (const client of server.clients) {
+              client.terminate();
+            }
+            server.close(() => resolve());
+          }),
+      ),
+    );
+  });
 
   await invokePostConfigureServer();
 
