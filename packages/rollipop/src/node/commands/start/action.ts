@@ -1,5 +1,3 @@
-import { noop } from 'es-toolkit';
-
 import { loadConfig } from '../../../config';
 import { resetCache } from '../../../utils/reset-cache';
 import { logger } from '../../logger';
@@ -21,8 +19,15 @@ export const action: CommandAction<StartCommandOptions> = async function (option
     logger.info('The transform cache was reset');
   }
 
-  if (options.clientLogs === false) {
-    config.reporter = { update: noop };
+  if (options.clientLogs === false && config.reporter != null) {
+    const reporter = config.reporter;
+    config.reporter = {
+      update(event) {
+        if (event.type !== 'client_log') {
+          reporter.update(event);
+        }
+      },
+    };
   }
 
   const { runServer } = await import('../../../utils/run-server');
