@@ -135,11 +135,6 @@ export function App() {
         ? 'error'
         : 'ready';
   const dataError = getErrorMessage(snapshotQuery.error) ?? getErrorMessage(buildsQuery.error);
-  const lastUpdatedAt = useMemo(() => {
-    const updatedAt = Math.max(snapshotQuery.dataUpdatedAt, buildsQuery.dataUpdatedAt);
-
-    return updatedAt > 0 ? new Date(updatedAt) : null;
-  }, [snapshotQuery.dataUpdatedAt, buildsQuery.dataUpdatedAt]);
   const triggeringBuildIds = useMemo(
     () => new Set(Object.keys(triggeringBuilds)),
     [triggeringBuilds],
@@ -458,12 +453,7 @@ export function App() {
   return (
     <BrowserRouter basename={DASHBOARD_BASENAME}>
       <div className="min-h-dvh bg-fd-background text-fd-foreground">
-        <Header
-          theme={theme}
-          lastUpdatedAt={lastUpdatedAt}
-          onToggleTheme={toggleTheme}
-          onReloadData={reloadDashboardData}
-        />
+        <Header theme={theme} onToggleTheme={toggleTheme} />
         <div className="mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-6 px-4 pt-6 pb-14 md:grid-cols-[220px_1fr] md:px-6">
           <Sidebar />
           <main className="min-w-0">
