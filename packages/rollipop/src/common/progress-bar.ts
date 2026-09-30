@@ -8,6 +8,7 @@ const BLOCK_CHAR = '█';
 
 export type ProgressBarState =
   | { type: 'idle' }
+  | { type: 'cancelled' }
   | { type: 'running'; moduleId?: string }
   | { type: 'completed'; duration: number; hasErrors: boolean }
   | { type: 'hmr-completed'; count: number; moduleIds: string[] }
@@ -109,6 +110,7 @@ const hmrFailedRenderer: StateRenderer<{ type: 'hmr-failed' }> = {
 export class ProgressBarRenderer {
   private readonly renderers = {
     idle: idleRenderer,
+    cancelled: { render: () => '' },
     running: runningRenderer,
     completed: completedRenderer,
     'hmr-completed': hmrCompletedRenderer,
@@ -146,6 +148,7 @@ export class ProgressBar {
 
   get done(): boolean {
     return (
+      this.state.type === 'cancelled' ||
       this.state.type === 'completed' ||
       this.state.type === 'hmr-completed' ||
       this.state.type === 'hmr-failed'
@@ -166,6 +169,12 @@ export class ProgressBar {
 
   start(): this {
     this.state = { type: 'running' };
+    this.stale = true;
+    return this;
+  }
+
+  cancel(): this {
+    this.state = { type: 'cancelled' };
     this.stale = true;
     return this;
   }

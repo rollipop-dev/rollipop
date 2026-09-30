@@ -101,6 +101,7 @@ function transform(code: string, id: string, options: babel.InputOptions) {
     names: [...result.map.names],
     sources: [...result.map.sources],
     sourcesContent: result.map.sourcesContent ? [...result.map.sourcesContent] : undefined,
+    ignoreList: result.map.ignoreList ? [...result.map.ignoreList] : undefined,
   };
 
   return { code: result.code, map };

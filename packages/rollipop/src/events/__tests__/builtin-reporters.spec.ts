@@ -1,6 +1,18 @@
+import type { BindingClientHmrUpdate } from '@rollipop/rolldown/experimental';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import { ProgressBarStatusReporter } from '../builtin-reporters';
+
+const patchUpdate = {
+  clientId: 'test-client',
+  update: {
+    type: 'Patch',
+    code: 'applyPatch();',
+    filename: 'hmr_patch_0.js',
+    changedIds: ['/App.tsx'],
+    seq: 1,
+  },
+} satisfies BindingClientHmrUpdate;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -140,53 +152,59 @@ describe('ProgressBarStatusReporter', () => {
     }
   });
 
-  it('renders hmr_updates completion without reusing the completed build count', async () => {
-    const writes: string[] = [];
-    vi.spyOn(process.stderr, 'write').mockImplementation((chunk: Uint8Array | string) => {
-      writes.push(String(chunk));
-      return true;
-    });
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+  it.each<BindingClientHmrUpdate>([
+    patchUpdate,
+    { clientId: 'test-client', update: { type: 'FullReload', reason: 'module invalidated' } },
+  ])(
+    'renders $update.type completion without reusing the completed build count',
+    async (update) => {
+      const writes: string[] = [];
+      vi.spyOn(process.stderr, 'write').mockImplementation((chunk: Uint8Array | string) => {
+        writes.push(String(chunk));
+        return true;
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const reporter = new ProgressBarStatusReporter('/', 'test-hmr-transform', '[ios, dev]', 1278);
+      const reporter = new ProgressBarStatusReporter('/', 'test-hmr-transform', '[ios, dev]', 1278);
 
-    reporter.update({ type: 'bundle_build_started' });
-    reporter.update({
-      type: 'bundle_build_done',
-      totalModules: 1278,
-      transformedModules: 1278,
-      cacheHitModules: 0,
-      duration: 790,
-    });
-    await sleep(80);
-    writes.length = 0;
+      reporter.update({ type: 'bundle_build_started' });
+      reporter.update({
+        type: 'bundle_build_done',
+        totalModules: 1278,
+        transformedModules: 1278,
+        cacheHitModules: 0,
+        duration: 790,
+      });
+      await sleep(80);
+      writes.length = 0;
 
-    reporter.update({ type: 'watch_change', id: '/App.tsx' });
-    reporter.update({
-      type: 'transform',
-      id: '/App.tsx',
-      totalModules: 1,
-      transformedModules: 1,
-    });
-    reporter.update({
-      type: 'hmr_updates',
-      bundlerId: 'test-hmr-transform',
-      updates: [],
-      changedFiles: ['/App.tsx'],
-    });
-    await sleep(80);
+      reporter.update({ type: 'watch_change', id: '/App.tsx' });
+      reporter.update({
+        type: 'transform',
+        id: '/App.tsx',
+        totalModules: 1,
+        transformedModules: 1,
+      });
+      reporter.update({
+        type: 'hmr_updates',
+        bundlerId: 'test-hmr-transform',
+        updates: [update],
+        changedFiles: ['/App.tsx'],
+      });
+      await sleep(80);
 
-    const output = writes.join('');
-    expect(output).toContain('HMR Updated');
-    expect(output).toContain('[ios, dev]');
-    expect(output).toContain('(x1)');
-    expect(output).toContain('App.tsx');
-    expect(output).not.toContain('\n  /App.tsx');
-    expect(output).toContain('1/1 modules');
-    expect(output).not.toContain('Build completed');
-    expect(output).not.toContain('1279/1279 modules');
-    expect(output).not.toContain('1278/1278 modules');
-  });
+      const output = writes.join('');
+      expect(output).toContain('HMR Updated');
+      expect(output).toContain('[ios, dev]');
+      expect(output).toContain('(x1)');
+      expect(output).toContain('App.tsx');
+      expect(output).not.toContain('\n  /App.tsx');
+      expect(output).toContain('1/1 modules');
+      expect(output).not.toContain('Build completed');
+      expect(output).not.toContain('1279/1279 modules');
+      expect(output).not.toContain('1278/1278 modules');
+    },
+  );
 
   it('reports consecutive hmr_updates for the same file without another transform', async () => {
     const writes: string[] = [];
@@ -219,7 +237,7 @@ describe('ProgressBarStatusReporter', () => {
     reporter.update({
       type: 'hmr_updates',
       bundlerId: 'test-consecutive-hmr',
-      updates: [],
+      updates: [patchUpdate],
       changedFiles: ['/App.tsx'],
     });
     await sleep(80);
@@ -234,7 +252,7 @@ describe('ProgressBarStatusReporter', () => {
     reporter.update({
       type: 'hmr_updates',
       bundlerId: 'test-consecutive-hmr',
-      updates: [],
+      updates: [patchUpdate],
       changedFiles: ['/App.tsx'],
     });
     await sleep(80);
@@ -243,6 +261,66 @@ describe('ProgressBarStatusReporter', () => {
     expect(secondOutput).toContain('HMR Updated');
     expect(secondOutput).toContain('(x2)');
     expect(secondOutput).toContain('App.tsx');
+  });
+
+  it.each([
+    { name: 'empty', updates: [], transform: false },
+    {
+      name: 'Noop',
+      updates: [{ clientId: 'test-client', update: { type: 'Noop' as const } }],
+      transform: false,
+    },
+    {
+      name: 'Noop after transform',
+      updates: [{ clientId: 'test-client', update: { type: 'Noop' as const } }],
+      transform: true,
+    },
+  ])('does not report or count $name HMR updates', async ({ name, updates, transform }) => {
+    const writes: string[] = [];
+    const stderrWrite = vi
+      .spyOn(process.stderr, 'write')
+      .mockImplementation((chunk: Uint8Array | string) => {
+        writes.push(String(chunk));
+        return true;
+      });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const bundlerId = `test-skipped-hmr-${name}`;
+    const reporter = new ProgressBarStatusReporter('/', bundlerId, '[ios, dev]', 1278);
+    reporter.update({ type: 'bundle_build_started' });
+    reporter.update({
+      type: 'bundle_build_done',
+      totalModules: 1278,
+      transformedModules: 1278,
+      cacheHitModules: 0,
+      duration: 790,
+    });
+    await sleep(80);
+    writes.length = 0;
+
+    const file = transform ? '/App.tsx' : '/.rollipop/bundles/initial.bundle';
+    reporter.update({ type: 'watch_change', id: file });
+    if (transform) {
+      reporter.update({ type: 'transform', id: file, totalModules: 1, transformedModules: 1 });
+    }
+    reporter.update({ type: 'hmr_updates', bundlerId, updates, changedFiles: [file] });
+    await sleep(80);
+
+    expect(writes.join('')).not.toContain('HMR Updated');
+    expect(process.stderr).toHaveProperty('write', stderrWrite);
+    if (!transform) expect(writes.join('')).toBe('');
+
+    writes.length = 0;
+    reporter.update({ type: 'watch_change', id: '/App.tsx' });
+    reporter.update({
+      type: 'hmr_updates',
+      bundlerId,
+      updates: [...updates, patchUpdate],
+      changedFiles: ['/App.tsx'],
+    });
+    await sleep(80);
+    expect(writes.join('')).toContain('HMR Updated');
+    expect(writes.join('')).toContain('(x1)');
   });
 
   it('finishes incremental progress when hmr_failed is reported', async () => {
@@ -304,7 +382,7 @@ describe('ProgressBarStatusReporter', () => {
     reporter.update({
       type: 'hmr_updates',
       bundlerId: 'test-rebuild-after-hmr',
-      updates: [],
+      updates: [patchUpdate],
       changedFiles: ['/App.tsx'],
     });
     await sleep(80);

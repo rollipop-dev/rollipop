@@ -145,6 +145,15 @@ export class ProgressBarStatusReporter implements Reporter {
         break;
 
       case 'hmr_updates':
+        if (!event.updates.some(({ update }) => update.type !== 'Noop')) {
+          this.flags = ProgressFlags.NONE;
+          if (this.progressVisible) {
+            this.progressBar.cancel();
+            this.renderManager.release();
+            this.progressVisible = false;
+          }
+          break;
+        }
         this.hmrUpdateCount++;
         this.progressBar.completeHmr(
           event.changedFiles.map((id) => this.getDisplayPath(id)),

@@ -216,11 +216,13 @@ describe('babel', () => {
         names: ['value'],
         sources: ['/src/input.js'],
         sourcesContent: ['input'],
+        ignoreList: [0],
         mappings: 'AAAA',
       };
       Object.freeze(sourceMap.names);
       Object.freeze(sourceMap.sources);
       Object.freeze(sourceMap.sourcesContent);
+      Object.freeze(sourceMap.ignoreList);
       mocks.transformSync.mockReturnValue({ code: 'output', map: sourceMap });
       const plugins = babel({
         context: createContext(),
@@ -238,10 +240,13 @@ describe('babel', () => {
       expect(map.names).not.toBe(sourceMap.names);
       expect(map.sources).not.toBe(sourceMap.sources);
       expect(map.sourcesContent).not.toBe(sourceMap.sourcesContent);
+      expect(map.ignoreList).not.toBe(sourceMap.ignoreList);
       map.names.push('other');
       map.sources.push('/src/other.js');
       map.sourcesContent.push('other');
+      map.ignoreList.push(1);
       expect(sourceMap.names).toEqual(['value']);
+      expect(sourceMap.ignoreList).toEqual([0]);
     },
   );
 
