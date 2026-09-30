@@ -69,10 +69,15 @@ describe('resolutionTopology with the native dev engine', () => {
     await sleep(1100);
     onHmrUpdates.mockClear();
 
-    const findPatch = () =>
+    const findPatch = (requiredFragment: string) =>
       onHmrUpdates.mock.calls
         .flatMap(([result]) => (result instanceof Error ? [] : result.updates))
-        .find(({ clientId, update }) => clientId === 'test' && update.type === 'Patch')?.update;
+        .find(
+          ({ clientId, update }) =>
+            clientId === 'test' &&
+            update.type === 'Patch' &&
+            update.code.includes(requiredFragment),
+        )?.update;
     return { engine, onHmrUpdates, findPatch };
   }
 
@@ -98,13 +103,15 @@ describe('resolutionTopology with the native dev engine', () => {
         fs.unlinkSync(ts);
       }
 
-      await expect.poll(findPatch, { timeout: 10_000 }).toBeTruthy();
-      expect(findPatch().code).toContain(marker);
-      expect(findPatch().code).toContain(winner);
+      await expect.poll(() => findPatch(marker), { timeout: 10_000 }).toBeTruthy();
+      expect(findPatch(marker).code).toContain(marker);
+      expect(findPatch(marker).code).toContain(winner);
       expect(engine.moduleGraph.getModuleIds()).toContain(path.join(root, winner));
-      expect(engine.moduleGraph.getModuleInfo(path.join(root, 'parent.js'))?.importedIds).toContain(
-        path.join(root, winner),
-      );
+      await expect
+        .poll(() => engine.moduleGraph.getModuleInfo(path.join(root, 'parent.js'))?.importedIds, {
+          timeout: 10_000,
+        })
+        .toContain(path.join(root, winner));
       expect(onHmrUpdates.mock.calls.some(([result]) => result instanceof Error)).toBe(false);
     },
   );
@@ -130,16 +137,19 @@ describe('resolutionTopology with the native dev engine', () => {
     for (const change of changes) {
       onHmrUpdates.mockClear();
       change.apply();
-      await expect.poll(findPatch, { timeout: 10_000 }).toBeTruthy();
-      const patch = findPatch();
+      const requiredFragment = change.marker ?? change.winner;
+      await expect.poll(() => findPatch(requiredFragment), { timeout: 10_000 }).toBeTruthy();
+      const patch = findPatch(requiredFragment);
       expect(patch.code).toContain(change.winner);
       // A previously delivered fallback module need not be sent again in the patch.
       if (change.marker != null) {
         expect(patch.code).toContain(change.marker);
       }
-      expect(engine.moduleGraph.getModuleInfo(path.join(root, 'parent.js'))?.importedIds).toContain(
-        path.join(root, change.winner),
-      );
+      await expect
+        .poll(() => engine.moduleGraph.getModuleInfo(path.join(root, 'parent.js'))?.importedIds, {
+          timeout: 10_000,
+        })
+        .toContain(path.join(root, change.winner));
       expect(onHmrUpdates.mock.calls.some(([result]) => result instanceof Error)).toBe(false);
       await engine.notifyPayloadDelivered(patch.filename);
       await sleep(1100);
@@ -163,11 +173,13 @@ describe('resolutionTopology with the native dev engine', () => {
 
     const ts = path.join(root, 'feature.ts');
     fs.writeFileSync(ts, "export const value = 'recovered-ts';\n");
-    await expect.poll(findPatch, { timeout: 10_000 }).toBeTruthy();
-    expect(findPatch().code).toContain('recovered-ts');
-    expect(engine.moduleGraph.getModuleInfo(path.join(root, 'parent.js'))?.importedIds).toContain(
-      ts,
-    );
+    await expect.poll(() => findPatch('recovered-ts'), { timeout: 10_000 }).toBeTruthy();
+    expect(findPatch('recovered-ts').code).toContain('recovered-ts');
+    await expect
+      .poll(() => engine.moduleGraph.getModuleInfo(path.join(root, 'parent.js'))?.importedIds, {
+        timeout: 10_000,
+      })
+      .toContain(ts);
     expect(onHmrUpdates.mock.calls.some(([result]) => result instanceof Error)).toBe(false);
   });
 });

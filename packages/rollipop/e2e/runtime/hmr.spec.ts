@@ -229,12 +229,11 @@ export function App() {
 `,
     );
 
-    const failed = await failedPromise;
+    const [failed, error] = await Promise.all([failedPromise, errorPromise]);
     expect(failed.bundlerId).toBeTruthy();
     expect(typeof failed.error).toBe('string');
     expect(failed.error.length).toBeGreaterThan(0);
 
-    const error = await errorPromise;
     expect(error.payload.type).toBeTruthy();
     expect(error.payload.message).toBeTruthy();
     expect(error.payload.errors.length).toBeGreaterThan(0);
