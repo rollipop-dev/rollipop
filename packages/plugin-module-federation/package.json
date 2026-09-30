@@ -42,7 +42,9 @@
     "es-toolkit": "catalog:"
   },
   "devDependencies": {
+    "@types/react": "19.2.14",
     "@vitest/coverage-v8": "4.1.10",
+    "react": "19.2.3",
     "rollipop": "workspace:*",
     "typescript": "catalog:",
     "vite-plus": "catalog:",

@@ -105,8 +105,7 @@ export function moduleFederationPlugin(config: ModuleFederationConfig): Plugin {
 
         if (id.startsWith(VIRTUAL_REMOTE_PROXY_PREFIX)) {
           const remoteId = id.slice(VIRTUAL_REMOTE_PROXY_PREFIX.length);
-          const reactAware = resolvedConfig?.mode !== 'production';
-          return { code: generateRemoteProxyCode({ remoteId, reactAware }), moduleType: 'js' };
+          return { code: generateRemoteProxyCode({ remoteId }), moduleType: 'js' };
         }
 
         if (normalized == null) {
