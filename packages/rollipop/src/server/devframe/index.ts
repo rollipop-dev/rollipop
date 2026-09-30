@@ -88,10 +88,11 @@ export class RollipopDevframeController {
   }
 
   async refresh(): Promise<DashboardSharedState> {
+    const lastEvent = this.lastEvent;
     this.refreshQueue = this.refreshQueue
       .catch(() => createInitialDashboardState(this.context))
       .then(async () => {
-        const state = await this.readDashboardState();
+        const state = await this.readDashboardState(lastEvent);
         this.updateSharedState?.(state);
         return state;
       });
@@ -197,12 +198,14 @@ export class RollipopDevframeController {
     this.unsubscribeEventBus = undefined;
   }
 
-  private async readDashboardState(): Promise<DashboardSharedState> {
+  private async readDashboardState(
+    lastEvent: DashboardSharedState['lastEvent'],
+  ): Promise<DashboardSharedState> {
     return {
       snapshot: await getSnapshot(this.context),
       builds: this.context.state.getBuilds(),
       featureFlags: getFeatureFlags(this.context),
-      lastEvent: this.lastEvent,
+      lastEvent,
     };
   }
 }

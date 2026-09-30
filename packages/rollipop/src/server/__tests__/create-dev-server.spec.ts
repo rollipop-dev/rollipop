@@ -18,6 +18,7 @@ import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
 import { type BundlerDevEngine, BundlerPool } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
+import type { DashboardSharedState } from '../devframe';
 import { logger } from '../logger';
 
 vitest.mock('@react-native-community/cli-server-api', () => ({
@@ -334,6 +335,50 @@ describe('createDevServer', () => {
         }),
       );
     } finally {
+      client?.close?.();
+      vi.unstubAllGlobals();
+      await devServer.instance.close();
+    }
+  }, 10_000);
+
+  it('preserves each lifecycle event while dashboard refreshes are queued', async () => {
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    let client: DevframeRpcClient | undefined;
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      client = await connectDashboardRpc(address);
+      await client.ensureTrusted();
+      const state = await client
+        .scope('rollipop')
+        .rpc.sharedState<DashboardSharedState>('dashboard');
+      const events: NonNullable<DashboardSharedState['lastEvent']>[] = [];
+      unsubscribe = state.on('updated', (value) => {
+        if (value.lastEvent != null) events.push(value.lastEvent);
+      });
+
+      devServer.eventBus.emit({ type: 'bundle_build_started', bundlerId: 'test' });
+      devServer.eventBus.emit({
+        type: 'bundle_build_done',
+        bundlerId: 'test',
+        totalModules: 1,
+        transformedModules: 1,
+        cacheHitModules: 0,
+        duration: 1,
+      });
+      devServer.eventBus.emit({ type: 'watch_change', bundlerId: 'test', id: '/output.bundle' });
+
+      await expect
+        .poll(() => events.map((event) => event.data.type))
+        .toEqual(['bundle_build_started', 'bundle_build_done', 'watch_change']);
+      expect(events.map((event) => event.sequence)).toEqual([
+        events[0]!.sequence,
+        events[0]!.sequence + 1,
+        events[0]!.sequence + 2,
+      ]);
+    } finally {
+      unsubscribe?.();
       client?.close?.();
       vi.unstubAllGlobals();
       await devServer.instance.close();
