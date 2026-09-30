@@ -67,13 +67,6 @@ export async function resolveRolldownOptions(
   buildOptions: ResolvedBuildOptions,
   devEngineOptions?: DevEngineOptions,
 ): Promise<RolldownOptions> {
-  const cacheKey = [context.id, devEngineOptions?.sourceMapUrl].filter(isNotNil).join(':');
-  const cachedOptions = resolveRolldownOptions.cache.get(cacheKey);
-
-  if (cachedOptions != null) {
-    return cachedOptions;
-  }
-
   const { platform, dev, cache } = buildOptions;
   const isDevServerMode = dev && context.buildType === 'serve';
 
@@ -300,12 +293,8 @@ export async function resolveRolldownOptions(
     resolutionTopologyPluginOptions.tsconfig = finalOptions.input?.tsconfig;
   }
 
-  resolveRolldownOptions.cache.set(cacheKey, finalOptions);
-
   return finalOptions;
 }
-
-resolveRolldownOptions.cache = new Map<string, RolldownOptions>();
 
 function resolveEntryPluginOptions(
   config: ResolvedConfig,

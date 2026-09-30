@@ -100,8 +100,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('excludes React Refresh wrapper plugins for dev server when HMR is disabled', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const root = process.cwd();
     const config = createTestConfig(root);
     config.dev.hmr = false;
@@ -131,8 +129,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('installs resolution topology after user plugins for an HMR dev server', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const root = process.cwd();
     const config = createTestConfig(root);
     config.plugins = [{ name: 'test:user-resolver' }];
@@ -164,8 +160,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('uses custom React Refresh filters for both transform and wrapper plugins', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const root = process.cwd();
     const include = [/\/app\/.*\.tsx$/];
     const exclude = [/\/generated\//];
@@ -203,8 +197,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('keeps react compiler disabled by default', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const options = await resolveTestRolldownOptions(
       createTestConfig(process.cwd()),
       'test-bundler-react-compiler-disabled',
@@ -214,8 +206,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('enables react compiler with default exclude when configured with an empty object', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const config = createTestConfig(process.cwd());
     config.transform.jsx = { compiler: {} };
 
@@ -230,8 +220,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('uses user react compiler exclude patterns instead of the default node_modules rule', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const config = createTestConfig(process.cwd());
     config.transform.jsx = { compiler: { exclude: [/vendor/], target: '18' } };
 
@@ -247,8 +235,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('applies rolldownOptions after Rollipop internal build overrides', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const config = createTestConfig(process.cwd());
     const calls: string[] = [];
     config.rolldownOptions = (options, context) => {
@@ -271,8 +257,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('passes object aliases to rolldown resolve options', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const config = createTestConfig(process.cwd());
     config.resolve.alias = {
       '@src': '/project/src',
@@ -287,8 +271,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('installs array aliases through the alias plugin', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const config = createTestConfig(process.cwd());
     config.resolve.alias = [
       {
@@ -304,8 +286,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('injects polyfills through the output intro', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const root = process.cwd();
     const config = createTestConfig(root);
     config.dev.hmr = false;
@@ -339,8 +319,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('reports rolldown build logs through the reporter pipeline', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const reporter = { update: vi.fn() };
     const root = process.cwd();
     const config = createTestConfig(root);
@@ -406,8 +384,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('routes hmr_updates to builtin and configured reporters through the context event bus', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const root = process.cwd();
     const config = createTestConfig(root);
     const reporter = { update: vi.fn() };
@@ -456,8 +432,6 @@ describe('resolveRolldownOptions', () => {
   });
 
   it('persists completed build totals for fresh serve reporter instances', async () => {
-    resolveRolldownOptions.cache.clear();
-
     const root = process.cwd();
     const data = { build: {} as Record<string, { totalModules: number }> };
     const flush = vi.fn();
@@ -505,8 +479,6 @@ describe('resolveRolldownOptions', () => {
 
     expect(data.build['test-bundler']).toEqual({ totalModules: 2 });
     expect(flush).toHaveBeenCalledOnce();
-
-    resolveRolldownOptions.cache.clear();
 
     const events: unknown[] = [];
     const secondConfig = createConfig();

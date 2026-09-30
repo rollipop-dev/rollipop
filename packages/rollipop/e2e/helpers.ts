@@ -17,7 +17,6 @@ import {
 } from '../src/constants';
 import { Bundler } from '../src/core/bundler';
 import type { Plugin } from '../src/core/plugins/types';
-import { resolveRolldownOptions } from '../src/core/rolldown';
 import type { BuildOptions } from '../src/core/types';
 import type { Reporter } from '../src/types';
 
@@ -116,8 +115,6 @@ export async function build(
   options: TestConfigOptions = {},
   buildOptions: Partial<BuildOptions> = {},
 ): Promise<OutputChunk> {
-  resolveRolldownOptions.cache.clear();
-
   const config = createConfig(fixture, options);
   const bundler = new Bundler(config);
 
