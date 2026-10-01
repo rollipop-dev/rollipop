@@ -737,6 +737,73 @@ describe('createDevServer', () => {
     }
   }, 10_000);
 
+  it.each(['close', 'terminate'] as const)(
+    'updates dashboard devices when an inspector socket disconnects via %s without HMR',
+    async (disconnect) => {
+      const inspectorServer = new WebSocketServer({ noServer: true });
+      const targets = new Map<WebSocket, { id: string; title: string }>();
+      inspectorServer.on('connection', (socket, request) => {
+        const id = new URL(request.url!, 'http://localhost').searchParams.get('device')!;
+        targets.set(socket, { id, title: id });
+        socket.once('close', () => targets.delete(socket));
+      });
+      vi.mocked(createDevMiddleware).mockReturnValueOnce({
+        middleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+        websocketEndpoints: { '/inspector/device': inspectorServer },
+      });
+      const originalFetch = globalThis.fetch;
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+        const url = input instanceof Request ? new URL(input.url) : new URL(String(input));
+        return url.pathname === '/json/list'
+          ? Promise.resolve(Response.json([...targets.values()]))
+          : originalFetch(input, init);
+      });
+      const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+      const devices: WebSocket[] = [];
+      let client: DevframeRpcClient | undefined;
+
+      try {
+        const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+        client = await connectDashboardRpc(address);
+        await client.ensureTrusted();
+        const state = await client
+          .scope('rollipop')
+          .rpc.sharedState<DashboardSharedState>('dashboard');
+
+        for (const id of ['device-1', 'device-2']) {
+          const socket = new WebSocket(
+            `${address.replace('http:', 'ws:')}/inspector/device?device=${id}`,
+          );
+          devices.push(socket);
+          await once(socket, 'open', { signal: AbortSignal.timeout(2_000) });
+        }
+        await client.scope('rollipop').rpc.call('get-snapshot');
+        await expect
+          .poll(() => state.value().snapshot.devices.map(({ id }) => id))
+          .toEqual(['device-1', 'device-2']);
+        expect(devServer.hot.clients.size).toBe(0);
+
+        devices[0]![disconnect]();
+
+        // Observe pushed shared state only; no manual snapshot request or HMR event.
+        await expect
+          .poll(() => state.value().snapshot.devices.map(({ id }) => id))
+          .toEqual(['device-2']);
+
+        // A server-side termination (for example, an Inspector heartbeat timeout) also refreshes.
+        for (const socket of inspectorServer.clients) socket.terminate();
+        await expect.poll(() => state.value().snapshot.devices).toEqual([]);
+      } finally {
+        for (const socket of devices) socket.terminate();
+        client?.close?.();
+        await devServer.instance.close();
+        fetchMock.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    },
+    10_000,
+  );
+
   it('should expose devices from the devtools target list through Devframe RPC', async () => {
     const originalFetch = globalThis.fetch;
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {

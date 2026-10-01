@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createUi } from '@devframes/hub-ui';
 import { initHub } from '@devframes/hub/initiate';
 import type { DevframeHubContext } from '@devframes/hub/types';
+import type { WebSocket, WebSocketServer } from 'ws';
 
 import type { Plugin, RollipopDevToolsNodeContext } from '../../core/plugins/types';
 import { resolveFrom } from '../../utils/node-resolve';
@@ -17,7 +18,11 @@ const ROLLIPOP_DEVFRAME_BASE = '/__rollipop/';
 const ROLLIPOP_DEVFRAME_SSE_ROUTE = '__sse';
 const ROLLIPOP_DEVFRAME_MCP_PATH = '__mcp';
 
-export async function setupDevframe(context: DevServerContext, server: DevServer) {
+export async function setupDevframe(
+  context: DevServerContext,
+  server: DevServer,
+  inspectorDeviceServer?: WebSocketServer,
+) {
   const mcpEnabled = isAgenticInstalled();
   const controller = new RollipopDevframeController(context, createAgentToolContext(context));
   const devtools = initHub({
@@ -51,6 +56,15 @@ export async function setupDevframe(context: DevServerContext, server: DevServer
   });
   await devtools.ready;
 
+  const refreshDevices = () => {
+    void controller.refresh();
+  };
+  const onDeviceConnection = (socket: WebSocket) => {
+    // Inspector targets can outlive the HMR socket, so refresh after their own connection closes.
+    socket.once('close', refreshDevices);
+  };
+  inspectorDeviceServer?.on('connection', onDeviceConnection);
+
   server.instance.addHook('onListen', () => {
     if (mcpEnabled) {
       const mcpUrl = getServerDisplayUrl(
@@ -62,6 +76,10 @@ export async function setupDevframe(context: DevServerContext, server: DevServer
     void controller.refresh();
   });
   server.instance.addHook('preClose', async () => {
+    inspectorDeviceServer?.off('connection', onDeviceConnection);
+    for (const socket of inspectorDeviceServer?.clients ?? []) {
+      socket.off('close', refreshDevices);
+    }
     controller.dispose();
     await devtools.close();
   });

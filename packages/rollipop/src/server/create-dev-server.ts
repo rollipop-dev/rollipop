@@ -132,7 +132,11 @@ export async function createDevServer(
     config.plugins ?? [],
   );
 
-  const devframeMiddleware = await setupDevframe(context, devServer);
+  const devframeMiddleware = await setupDevframe(
+    context,
+    devServer,
+    websocketEndpoints['/inspector/device'],
+  );
 
   fastify
     .use(requestLogger)
