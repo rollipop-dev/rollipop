@@ -1,4 +1,25 @@
 
+## [1.0.0-alpha.32] - 2026-10-01
+
+### 🐛 Bug Fixes
+
+- publish prereleases by channel by @leegeunhyeok
+- preserve comments during init by @leegeunhyeok
+- align custom sourcemap paths by @leegeunhyeok
+- respect env overrides during expansion by @leegeunhyeok
+- restrict asset access to workspace by @leegeunhyeok
+- refresh dashboard on device disconnect by @leegeunhyeok
+
+### 📚 Documentation
+
+- clarify bundle defaults by @leegeunhyeok
+- fix dynamic config commands by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- test on macOS by @leegeunhyeok
+
+
 ## [1.0.0-alpha.31] - 2026-10-01
 
 ### 🐛 Bug Fixes
