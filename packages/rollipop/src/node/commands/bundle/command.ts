@@ -43,15 +43,14 @@ export const command: CommandDefinition<BundleCommandArgs> = {
     },
     {
       name: '--dev [boolean]',
-      description: 'If false, warnings are disabled and the bundle is minified',
+      description: 'Build in development mode. Defaults to whether config.mode is development',
       parse: parseBoolean,
     },
     {
       name: '--minify [boolean]',
       description:
-        'Allows overriding whether bundle is minified. This defaults to ' +
-        'false if dev is true, and true if dev is false. Disabling minification ' +
-        'can be useful for speeding up production builds for testing purposes.',
+        'Override output.minify from the configuration. Defaults to false when not configured, ' +
+        'regardless of --dev.',
       parse: parseBoolean,
     },
     {

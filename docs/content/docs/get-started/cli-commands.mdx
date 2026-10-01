@@ -56,7 +56,7 @@ rollipop bundle [options]
 | `--entry-file` \*    | Path to the root JS file                      | `string`  | -       |
 | `--bundle-output` \* | File path where to store the resulting bundle | `string`  | -       |
 | `--platform`         | Target platform (`ios` \| `android`)          | `string`  | `ios`   |
-| `--dev`              | Build in development mode                     | `boolean` | `true`  |
+| `--dev`              | Build in development mode                     | `boolean` | `false` |
 | `--minify`           | Override bundle minification                  | `boolean` | `false` |
 | `--sourcemap-output` | File path where to store the sourcemap        | `string`  | -       |
 | `--assets-dest`      | Directory path where to store assets          | `string`  | -       |
@@ -64,6 +64,10 @@ rollipop bundle [options]
 | `--reset-cache`      | Removes cached files before building          | `boolean` | -       |
 
 <small>* Required option</small>
+
+`--dev` defaults to whether `config.mode` is `development`; `rollipop bundle` uses `production` unless overridden in the configuration.
+
+`--minify` overrides `output.minify`, which defaults to `false` independently of `--dev`. Pass `--minify true` to explicitly enable minification.
 
 ### Examples
 
