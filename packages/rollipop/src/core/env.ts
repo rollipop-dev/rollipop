@@ -21,6 +21,7 @@ export function loadEnv(options: LoadEnvOptions) {
   invariant(envFile.length > 0, '`envFile` is required');
 
   const env: Record<string, string> = {};
+  const parsed: Record<string, string> = {};
   const envFilesToLoad = [
     envFile,
     `${envFile}.local`,
@@ -36,18 +37,23 @@ export function loadEnv(options: LoadEnvOptions) {
     }
 
     logger.trace(`Loading environment variables from ${envPath}`);
-    const parsed = dotenv.parse(fs.readFileSync(envPath, 'utf-8'));
-    const expanded = dotenvExpand.expand({
-      parsed,
-      processEnv: {},
-    });
+    Object.assign(parsed, dotenv.parse(fs.readFileSync(envPath, 'utf-8')));
+  }
 
-    if (expanded.parsed) {
-      Object.entries(expanded.parsed).forEach(([key, value]) => {
-        if (key.startsWith(envPrefix)) {
-          env[key] = key in process.env ? (process.env[key] as string) : value;
-        }
-      });
+  // Expand only after applying file and shell precedence, without mutating process.env.
+  const processEnv: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      processEnv[key] = value;
+      if (key in parsed) {
+        parsed[key] = value;
+      }
+    }
+  }
+  const expanded = dotenvExpand.expand({ parsed, processEnv });
+  for (const [key, value] of Object.entries(expanded.parsed ?? {})) {
+    if (key.startsWith(envPrefix)) {
+      env[key] = process.env[key] ?? value;
     }
   }
 

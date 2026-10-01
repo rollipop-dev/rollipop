@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { describe, it, expect, vitest, beforeEach } from 'vite-plus/test';
+import { describe, it, expect, vitest, beforeEach, afterEach } from 'vite-plus/test';
 
 import { DEFAULT_ENV_FILE, DEFAULT_ENV_PREFIX } from '../../constants';
 import { loadEnv } from '../env';
@@ -19,6 +19,59 @@ describe('loadEnv', () => {
 
   beforeEach(() => {
     vitest.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vitest.unstubAllEnvs();
+  });
+
+  it.each(['https://production.example', ''])(
+    'expands references using the shell override %j without mutating process.env',
+    (base) => {
+      vitest.stubEnv('ROLLIPOP_BASE', base);
+      vitest.stubEnv('ROLLIPOP_URL', undefined);
+      mockEnvFiles({
+        '.env': 'ROLLIPOP_BASE=https://development.example\nROLLIPOP_URL=${ROLLIPOP_BASE}/api',
+      });
+
+      const env = loadEnv({ envDir: '.', envFile: '.env', envPrefix: 'ROLLIPOP_' });
+
+      expect(env).toEqual({ ROLLIPOP_BASE: base, ROLLIPOP_URL: `${base}/api` });
+      expect(process.env.ROLLIPOP_BASE).toBe(base);
+      expect(process.env.ROLLIPOP_URL).toBeUndefined();
+    },
+  );
+
+  it('expands references after merging mode-specific files', () => {
+    mockEnvFiles({
+      '.env': 'ROLLIPOP_BASE=https://development.example\nROLLIPOP_URL=${ROLLIPOP_BASE}/api',
+      '.env.production':
+        'ROLLIPOP_BASE=https://production.example\nROLLIPOP_USERS=${ROLLIPOP_URL}/users',
+    });
+
+    const env = loadEnv({
+      envDir: '.',
+      envFile: '.env',
+      envPrefix: 'ROLLIPOP_',
+      mode: 'production',
+    });
+
+    expect(env).toEqual({
+      ROLLIPOP_BASE: 'https://production.example',
+      ROLLIPOP_URL: 'https://production.example/api',
+      ROLLIPOP_USERS: 'https://production.example/api/users',
+    });
+  });
+
+  it('uses shell-only variables in expansions without exposing unprefixed values', () => {
+    vitest.stubEnv('RC_PRIVATE_HOST', 'https://production.example');
+    vitest.stubEnv('ROLLIPOP_URL', 'https://override.example');
+    mockEnvFiles({ '.env': 'ROLLIPOP_BASE=${RC_PRIVATE_HOST}\nROLLIPOP_URL=${ROLLIPOP_BASE}/api' });
+
+    expect(loadEnv({ envDir: '.', envFile: '.env', envPrefix: 'ROLLIPOP_' })).toEqual({
+      ROLLIPOP_BASE: 'https://production.example',
+      ROLLIPOP_URL: 'https://override.example',
+    });
   });
 
   it('should load environment variables', () => {
