@@ -24,14 +24,3 @@ declare module '*/Platform' {
 
   export default Platform;
 }
-
-declare module 'pretty-format' {
-  const prettyFormat: {
-    format: (value: any, options?: any) => string;
-    plugins: {
-      ReactElement: any;
-    };
-  };
-
-  export default prettyFormat;
-}

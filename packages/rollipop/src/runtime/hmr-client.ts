@@ -1,4 +1,4 @@
-import prettyFormat from 'pretty-format';
+import * as prettyFormatModule from 'pretty-format';
 
 import LogBox from '../LogBox/LogBox';
 import NativeRedBox from '../NativeModules/specs/NativeRedBox';
@@ -34,6 +34,16 @@ interface HMRConnection {
   compileErrorMessage: string | null;
   pendingUpdatesCount: number;
 }
+
+function getPrettyFormat() {
+  // This replaces RN's HMRClient and uses RN's pretty-format version,
+  // which may expose named exports or only a default export independently of Rollipop's version.
+  return typeof prettyFormatModule.format === 'function'
+    ? prettyFormatModule
+    : (prettyFormatModule.default as unknown as typeof prettyFormatModule);
+}
+
+const prettyFormat = getPrettyFormat();
 
 class HMRClient implements HMRClientNativeInterface {
   static readonly STARTUP_ERROR = 'Expected HMRClient.setup() call at startup';
@@ -89,7 +99,7 @@ class HMRClient implements HMRClientNativeInterface {
 
   log(level: HMRClientLogLevel, data: any[]) {
     const host = this.getHostConnection();
-    if (host == null) {
+    if (host == null || host.socket.readyState !== WebSocket.OPEN) {
       this.pendingLogs.push([level, data]);
       if (this.pendingLogs.length > HMRClient.MAX_PENDING_LOGS) {
         this.pendingLogs.shift();
@@ -226,10 +236,9 @@ class HMRClient implements HMRClientNativeInterface {
     ) {
       return;
     }
-    for (const [level, data] of this.pendingLogs) {
-      this.send(connection, { type: 'hmr:log', level, data });
+    for (const [level, data] of this.pendingLogs.splice(0)) {
+      this.log(level, data);
     }
-    this.pendingLogs.length = 0;
   }
 
   private dismissRedbox() {

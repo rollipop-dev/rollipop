@@ -1,8 +1,9 @@
 import fs from 'node:fs';
+import { stripVTControlCharacters } from 'node:util';
 import vm from 'node:vm';
 
 import { transformSync } from '@swc/core';
-import prettyFormat from 'pretty-format';
+import * as prettyFormat from 'pretty-format';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import type { HMRContext } from '../../types/hmr';
@@ -85,6 +86,7 @@ class FakeDevRuntime {
 }
 
 class FakeWebSocket {
+  static readonly CONNECTING = 0;
   static readonly OPEN = 1;
   static instances: FakeWebSocket[] = [];
   readonly sent: string[] = [];
@@ -139,6 +141,148 @@ describe('HMR runtime', () => {
     const { runtime } = await setupRuntime();
 
     expect((runtime.createModuleHotContext('entry.js') as any).runtime).toBe(runtime);
+  });
+
+  describe('client logs', () => {
+    const formatter = { format: prettyFormat.format, plugins: prettyFormat.plugins };
+
+    it.each([
+      ['named-only', { __esModule: true, ...formatter }],
+      ['default-only', { __esModule: true, default: formatter }],
+      ['CommonJS', formatter],
+      [
+        'named and callable default',
+        { __esModule: true, ...formatter, default: prettyFormat.format },
+      ],
+    ])('sends formatted values with %s pretty-format exports', async (_, module) => {
+      await createRuntime();
+      const client = createClient(module);
+      client.setup('ios', 'index.bundle', 'localhost', 8081, true);
+      const socket = FakeWebSocket.instances[0];
+      const circular: { self?: unknown } = {};
+      circular.self = circular;
+      const element = {
+        $$typeof: Symbol.for('react.element'),
+        type: 'View',
+        key: null,
+        props: { testID: 'counter', children: 'hello' },
+      };
+
+      client.log('warn', [
+        'object: %s',
+        { answer: 42 },
+        [1, 2],
+        true,
+        null,
+        undefined,
+        new Error('boom'),
+        circular,
+        element,
+      ]);
+
+      expect(socket.sent).toHaveLength(1);
+      const message = JSON.parse(socket.sent[0]);
+      expect(message.type).toBe('hmr:log');
+      expect(message.level).toBe('warn');
+      expect(message.data.map(stripVTControlCharacters)).toEqual([
+        'object: %s',
+        '{"answer": 42}',
+        '[1, 2]',
+        'true',
+        'null',
+        'undefined',
+        '[Error: boom]',
+        '{"self": [Circular]}',
+        '<View testID="counter">hello</View>',
+      ]);
+    });
+
+    it('flushes logs from before setup and while connecting in order without replaying them', async () => {
+      const runtime = await createRuntime();
+      const client = createClient();
+      const circular: { self?: unknown } = {};
+      circular.self = circular;
+      client.log('info', ['before setup', circular]);
+
+      client.setup('ios', 'index.bundle', 'localhost', 8081, true);
+      const socket = FakeWebSocket.instances[0];
+      socket.readyState = FakeWebSocket.CONNECTING;
+      client.log('warn', ['while connecting', { count: 1 }, undefined]);
+      expect(socket.sent).toEqual([]);
+
+      socket.readyState = FakeWebSocket.OPEN;
+      socket.emit('open', {});
+      client.log('error', ['after opening', [1, 2]]);
+
+      const expectedLogs = [
+        { type: 'hmr:log', level: 'info', data: ['before setup', '{"self": [Circular]}'] },
+        { type: 'hmr:log', level: 'warn', data: ['while connecting', '{"count": 1}', 'undefined'] },
+        { type: 'hmr:log', level: 'error', data: ['after opening', '[1, 2]'] },
+      ];
+      expect(socket.sent.map((message) => JSON.parse(message))).toEqual([
+        {
+          type: 'hmr:connected',
+          clientId: runtime.clientId,
+          bundleEntry: 'index.bundle',
+          platform: 'ios',
+        },
+        ...expectedLogs,
+      ]);
+
+      socket.emit('open', {});
+      expect(
+        socket.sent.map((message) => JSON.parse(message)).filter(({ type }) => type === 'hmr:log'),
+      ).toEqual(expectedLogs);
+    });
+
+    it('keeps only the latest 100 logs while the socket is connecting', async () => {
+      const { client, socket } = await setupClient();
+      socket.readyState = FakeWebSocket.CONNECTING;
+
+      for (let index = 0; index < 105; index++) {
+        client.log('debug', [index]);
+      }
+      expect(socket.sent).toEqual([]);
+
+      socket.readyState = FakeWebSocket.OPEN;
+      socket.emit('open', {});
+
+      expect(socket.sent.slice(1).map((message) => JSON.parse(message))).toEqual(
+        Array.from({ length: 100 }, (_, index) => ({
+          type: 'hmr:log',
+          level: 'debug',
+          data: [String(index + 5)],
+        })),
+      );
+    });
+
+    it('waits for the host socket even when a remote socket opens first', async () => {
+      const { runtime, client, socket } = await setupClient();
+      socket.readyState = FakeWebSocket.CONNECTING;
+      client.log('info', ['host log', { count: 1 }]);
+      globalThis.__rollipop_runtime__!.registerGraph({
+        id: 'remote',
+        origin: 'http://localhost:8082',
+        bundleEntry: 'remote.bundle',
+        platform: 'ios',
+        runtime: { ...runtime, setup: vi.fn(), setEnabled: vi.fn() } as unknown as HMRGraphRuntime,
+      });
+      const remoteSocket = FakeWebSocket.instances[1];
+      remoteSocket.emit('open', {});
+      client.log('warn', ['host still connecting']);
+
+      expect(socket.sent).toEqual([]);
+      expect(remoteSocket.sent.map((message) => JSON.parse(message).type)).toEqual([
+        'hmr:connected',
+      ]);
+
+      socket.readyState = FakeWebSocket.OPEN;
+      socket.emit('open', {});
+      expect(socket.sent.slice(1).map((message) => JSON.parse(message))).toEqual([
+        { type: 'hmr:log', level: 'info', data: ['host log', '{"count": 1}'] },
+        { type: 'hmr:log', level: 'warn', data: ['host still connecting'] },
+      ]);
+    });
   });
 
   it('evaluates a patch, acknowledges delivery, and applies accepted updates', async () => {
@@ -506,9 +650,15 @@ async function setupRuntime() {
 
 async function setupClient(enabled = true) {
   const runtime = await createRuntime();
+  const client = createClient();
+  client.setup('ios', 'index.bundle', 'localhost', 8081, enabled);
+  return { runtime, client, socket: FakeWebSocket.instances[0] };
+}
+
+function createClient(prettyFormatExports: unknown = prettyFormat) {
   // HMRClient is injected into React Native, so provide its native imports in a sandbox.
   const nativeModules: Record<string, unknown> = {
-    'pretty-format': prettyFormat,
+    'pretty-format': prettyFormatExports,
     '../LogBox/LogBox': { clearAllLogs: vi.fn() },
     '../NativeModules/specs/NativeRedBox': { dismiss: vi.fn() },
     './DevLoadingView': { hide: vi.fn(), showMessage: vi.fn() },
@@ -528,9 +678,7 @@ async function setupClient(enabled = true) {
     },
   };
   vm.runInNewContext(clientCode, context);
-  const client = context.exports.default;
-  client.setup('ios', 'index.bundle', 'localhost', 8081, enabled);
-  return { runtime, client, socket: FakeWebSocket.instances[0] };
+  return context.exports.default;
 }
 
 function emitPatch(socket: FakeWebSocket, seq: number) {
