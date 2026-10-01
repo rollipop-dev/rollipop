@@ -10,8 +10,12 @@ on:
 
 jobs:
   default-workflow:
-    name: Default Workflow
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os == 'ubuntu-latest' && 'Default Workflow' || 'macOS Workflow' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
