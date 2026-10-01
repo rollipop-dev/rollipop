@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { runInNewContext } from 'node:vm';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 
@@ -89,6 +90,34 @@ describe('setupReactNativeConfig', () => {
     const content = fs.readFileSync(path.join(tmpDir, 'react-native.config.js'), 'utf8');
     expect(content).toContain('project: {},');
     expect(content).toContain("commands: require('rollipop/commands')");
+  });
+
+  it.each([
+    ' // fonts, images',
+    ' /* fonts, images */',
+    ' /* fonts, images */,',
+    ', // fonts, images',
+    ' /* 이미지 🖼️, 폰트 */ , // assets, fonts',
+  ])('preserves valid configuration with trailing comments: %s', (trailing) => {
+    const configPath = path.join(tmpDir, 'react-native.config.js');
+    fs.writeFileSync(configPath, `module.exports = {\n  assets: []${trailing}\n};\n`);
+
+    expect(setupReactNativeConfig(tmpDir)).toBe('updated');
+    const content = fs.readFileSync(configPath, 'utf8');
+    const commands = [{ name: 'bundle' }];
+    const module = { exports: {} };
+    runInNewContext(content, {
+      module,
+      require: (id: string) => {
+        expect(id).toBe('rollipop/commands');
+        return commands;
+      },
+    });
+    expect(module.exports).toEqual({ assets: [], commands });
+    for (const comment of trailing.match(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g) ?? []) {
+      expect(content).toContain(comment);
+    }
+    expect(setupReactNativeConfig(tmpDir)).toBe('already-configured');
   });
 
   it('does not double comma when trailing comma exists', () => {

@@ -42,7 +42,7 @@ type AnalyzeResult =
   | { status: 'injectable'; insertOffset: number; needsComma: boolean };
 
 function analyzeConfig(content: string): AnalyzeResult {
-  const { program } = parseSync('react-native.config.js', content);
+  const { program, comments } = parseSync('react-native.config.js', content);
 
   let moduleExportsAssignment: AssignmentExpression | null = null;
 
@@ -80,13 +80,15 @@ function analyzeConfig(content: string): AnalyzeResult {
 
   if (lastProp) {
     const afterLastProp = content.substring(lastProp.end, closingBrace);
-    const commaIndex = afterLastProp.indexOf(',');
-    if (commaIndex !== -1) {
-      return {
-        status: 'injectable',
-        insertOffset: lastProp.end + commaIndex + 1,
-        needsComma: false,
-      };
+    for (const match of afterLastProp.matchAll(/,/g)) {
+      const offset = lastProp.end + match.index;
+      if (!comments.some((comment) => comment.start <= offset && offset < comment.end)) {
+        return {
+          status: 'injectable',
+          insertOffset: offset + 1,
+          needsComma: false,
+        };
+      }
     }
     return { status: 'injectable', insertOffset: lastProp.end, needsComma: true };
   }
