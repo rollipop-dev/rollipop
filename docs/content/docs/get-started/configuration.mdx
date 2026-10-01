@@ -28,17 +28,17 @@ import { defineConfig } from 'rollipop';
 export default defineConfig((context) => {
   return {
     ...context.defaultConfig,
-    mode: context.command === 'build' ? 'production' : 'development',
+    mode: context.command === 'bundle' ? 'production' : 'development',
   };
 });
 ```
 
 **DefineConfigContext:**
 
-| Property        | Type                  | Description                                                                                                 |
-| --------------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `command`       | `string \| undefined` | The current CLI command being executed (e.g., `'serve'`, `'build'`). May be `undefined` if not run via CLI. |
-| `defaultConfig` | `DefaultConfig`       | The default configuration object provided by Rollipop. Useful for extending defaults.                       |
+| Property        | Type                  | Description                                                                                                  |
+| --------------- | --------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `command`       | `string \| undefined` | The current CLI command being executed (e.g., `'start'`, `'bundle'`). May be `undefined` if not run via CLI. |
+| `defaultConfig` | `DefaultConfig`       | The default configuration object provided by Rollipop. Useful for extending defaults.                        |
 
 The function can also be async:
 
@@ -65,7 +65,7 @@ Project root directory. All relative paths in the configuration will be resolved
 ## mode
 
 - **Type:** `'development' | 'production'`
-- **Default:** `'development'` for serve, `'production'` for build.
+- **Default:** `'development'` for `rollipop start`, `'production'` for `rollipop bundle`.
 
 The mode to run the bundler in. This affects various optimizations and defaults throughout the bundler.
 
