@@ -12,12 +12,12 @@ export function rozenitePlugin(options: RozenitePluginOptions = {}): Plugin {
 
   return {
     name: 'rollipop:rozenite',
-    configureServer(server) {
+    async configureServer(server) {
       if (!enabled) {
         return;
       }
 
-      const rozenite = initializeRozenite({
+      const rozenite = await initializeRozenite({
         projectType: 'react-native-cli',
         projectRoot: server.config.root,
         ...rozeniteConfig,

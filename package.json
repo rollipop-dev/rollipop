@@ -26,7 +26,7 @@
     "@types/node": "^24",
     "knip": "^6.27.0",
     "typescript": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:vp"
   },
   "packageManager": "yarn@4.18.0"
 }

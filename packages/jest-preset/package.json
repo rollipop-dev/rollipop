@@ -47,7 +47,7 @@
   "devDependencies": {
     "rollipop": "workspace:*",
     "typescript": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:vp"
   },
   "peerDependencies": {
     "@react-native/jest-preset": "*",
@@ -65,5 +65,8 @@
     "react-native": {
       "optional": true
     }
+  },
+  "installConfig": {
+    "hoistingLimits": "none"
   }
 }

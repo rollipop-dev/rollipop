@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import babel from '@rolldown/plugin-babel';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vite-plus';
 
 const rollipopDevServerTarget =
   process.env.ROLLIPOP_DEV_SERVER_PROXY_TARGET ?? 'http://127.0.0.1:8081';

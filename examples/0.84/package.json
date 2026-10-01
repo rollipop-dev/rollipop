@@ -4,7 +4,7 @@
   "scripts": {
     "pod:install": "cd ios && bundle exec pod install",
     "android": "react-native run-android",
-    "devtools:build": "vite build --config devtools/counter/vite.config.ts",
+    "devtools:build": "vp build --config devtools/counter/vite.config.ts",
     "devtools:typecheck": "tsc --noEmit -p devtools/counter/tsconfig.json",
     "ios": "react-native run-ios",
     "prestart": "yarn devtools:build",
@@ -45,13 +45,12 @@
     "@types/react": "^19.2.14",
     "@types/react-test-renderer": "^19.1.0",
     "chalk": "^6.0.0",
-    "devframe": "catalog:",
+    "devframe": "catalog:devframe",
     "jest": "^29.6.3",
     "react-native-svg-transformer": "^1.5.3",
     "react-test-renderer": "19.2.3",
     "rollipop": "workspace:*",
-    "typescript": "catalog:",
-    "vite": "8.0.16"
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=22.11.0"

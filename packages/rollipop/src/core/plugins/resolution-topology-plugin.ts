@@ -163,7 +163,7 @@ function resolutionTopologyPlugin(options?: ResolutionTopologyPluginOptions) {
     const key = `${graphImporter}\0${kind}\0${source}`;
     const target = path.resolve(path.dirname(importerFile), request);
     const directories = [path.dirname(target), ...(isDirectory(target) ? [target] : [])].map(
-      path.normalize,
+      (directory) => path.normalize(directory),
     );
     const previous = edges.get(key);
 

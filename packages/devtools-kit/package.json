@@ -31,17 +31,18 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@devframes/hub": "catalog:",
-    "devframe": "catalog:"
+    "@devframes/hub": "catalog:devframe",
+    "devframe": "catalog:devframe"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.11",
     "rollipop": "workspace:*",
     "typescript": "catalog:",
-    "vite-plus": "catalog:",
-    "vitest": "4.1.11"
+    "vite-plus": "catalog:vp"
   },
   "peerDependencies": {
     "rollipop": "workspace:*"
+  },
+  "installConfig": {
+    "hoistingLimits": "none"
   }
 }
