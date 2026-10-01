@@ -25,6 +25,7 @@
     "dev": "vp dev",
     "build": "tsc --noEmit && vp build",
     "preview": "vp preview",
+    "test": "vp test --run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

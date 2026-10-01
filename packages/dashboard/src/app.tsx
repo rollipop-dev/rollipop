@@ -33,7 +33,7 @@ import {
   type DashboardSharedState,
 } from './lib/api';
 import { queryKeys } from './lib/query';
-import { getSystemTheme, readStoredTheme, writeStoredTheme } from './lib/theme';
+import { getSystemTheme, readStoredTheme, THEME_STORAGE_KEY, writeStoredTheme } from './lib/theme';
 import { useDashboardEvents } from './lib/use-dashboard-events';
 import { ActionsPage } from './pages/actions';
 import { AnalyzePage } from './pages/analyze';
@@ -376,6 +376,20 @@ export function App() {
   useLayoutEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  useEffect(() => {
+    const handleChange = (event: StorageEvent) => {
+      if (event.storageArea !== window.localStorage) return;
+      if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
+
+      const storedTheme = readStoredTheme();
+      setHasStoredTheme(storedTheme !== null);
+      setTheme(storedTheme ?? getSystemTheme());
+    };
+
+    window.addEventListener('storage', handleChange);
+    return () => window.removeEventListener('storage', handleChange);
+  }, []);
 
   useEffect(() => {
     if (hasStoredTheme || typeof window === 'undefined') return;
