@@ -268,6 +268,12 @@ export class BundlerDevEngine {
     return this.bundleStore;
   }
 
+  async getSourceMap() {
+    await this.ensureInitialized;
+    invariant(this.bundleStore, this.buildFailedError?.message ?? 'Bundle is not available');
+    return this.bundleStore.sourceMap;
+  }
+
   async triggerFullBuild() {
     await this.ensureInitialized;
     this.devEngine.triggerFullBuild();

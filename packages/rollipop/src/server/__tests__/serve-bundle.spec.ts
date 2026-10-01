@@ -17,8 +17,9 @@ function createBundleStore(code: string, sourceMap = '{"version":3,"sources":[],
 
 async function createServer(bundleStore: BundleStore) {
   const getBundle = vi.fn().mockResolvedValue(bundleStore);
+  const getSourceMap = vi.fn().mockResolvedValue(bundleStore.sourceMap);
   const bundlerPool = {
-    get: vi.fn().mockReturnValue({ id: 'ios-true', getBundle }),
+    get: vi.fn().mockReturnValue({ id: 'ios-true', getBundle, getSourceMap }),
   };
   const app = Fastify();
 
@@ -31,7 +32,7 @@ async function createServer(bundleStore: BundleStore) {
   });
   await app.ready();
 
-  return { app, bundlerPool, getBundle };
+  return { app, bundlerPool, getBundle, getSourceMap };
 }
 
 describe('serve bundle middleware', () => {
@@ -54,9 +55,11 @@ describe('serve bundle middleware', () => {
     }
   });
 
-  it('serves source maps from the Metro-compatible map route', async () => {
+  it('serves stored source maps without requesting a fresh bundle', async () => {
     const sourceMap = '{"version":3,"sources":["index.ts"],"mappings":""}';
-    const { app } = await createServer(createBundleStore('console.log("ok");', sourceMap));
+    const { app, getBundle, getSourceMap } = await createServer(
+      createBundleStore('console.log("ok");', sourceMap),
+    );
 
     try {
       const response = await app.inject({
@@ -68,6 +71,8 @@ describe('serve bundle middleware', () => {
       expect(response.headers['content-type']).toContain('application/json');
       expect(response.headers['content-length']).toBe(String(Buffer.byteLength(sourceMap)));
       expect(response.body).toBe(sourceMap);
+      expect(getSourceMap).toHaveBeenCalledOnce();
+      expect(getBundle).not.toHaveBeenCalled();
     } finally {
       await app.close();
     }

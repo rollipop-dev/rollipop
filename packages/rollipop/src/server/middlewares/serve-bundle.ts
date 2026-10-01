@@ -105,8 +105,7 @@ const plugin = fp<ServeBundlePluginOptions>(
 
         const buildOptions = getBundleOptions(query);
         const bundler = context.bundlerPool.get(params.name, buildOptions);
-        const bundle = await withGetBundleErrorHandler(reply, bundler.getBundle());
-        const sourceMap = bundle.sourceMap;
+        const sourceMap = await withGetBundleErrorHandler(reply, bundler.getSourceMap());
         invariant(sourceMap, 'Source map is not available');
 
         await reply

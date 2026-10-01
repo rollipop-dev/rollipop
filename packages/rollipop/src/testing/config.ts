@@ -52,6 +52,7 @@ export function createTestConfig(basePath: string): ResolvedConfig {
         skipWrite: true,
         useDebounce: true,
         debounceDuration: 50,
+        exclude: ['**/.rollipop/**'],
       },
       hmr: true,
     },

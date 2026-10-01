@@ -81,6 +81,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
         skipWrite: true,
         useDebounce: true,
         debounceDuration: 50,
+        exclude: ['**/.rollipop/**'],
       },
       hmr: true as NonNullable<DevConfig['hmr']>,
     },

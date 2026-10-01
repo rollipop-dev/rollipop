@@ -94,6 +94,7 @@ describe('BundlerPool', () => {
 
     await expect(instance.ensureInitialized).rejects.toThrow(error.message);
     await expect(instance.getBundle()).rejects.toThrow(error.message);
+    await expect(instance.getSourceMap()).rejects.toThrow(error.message);
     await expect(instance.triggerFullBuild()).rejects.toThrow(error.message);
     expect(instance.status).toBe('build-failed');
     expect(onEvent).toHaveBeenCalledWith({
@@ -227,6 +228,55 @@ describe('BundlerPool', () => {
     const instance2 = pool.get('index', { platform: 'ios', dev: true });
 
     expect(instance1).toBe(instance2);
+  });
+
+  it('reports the initial build error when no source map is available', async () => {
+    resetPool();
+    const error = new Error('Could not resolve entry');
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(
+      async (boundConfig, _buildOptions, options) =>
+        createMockDevEngine(
+          boundConfig,
+          vi.fn(async () => {
+            await options.onOutput?.(error);
+          }),
+        ),
+    );
+    const instance = createPool().get('index.bundle', { platform: 'ios', dev: true });
+
+    await expect(instance.getSourceMap()).rejects.toThrow(error.message);
+  });
+
+  it('keeps the source map of the last bundle until a bundle request rebuilds stale output', async () => {
+    resetPool();
+    const sourceMap = '{"version":3,"sources":["index.ts"],"mappings":"AAAA"}';
+    const updatedSourceMap = '{"version":3,"sources":["index.ts"],"mappings":";AAAA"}';
+    const engine = createMockDevEngine(config);
+    engine.getBundleState.mockResolvedValue({ lastBuildErrored: false, hasStaleOutput: true });
+    vi.mocked(Bundler).devEngine.mockImplementationOnce(
+      async (_boundConfig, _buildOptions, options) => {
+        const emitOutput = (code: string, map: string) =>
+          options.onOutput?.({
+            output: [{ type: 'chunk', name: 'index', code, map: { toString: () => map } }],
+          } as any);
+        engine.run.mockImplementation(() => emitOutput('console.log("before");', sourceMap));
+        engine.ensureLatestBuildOutput = vi.fn(() =>
+          emitOutput('\nconsole.log("after");', updatedSourceMap),
+        );
+        return engine;
+      },
+    );
+    const instance = createPool().get('index.bundle', { platform: 'ios', dev: true });
+
+    await expect(instance.getSourceMap()).resolves.toBe(sourceMap);
+    await expect(instance.getSourceMap()).resolves.toBe(sourceMap);
+    expect(engine.run).toHaveBeenCalledOnce();
+    expect(engine.ensureLatestBuildOutput).not.toHaveBeenCalled();
+
+    const bundle = await instance.getBundle();
+    expect(bundle.code).toBe('\nconsole.log("after");');
+    expect(engine.ensureLatestBuildOutput).toHaveBeenCalledOnce();
+    await expect(instance.getSourceMap()).resolves.toBe(updatedSourceMap);
   });
 
   it('emits bundle file path after writing build output', async () => {
