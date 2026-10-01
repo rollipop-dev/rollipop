@@ -43,10 +43,12 @@
   },
   "devDependencies": {
     "@types/react": "19.2.14",
+    "@vitest/coverage-v8": "catalog:vp",
     "react": "19.2.3",
     "rollipop": "workspace:*",
     "typescript": "catalog:",
-    "vite-plus": "catalog:vp"
+    "vite-plus": "catalog:vp",
+    "vitest": "catalog:vp"
   },
   "peerDependencies": {
     "rollipop": "workspace:*"

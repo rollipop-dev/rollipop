@@ -28,6 +28,9 @@
     "examples/0.84": {
       "entry": ["App.tsx", "rollipop.config.ts", "__tests__/**/*.{js,jsx,ts,tsx}"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
+      "vite": {
+        "config": ["devtools/counter/vite.config.ts"]
+      },
       "ignoreDependencies": ["@babel/runtime", "@swc/helpers"]
     },
     "examples/module-federation": {

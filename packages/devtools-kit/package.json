@@ -35,9 +35,11 @@
     "devframe": "catalog:devframe"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "catalog:vp",
     "rollipop": "workspace:*",
     "typescript": "catalog:",
-    "vite-plus": "catalog:vp"
+    "vite-plus": "catalog:vp",
+    "vitest": "catalog:vp"
   },
   "peerDependencies": {
     "rollipop": "workspace:*"

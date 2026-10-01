@@ -2,7 +2,7 @@
   "extends": "../../../../tsconfig.json",
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite-plus/client"],
     "noEmit": true
   },
   "include": ["index.ts", "vite.config.ts", "client"]

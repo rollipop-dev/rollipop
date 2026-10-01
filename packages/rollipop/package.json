@@ -103,9 +103,11 @@
     "@devframes/agentic": "catalog:devframe",
     "@swc/plugin-remove-console": "15.0.0",
     "@types/react-refresh": "0.14.7",
+    "@vitest/coverage-v8": "catalog:vp",
     "react-refresh": "0.19.0",
     "typescript": "catalog:",
-    "vite-plus": "catalog:vp"
+    "vite-plus": "catalog:vp",
+    "vitest": "catalog:vp"
   },
   "peerDependencies": {
     "@devframes/agentic": "1.0.0"
