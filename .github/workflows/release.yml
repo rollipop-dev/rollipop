@@ -71,10 +71,11 @@ jobs:
           TAG_NAME: ${{ steps.metadata.outputs.tag }}
           TARGET: ${{ github.sha }}
           NOTES: ${{ steps.changelog.outputs.CHANGELOG }}
+          PRERELEASE: ${{ contains(steps.metadata.outputs.version, '-') }}
         run: |
           url=$(gh release create "$TAG_NAME" \
             --target "$TARGET" \
             --title "$TAG_NAME" \
             --notes "$NOTES" \
-            --prerelease)
+            --prerelease="$PRERELEASE")
           echo "url=$url" >> "$GITHUB_OUTPUT"

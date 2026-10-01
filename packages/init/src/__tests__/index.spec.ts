@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vite-plus/test';
 
+import { version } from '../../package.json' with { type: 'json' };
 import { setupPackage, setupReactNativeConfig } from '../init';
 
 describe('setupReactNativeConfig', () => {
@@ -164,7 +165,7 @@ describe('setupPackage', () => {
     setupPackage(tmpDir);
 
     const pkg = JSON.parse(fs.readFileSync(path.join(tmpDir, 'package.json'), 'utf8'));
-    expect(pkg.devDependencies.rollipop).toBe('latest');
+    expect(pkg.devDependencies.rollipop).toBe(version);
   });
 
   it('preserves existing devDependencies', () => {
@@ -177,6 +178,6 @@ describe('setupPackage', () => {
 
     const pkg = JSON.parse(fs.readFileSync(path.join(tmpDir, 'package.json'), 'utf8'));
     expect(pkg.devDependencies.typescript).toBe('^5.0.0');
-    expect(pkg.devDependencies.rollipop).toBe('latest');
+    expect(pkg.devDependencies.rollipop).toBe(version);
   });
 });

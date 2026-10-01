@@ -4,6 +4,8 @@ import path from 'node:path';
 import { parseSync, Visitor } from 'oxc-parser';
 import type { AssignmentExpression, ObjectExpression, ObjectProperty } from 'oxc-parser';
 
+import { version } from '../package.json' with { type: 'json' };
+
 const RN_CONFIG_FILE = 'react-native.config.js';
 const COMMANDS_REQUIRE = "require('rollipop/commands')";
 
@@ -138,7 +140,7 @@ export function setupPackage(cwd: string) {
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   packageJson.devDependencies = {
     ...packageJson.devDependencies,
-    rollipop: 'latest',
+    rollipop: version,
   };
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 }
