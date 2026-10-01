@@ -1,4 +1,16 @@
 
+## [1.0.0-alpha.31] - 2026-10-01
+
+### 🐛 Bug Fixes
+
+- sync dashboard and devframe themes by @leegeunhyeok
+- HMR log forwarding by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump hono from 4.13.1 to 4.13.9 (#192) by @dependabot[bot]
+
+
 ## [1.0.0-alpha.30] - 2026-10-01
 
 ### 💥 BREAKING CHANGES
