@@ -1,4 +1,118 @@
 
+## [1.0.0-alpha.30] - 2026-10-01
+
+### 💥 BREAKING CHANGES
+
+- flatten extra commands config by @leegeunhyeok
+- remove `nativeTransformPipeline` option by @leegeunhyeok
+
+### 🚀 Features
+
+- enable native jest hoisting by @leegeunhyeok
+- remove refresh button by @leegeunhyeok
+- update custom commands separator by @leegeunhyeok
+- print all logs for clients by @leegeunhyeok
+- set `swc.native.externalHelpers` default to true by @leegeunhyeok
+- support standalone transform rules by @leegeunhyeok
+- add native swc configs by @leegeunhyeok
+- remove connection id in hmr disconnected message by @leegeunhyeok
+- integrate devframe devtools (#172) by @leegeunhyeok
+- integrate dashboard with devframe (#164) by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- enable MCP only when optional agentic peer is installed by @leegeunhyeok
+- avoid rebuilding bundles on source map requests by @leegeunhyeok
+- preserve queued devframe events by @leegeunhyeok
+- close active connections before server shutdown by @leegeunhyeok
+- preserve custom reporter events by @leegeunhyeok
+- respect disabled hot updates by @leegeunhyeok
+- reset transform rules between hot updates by @leegeunhyeok
+- render production federated components by @leegeunhyeok
+- keep stale bundle source maps invalid by @leegeunhyeok
+- preserve configured output options by @leegeunhyeok
+- propagate dev engine initialization failures by @leegeunhyeok
+- isolate bundler options per build by @leegeunhyeok
+- pass context when loading an explicit config file (#186) by @hautest
+- forward dev server cache option to bundler pool by @leegeunhyeok
+- handle extensionless resolution changes (#180) by @leegeunhyeok
+
+### 🚜 Refactor
+
+- remove unused internal state by @leegeunhyeok
+- dev server logs by @leegeunhyeok
+
+### ⚡ Performance
+
+- dev: reduce resolution topology snapshot overhead by @leegeunhyeok
+- register transform plugins when rules are exists by @leegeunhyeok
+- rollipop: apply compile cache optimization by @leegeunhyeok
+
+### 🧪 Testing
+
+- synchronize native watcher assertions by @leegeunhyeok
+- enable slient option by @leegeunhyeok
+- add module semantics regression coverage by @leegeunhyeok
+- fix resolution topology plugin tests by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- resolve dead code checks by @leegeunhyeok
+- migrate to ts 7 by @leegeunhyeok
+- deps: bump up packages by @leegeunhyeok
+- deps: bump dompurify from 3.4.13 to 3.4.16 (#191) by @dependabot[bot]
+- deps: bump next from 16.3.3 to 16.3.6 (#190) by @dependabot[bot]
+- deps: bump brace-expansion from 1.1.18 to 1.1.21 (#189) by @dependabot[bot]
+- bump up rolldown by @leegeunhyeok
+- update commands usage by @leegeunhyeok
+- deps: bump undici from 7.29.0 to 7.29.1 (#188) by @dependabot[bot]
+- deps: bump fast-uri from 3.1.6 to 3.1.8 (#187) by @dependabot[bot]
+- deps: bump image-size from 2.0.2 to 2.0.3 (#184) by @dependabot[bot]
+- deps: bump baseline-browser-mapping from 2.10.10 to 2.11.22 (#182) by @dependabot[bot]
+- deps-dev: bump vitest from 4.1.10 to 4.1.11 (#181) by @dependabot[bot]
+- deps: bump joi from 17.13.4 to 17.13.7 (#178) by @dependabot[bot]
+- deps: bump smol-toml from 1.7.0 to 1.8.0 (#177) by @dependabot[bot]
+- deps: bump next from 16.2.11 to 16.3.3 (#176) by @dependabot[bot]
+- deps: bump js-yaml from 3.15.1 to 3.15.2 (#175) by @dependabot[bot]
+- record local rolldown verification build by @leegeunhyeok
+- deps: bump @rollipop/rolldown to 1.0.30 by @leegeunhyeok
+- deps: bump dependencies by @leegeunhyeok
+- deps: bump svgo from 3.3.4 to 3.3.5 (#174) by @dependabot[bot]
+- deps: bump browserslist from 4.28.1 to 4.28.8 (#173) by @dependabot[bot]
+- deps: bump qs from 6.14.1 to 6.15.3 (#171) by @dependabot[bot]
+- deps: bump fastify from 5.10.0 to 5.12.1 (#170) by @dependabot[bot]
+- deps: bump fast-uri from 3.1.4 to 3.1.6 (#168) by @dependabot[bot]
+- deps: bump postcss-selector-parser from 7.1.1 to 7.1.5 (#167) by @dependabot[bot]
+- deps: bump devframe to 0.9.5 by @leegeunhyeok
+- deps: bump nanoid from 3.3.17 to 3.3.18 (#165) by @dependabot[bot]
+- deps: bump @hono/node-server from 1.19.14 to 1.19.17 (#163) by @dependabot[bot]
+- deps: bump hono from 4.12.30 to 4.13.1 (#162) by @dependabot[bot]
+- bump yarn to 4.18.0 by @leegeunhyeok
+- fix yarn.lock by @leegeunhyeok
+- deps: bump nanoid from 3.3.11 to 3.3.17 (#161) by @dependabot[bot]
+- deps: bump js-yaml from 3.15.0 to 3.15.1 (#160) by @dependabot[bot]
+- deps: bump brace-expansion from 1.1.16 to 1.1.18 (#159) by @dependabot[bot]
+- deps: bump mermaid from 11.13.0 to 11.16.1 (#158) by @dependabot[bot]
+- deps-dev: bump postcss from 8.5.18 to 8.5.23 (#157) by @dependabot[bot]
+- deps: bump undici from 7.28.0 to 7.29.0 (#156) by @dependabot[bot]
+- deps: bump fast-uri from 3.1.3 to 3.1.4 (#155) by @dependabot[bot]
+- deps: bump @isaacs/brace-expansion from 5.0.0 to 5.0.1 (#154) by @dependabot[bot]
+- deps: bump ajv from 8.17.1 to 8.18.0 (#151) by @dependabot[bot]
+- deps: bump picomatch from 2.3.1 to 2.3.2 (#150) by @dependabot[bot]
+- deps: bump yaml from 2.8.2 to 2.9.0 (#149) by @dependabot[bot]
+- deps: bump joi from 17.13.3 to 17.13.4 (#148) by @dependabot[bot]
+- deps: bump @hono/node-server from 1.19.12 to 1.19.14 (#147) by @dependabot[bot]
+- deps: bump dompurify from 3.4.9 to 3.4.12 (#146) by @dependabot[bot]
+- deps: bump js-yaml from 3.14.2 to 3.15.0 (#145) by @dependabot[bot]
+- deps: bump svgo from 3.3.2 to 3.3.4 (#144) by @dependabot[bot]
+- deps: bump tar from 7.5.16 to 7.5.20 (#142) by @dependabot[bot]
+- deps: bump hono from 4.12.25 to 4.12.30 (#143) by @dependabot[bot]
+- deps: bump shell-quote from 1.8.3 to 1.10.0 (#141) by @dependabot[bot]
+- deps-dev: bump postcss from 8.5.8 to 8.5.18 (#140) by @dependabot[bot]
+- deps-dev: bump react-router from 7.17.0 to 8.3.0 (#139) by @dependabot[bot]
+- deps: bump json from 2.19.5 to 2.19.9 in /examples/0.84 (#137) by @dependabot[bot]
+
+
 ## [1.0.0-alpha.29] - 2026-07-25
 
 ### 💥 BREAKING CHANGES
