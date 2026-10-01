@@ -48,9 +48,23 @@ describe('serve assets middleware', () => {
     }
   });
 
-  it('serves an encoded asset path outside the project root', async () => {
+  it.each(['npm', 'yarn', 'pnpm'])('serves assets inside a %s workspace root', async (manager) => {
     const fixtureRoot = await createAssetFixture({ 'icon.svg': svg(10, 10) });
     const projectRoot = path.join(fixtureRoot, 'packages/app');
+    await fs.mkdir(projectRoot, { recursive: true });
+    if (manager === 'pnpm') {
+      await fs.writeFile(
+        path.join(fixtureRoot, 'pnpm-workspace.yaml'),
+        'packages:\n  - packages/*\n',
+      );
+    } else {
+      await fs.writeFile(
+        path.join(fixtureRoot, 'package.json'),
+        JSON.stringify({
+          workspaces: manager === 'yarn' ? { packages: ['packages/*'] } : ['packages/*'],
+        }),
+      );
+    }
     const asset = await resolveScaledAssets({
       projectRoot,
       assetPath: path.join(fixtureRoot, 'imgs/icon.svg'),
@@ -75,6 +89,52 @@ describe('serve assets middleware', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toBe(svg(10, 10));
+    } finally {
+      await app.close();
+    }
+  });
+
+  it.each(['absolute', 'traversal', 'file symlink', 'directory symlink'])(
+    'rejects outside assets requested through %s',
+    async (kind) => {
+      const fixtureRoot = await createAssetFixture({ 'icon.svg': svg(10, 10) });
+      const projectRoot = path.join(fixtureRoot, 'app');
+      await fs.mkdir(projectRoot);
+      const outside = path.join(fixtureRoot, 'imgs/icon.svg');
+      let requested = outside;
+      if (kind === 'traversal') {
+        requested = '../imgs/icon.svg';
+      } else if (kind === 'file symlink') {
+        await fs.symlink(outside, path.join(projectRoot, 'icon.svg'));
+        requested = 'icon.svg';
+      } else if (kind === 'directory symlink') {
+        await fs.symlink(path.dirname(outside), path.join(projectRoot, 'imgs'));
+        requested = 'imgs/icon.svg';
+      }
+      const app = Fastify();
+      try {
+        await app.register(serveAssets, {
+          context: { config: createTestConfig(projectRoot) } as unknown as DevServerContext,
+        });
+        const response = await app.inject(`/assets/${encodeURIComponent(requested)}?platform=ios`);
+        expect(response.statusCode).toBe(403);
+        expect(response.body).not.toContain('<svg');
+      } finally {
+        await app.close();
+      }
+    },
+  );
+
+  it('rejects non-assets even inside the project root', async () => {
+    const projectRoot = await createAssetFixture({ 'secret.env': 'TOKEN=private' });
+    const app = Fastify();
+    try {
+      await app.register(serveAssets, {
+        context: { config: createTestConfig(projectRoot) } as unknown as DevServerContext,
+      });
+      const response = await app.inject('/assets/imgs/secret.env?platform=ios');
+      expect(response.statusCode).toBe(403);
+      expect(response.body).not.toContain('private');
     } finally {
       await app.close();
     }
