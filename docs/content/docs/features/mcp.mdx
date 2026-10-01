@@ -2,15 +2,25 @@
 title: MCP Server
 ---
 
-The dev server exposes Rollipop diagnostics through Devframe's [MCP (Model Context Protocol)](https://modelcontextprotocol.io) adapter. The Streamable HTTP endpoint is available at `/__rollipop/__mcp` whenever the server is running.
+The dev server exposes Rollipop diagnostics through Devframe's [MCP (Model Context Protocol)](https://modelcontextprotocol.io) adapter. The Streamable HTTP endpoint is available at `/__rollipop/__mcp` when the optional `@devframes/agentic` peer dependency is installed.
 
 ## Setup
 
-Start the dev server:
+Install the optional MCP dependency in your project:
+
+```bash
+yarn add -D @devframes/agentic@1.0.0
+```
+
+Without this package, the dev server runs with MCP disabled and does not print an MCP warning or server URL. Dashboard and other dev-server features remain available.
+
+Start or restart the dev server after installing the package:
 
 ```bash
 rollipop start
 ```
+
+When MCP is enabled, the console prints `MCP server listening at ...` with the endpoint URL.
 
 Then add the MCP server to your project's `.mcp.json`:
 

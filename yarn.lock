@@ -14068,6 +14068,7 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^7.28.5"
     "@babel/runtime": "npm:^7.25.0"
+    "@devframes/agentic": "catalog:devframe"
     "@react-native-community/cli": "npm:20.1.0"
     "@react-native-community/cli-platform-android": "npm:20.1.0"
     "@react-native-community/cli-platform-ios": "npm:20.1.0"
@@ -22080,6 +22081,11 @@ __metadata:
     vite-plus: "catalog:vp"
     wrap-ansi: "npm:10.0.2"
     ws: "npm:8.21.3"
+  peerDependencies:
+    "@devframes/agentic": 1.0.0
+  peerDependenciesMeta:
+    "@devframes/agentic":
+      optional: true
   bin:
     rollipop: ./bin/index.js
   languageName: unknown

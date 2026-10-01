@@ -16,6 +16,7 @@ import type { DevEngine } from '../../core/types';
 import { EventBus } from '../../events/event-bus';
 import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
+import * as nodeResolve from '../../utils/node-resolve';
 import { type BundlerDevEngine, BundlerPool } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
 import type { DashboardSharedState } from '../devframe';
@@ -149,6 +150,41 @@ describe('createDevServer', () => {
       }
     },
   );
+
+  it('keeps MCP disabled without logging when the optional agentic package is missing', async () => {
+    const resolveFrom = nodeResolve.resolveFrom;
+    const resolve = vi.spyOn(nodeResolve, 'resolveFrom').mockImplementation((base, specifier) => {
+      if (specifier === '@devframes/agentic/package.json') {
+        throw new Error('Cannot find module @devframes/agentic/package.json');
+      }
+      return resolveFrom(base, specifier);
+    });
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let devServer: Awaited<ReturnType<typeof createDevServer>> | undefined;
+
+    try {
+      devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+      const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      const connection = await fetch(new URL('/__rollipop/__connection.json', address));
+      expect(connection.status).toBe(200);
+      const meta = await connection.json();
+      expect(meta).toMatchObject({
+        backend: 'sse',
+        sse: { path: '/__rollipop/__sse' },
+      });
+      expect(meta).not.toHaveProperty('mcp');
+      const mcp = await fetch(new URL('/__rollipop/__mcp', address), { method: 'POST' });
+      expect(mcp.status).toBe(404);
+      expect(info).not.toHaveBeenCalledWith(expect.stringContaining('MCP server listening'));
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      await devServer?.instance.close();
+      resolve.mockRestore();
+      info.mockRestore();
+      warn.mockRestore();
+    }
+  });
 
   it.each([
     { buildOptions: { cache: false }, expectedCache: false },

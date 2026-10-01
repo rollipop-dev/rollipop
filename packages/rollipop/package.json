@@ -60,7 +60,6 @@
     "@babel/code-frame": "8.0.6",
     "@babel/core": "8.0.6",
     "@commander-js/extra-typings": "15.0.0",
-    "@devframes/agentic": "catalog:devframe",
     "@devframes/hub": "catalog:devframe",
     "@devframes/hub-ui": "catalog:devframe",
     "@fastify/middie": "9.3.4",
@@ -101,11 +100,20 @@
     "ws": "8.21.3"
   },
   "devDependencies": {
+    "@devframes/agentic": "catalog:devframe",
     "@swc/plugin-remove-console": "15.0.0",
     "@types/react-refresh": "0.14.7",
     "react-refresh": "0.19.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:vp"
+  },
+  "peerDependencies": {
+    "@devframes/agentic": "1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@devframes/agentic": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22.12.0"

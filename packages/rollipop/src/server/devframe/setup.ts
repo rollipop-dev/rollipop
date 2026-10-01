@@ -1,8 +1,11 @@
+import path from 'node:path';
+
 import { createUi } from '@devframes/hub-ui';
 import { initHub } from '@devframes/hub/initiate';
 import type { DevframeHubContext } from '@devframes/hub/types';
 
 import type { Plugin, RollipopDevToolsNodeContext } from '../../core/plugins/types';
+import { resolveFrom } from '../../utils/node-resolve';
 import { getServerDisplayUrl } from '../../utils/server';
 import { logger } from '../logger';
 import type { DevServer, DevServerContext } from '../types';
@@ -15,6 +18,7 @@ const ROLLIPOP_DEVFRAME_SSE_ROUTE = '__sse';
 const ROLLIPOP_DEVFRAME_MCP_PATH = '__mcp';
 
 export async function setupDevframe(context: DevServerContext, server: DevServer) {
+  const mcpEnabled = isAgenticInstalled();
   const controller = new RollipopDevframeController(context, createAgentToolContext(context));
   const devtools = initHub({
     name: DEVFRAME_NAME,
@@ -38,7 +42,7 @@ export async function setupDevframe(context: DevServerContext, server: DevServer
     ws: false,
     auth: false,
     sse: { route: ROLLIPOP_DEVFRAME_SSE_ROUTE },
-    mcp: { path: ROLLIPOP_DEVFRAME_MCP_PATH },
+    mcp: mcpEnabled ? { path: ROLLIPOP_DEVFRAME_MCP_PATH } : false,
     origin: context.serverBaseUrl,
     configure: async (devtoolsContext) => {
       await controller.definition.setup(devtoolsContext);
@@ -48,11 +52,13 @@ export async function setupDevframe(context: DevServerContext, server: DevServer
   await devtools.ready;
 
   server.instance.addHook('onListen', () => {
-    const mcpUrl = getServerDisplayUrl(
-      server.instance.listeningOrigin,
-      ROLLIPOP_DEVFRAME_BASE + ROLLIPOP_DEVFRAME_MCP_PATH,
-    );
-    logger.info(`MCP server listening at ${mcpUrl}`);
+    if (mcpEnabled) {
+      const mcpUrl = getServerDisplayUrl(
+        server.instance.listeningOrigin,
+        ROLLIPOP_DEVFRAME_BASE + ROLLIPOP_DEVFRAME_MCP_PATH,
+      );
+      logger.info(`MCP server listening at ${mcpUrl}`);
+    }
     void controller.refresh();
   });
   server.instance.addHook('preClose', async () => {
@@ -61,6 +67,16 @@ export async function setupDevframe(context: DevServerContext, server: DevServer
   });
 
   return devtools.nodeMiddleware;
+}
+
+function isAgenticInstalled(): boolean {
+  try {
+    const devframeRoot = path.dirname(resolveFrom(import.meta.dirname, 'devframe/package.json'));
+    resolveFrom(devframeRoot, '@devframes/agentic/package.json');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function invokeDevToolsSetup(
