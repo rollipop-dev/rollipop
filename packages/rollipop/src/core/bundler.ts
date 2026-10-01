@@ -11,6 +11,7 @@ import { EventBus } from '../events/event-bus';
 import { FileStorage } from '../storage/file-storage';
 import { resolveBuildOptions, type ResolvedBuildOptions } from '../utils/build-options';
 import { createId } from '../utils/id';
+import { replaceSourceMappingUrl } from '../utils/source-map';
 import { resolveRolldownOptions } from './rolldown';
 import type { BuildType, BuildOptions, BundlerContext, DevEngine, DevEngineOptions } from './types';
 import { BundlerState } from './types';
@@ -115,6 +116,22 @@ export class Bundler {
         fs.mkdirSync(sourcemapDir, { recursive: true });
       }
       fs.renameSync(sourcemapFile, resolvedBuildOptions.sourcemapOutfile);
+      const sourcemapFileName = path
+        .relative(outputDir, resolvedBuildOptions.sourcemapOutfile)
+        .split(path.sep)
+        .join('/');
+      let code = chunk.code;
+      if (output.sourcemap !== 'hidden') {
+        const sourceMapUrl = sourcemapFileName.split('/').map(encodeURIComponent).join('/');
+        code = replaceSourceMappingUrl(
+          code,
+          output.sourcemapBaseUrl
+            ? new URL(sourceMapUrl, output.sourcemapBaseUrl).href
+            : sourceMapUrl,
+        );
+        fs.writeFileSync(resolvedBuildOptions.outfile, code);
+      }
+      return { ...chunk, code, sourcemapFileName };
     }
 
     return chunk;
