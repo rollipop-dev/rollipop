@@ -1,4 +1,20 @@
 
+## [1.0.0-alpha.33] - 2026-10-02
+
+### 🚀 Features
+
+- add react-native 0.87 support (#196) by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- fetch dashboard data on demand by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump concurrent-ruby from 1.3.3 to 1.3.7 in /examples/0.87 (#197) by @dependabot[bot]
+- set `npmAlwaysAuth` to `false` by @leegeunhyeok
+
+
 ## [1.0.0-alpha.32] - 2026-10-01
 
 ### 🐛 Bug Fixes
