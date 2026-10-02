@@ -5,7 +5,6 @@ import {
   DEFAULT_ANALYZE_FILE,
   DEFAULT_ANALYZE_REPORT_FILE,
   DEFAULT_ASSET_EXTENSIONS,
-  DEFAULT_ASSET_REGISTRY_PATH,
   DEFAULT_ENV_FILE,
   DEFAULT_ENV_PREFIX,
   DEFAULT_HMR_CLIENT_PATH,
@@ -16,7 +15,11 @@ import {
   DEFAULT_SOURCE_EXTENSIONS,
 } from '../constants';
 import { ClientLogReporter } from '../events/builtin-reporters';
-import { getInitializeCorePath, getPolyfillScriptPaths } from '../internal/react-native';
+import {
+  resolveAssetRegistryPath,
+  resolveInitializeCorePath,
+  resolvePolyfillScriptPaths,
+} from '../internal/react-native';
 import type { Reporter } from '../types';
 import { resolvePackagePath } from '../utils/node-resolve';
 import type { PluginFlattenConfig } from './merge-config';
@@ -53,9 +56,9 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
         },
       },
     } as NonNullable<Config['transform']>,
-    prelude: [getInitializeCorePath(projectRoot)] as string[],
+    prelude: [resolveInitializeCorePath(projectRoot)] as string[],
     polyfills: (await Promise.all(
-      getPolyfillScriptPaths(reactNativePath).map(async (path) => {
+      resolvePolyfillScriptPaths(projectRoot, reactNativePath).map(async (path) => {
         const code = fs.readFileSync(path, 'utf-8');
         const result = await stripFlowTypes(path, code);
 
@@ -69,7 +72,7 @@ export async function getDefaultConfig(projectRoot: string, mode?: Config['mode'
     treeshake: true as NonNullable<Config['treeshake']>,
     reactNative: {
       reactNativePath,
-      assetRegistryPath: DEFAULT_ASSET_REGISTRY_PATH as NonNullable<
+      assetRegistryPath: resolveAssetRegistryPath(projectRoot) as NonNullable<
         NonNullable<ReactNativeConfig>['assetRegistryPath']
       >,
       hmrClientPath: DEFAULT_HMR_CLIENT_PATH as NonNullable<
