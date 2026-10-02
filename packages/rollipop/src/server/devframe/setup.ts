@@ -56,12 +56,12 @@ export async function setupDevframe(
   });
   await devtools.ready;
 
-  const refreshDevices = () => {
-    void controller.refresh();
+  const notifyDevicesChanged = () => {
+    controller.notify({ type: 'devices_changed' });
   };
   const onDeviceConnection = (socket: WebSocket) => {
-    // Inspector targets can outlive the HMR socket, so refresh after their own connection closes.
-    socket.once('close', refreshDevices);
+    // Inspector targets can outlive the HMR socket, so notify after their own connection closes.
+    socket.once('close', notifyDevicesChanged);
   };
   inspectorDeviceServer?.on('connection', onDeviceConnection);
 
@@ -73,12 +73,11 @@ export async function setupDevframe(
       );
       logger.info(`MCP server listening at ${mcpUrl}`);
     }
-    void controller.refresh();
   });
   server.instance.addHook('preClose', async () => {
     inspectorDeviceServer?.off('connection', onDeviceConnection);
     for (const socket of inspectorDeviceServer?.clients ?? []) {
-      socket.off('close', refreshDevices);
+      socket.off('close', notifyDevicesChanged);
     }
     controller.dispose();
     await devtools.close();

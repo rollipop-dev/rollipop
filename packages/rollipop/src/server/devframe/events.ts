@@ -18,6 +18,7 @@ export type DevframeEvent =
   | { type: 'watch_change'; bundlerId: string; file: string }
   | { type: 'client_connected'; clientId: number }
   | { type: 'client_disconnected'; clientId: number }
+  | { type: 'devices_changed' }
   | { type: 'server_ready'; host: string; port: number }
   | { type: 'cache_reset' };
 

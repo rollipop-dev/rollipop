@@ -6,25 +6,13 @@ import { parseUrl } from '../../utils/url';
 import { symbolicate } from '../symbolicate';
 import type { DevServerContext } from '../types';
 import { registerAgentTools, type AgentToolContext } from './agent/tools';
-import {
-  getBuildSummary,
-  getBundlers,
-  getConfigInfo,
-  getDevice,
-  getFeatureFlags,
-  getProjectInfo,
-  getSnapshot,
-  type Snapshot,
-} from './data';
+import { getConfigInfo, getDevice, getFeatureFlags, getSnapshot, type Snapshot } from './data';
 import { toDevframeEvent, type DevframeEvent } from './events';
 
 export const ROLLIPOP_DEVFRAME_SCOPE = 'rollipop';
-export const DASHBOARD_SHARED_STATE_KEY = 'dashboard';
+export const DASHBOARD_EVENTS_STATE_KEY = 'events';
 
-export interface DashboardSharedState {
-  snapshot: Snapshot;
-  builds: ReturnType<DevServerContext['state']['getBuilds']>;
-  featureFlags: ReturnType<typeof getFeatureFlags>;
+export interface DashboardEventsState {
   lastEvent: {
     sequence: number;
     data: DevframeEvent;
@@ -33,10 +21,8 @@ export interface DashboardSharedState {
 
 export class RollipopDevframeController {
   private sequence = 0;
-  private lastEvent: DashboardSharedState['lastEvent'] = null;
-  private updateSharedState?: (state: DashboardSharedState) => void;
+  private updateEventState?: (event: NonNullable<DashboardEventsState['lastEvent']>) => void;
   private unsubscribeEventBus?: () => void;
-  private refreshQueue: Promise<DashboardSharedState>;
 
   readonly definition;
 
@@ -44,8 +30,6 @@ export class RollipopDevframeController {
     private readonly context: DevServerContext,
     agentToolContext: AgentToolContext,
   ) {
-    const initialState = createInitialDashboardState(context);
-    this.refreshQueue = Promise.resolve(initialState);
     this.definition = defineDevframe({
       id: 'rollipop',
       name: 'Rollipop',
@@ -59,17 +43,15 @@ export class RollipopDevframeController {
       },
       setup: async (devframeContext) => {
         const scope = devframeContext.scope(ROLLIPOP_DEVFRAME_SCOPE);
-        const sharedState = await scope.rpc.sharedState<DashboardSharedState>(
-          DASHBOARD_SHARED_STATE_KEY,
-          { initialValue: initialState },
+        const sharedState = await scope.rpc.sharedState<DashboardEventsState>(
+          DASHBOARD_EVENTS_STATE_KEY,
+          { initialValue: { lastEvent: null } },
         );
 
-        this.updateSharedState = (state) => {
+        this.updateEventState = (event) => {
+          // Publish notifications only; dashboard data is read by explicit RPC queries.
           sharedState.mutate((current) => {
-            current.snapshot = state.snapshot;
-            current.builds = state.builds;
-            current.featureFlags = state.featureFlags;
-            current.lastEvent = state.lastEvent;
+            current.lastEvent = event;
           });
         };
 
@@ -80,28 +62,18 @@ export class RollipopDevframeController {
           const data = toDevframeEvent(event);
           if (data == null) return;
 
-          this.lastEvent = { sequence: ++this.sequence, data };
-          void this.refresh();
+          this.notify(data);
         });
       },
     });
   }
 
-  async refresh(): Promise<DashboardSharedState> {
-    const lastEvent = this.lastEvent;
-    this.refreshQueue = this.refreshQueue
-      .catch(() => createInitialDashboardState(this.context))
-      .then(async () => {
-        const state = await this.readDashboardState(lastEvent);
-        this.updateSharedState?.(state);
-        return state;
-      });
-
-    return this.refreshQueue;
+  notify(data: DevframeEvent): void {
+    this.updateEventState?.({ sequence: ++this.sequence, data });
   }
 
-  async getSnapshot(): Promise<Snapshot> {
-    return (await this.refresh()).snapshot;
+  getSnapshot(): Promise<Snapshot> {
+    return getSnapshot(this.context);
   }
 
   getBuilds() {
@@ -119,13 +91,11 @@ export class RollipopDevframeController {
     return [];
   }
 
-  async deleteBuildLogs(bundlerId: string): Promise<void> {
+  deleteBuildLogs(bundlerId: string): void {
     const deleted = this.context.state.clearBuildLogs(bundlerId);
     if (!deleted && this.context.bundlerPool.getInstanceById(bundlerId) == null) {
       throw new Error(`Build logs not found: ${bundlerId}`);
     }
-
-    await this.refresh();
   }
 
   getConfig() {
@@ -174,39 +144,24 @@ export class RollipopDevframeController {
 
     setTimeout(() => this.context.message.broadcast('reload'), 0);
     await bundler.triggerFullBuild();
-    await this.refresh();
   }
 
-  async reload(): Promise<void> {
+  reload(): void {
     this.context.message.broadcast('reload');
-    await this.refresh();
   }
 
   async resetCache(): Promise<void> {
     await resetCache();
     this.context.eventBus.emit({ type: 'cache_reset' });
-    await this.refresh();
   }
 
-  async resetBundlerState(): Promise<void> {
+  resetBundlerState(): void {
     this.context.state.resetBufferedState();
-    await this.refresh();
   }
 
   dispose(): void {
     this.unsubscribeEventBus?.();
     this.unsubscribeEventBus = undefined;
-  }
-
-  private async readDashboardState(
-    lastEvent: DashboardSharedState['lastEvent'],
-  ): Promise<DashboardSharedState> {
-    return {
-      snapshot: await getSnapshot(this.context),
-      builds: this.context.state.getBuilds(),
-      featureFlags: getFeatureFlags(this.context),
-      lastEvent,
-    };
   }
 }
 
@@ -299,18 +254,4 @@ function registerDashboardRpcFunctions(
       handler: () => controller.resetBundlerState(),
     }),
   );
-}
-
-function createInitialDashboardState(context: DevServerContext): DashboardSharedState {
-  return {
-    snapshot: {
-      project: getProjectInfo(context),
-      bundlers: getBundlers(context),
-      devices: [],
-      buildSummary: getBuildSummary(context),
-    },
-    builds: context.state.getBuilds(),
-    featureFlags: getFeatureFlags(context),
-    lastEvent: null,
-  };
 }

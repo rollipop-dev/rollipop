@@ -19,7 +19,8 @@ import { createTestConfig } from '../../testing/config';
 import * as nodeResolve from '../../utils/node-resolve';
 import { type BundlerDevEngine, BundlerPool } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
-import type { DashboardSharedState } from '../devframe';
+import type { DashboardEventsState } from '../devframe';
+import type { Snapshot } from '../devframe/data';
 import { logger } from '../logger';
 
 vitest.mock('@react-native-community/cli-server-api', () => ({
@@ -49,6 +50,134 @@ vitest.mock('@react-native/dev-middleware', () => ({
 }));
 
 describe('createDevServer', () => {
+  it('discovers devices only on an explicit RPC request, not on startup or lifecycle notifications', async () => {
+    const actual = await vi.importActual<typeof import('@react-native/dev-middleware')>(
+      '@react-native/dev-middleware',
+    );
+    let inspectorServer: WebSocketServer | undefined;
+    vi.mocked(createDevMiddleware).mockImplementationOnce((options) => {
+      const result = actual.createDevMiddleware(options);
+      inspectorServer = result.websocketEndpoints['/inspector/device'];
+      return result;
+    });
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const originalFetch = globalThis.fetch;
+    let address: string | undefined;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = input instanceof Request ? new URL(input.url) : new URL(String(input));
+      return originalFetch(
+        url.pathname === '/json/list' && address != null ? new URL('/json/list', address) : input,
+        init,
+      );
+    });
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+    const devices: WebSocket[] = [];
+    let client: DevframeRpcClient | undefined;
+
+    try {
+      address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      const socket = new WebSocket(
+        `${address.replace('http:', 'ws:')}/inspector/device?device=device-1&name=iPhone&app=Example87`,
+      );
+      devices.push(socket);
+      await once(socket, 'open', { signal: AbortSignal.timeout(2_000) });
+      const hot = new WebSocket(`${address.replace('http:', 'ws:')}/hot`);
+      devices.push(hot);
+      await once(hot, 'open', { signal: AbortSignal.timeout(2_000) });
+
+      const discoveryCalls = () =>
+        fetchMock.mock.calls.filter(([input]) => {
+          const url = input instanceof Request ? new URL(input.url) : new URL(String(input));
+          return url.pathname === '/json/list';
+        });
+      expect(discoveryCalls()).toHaveLength(0);
+      expect(warn).not.toHaveBeenCalled();
+
+      client = await connectDashboardRpc(address);
+      await client.ensureTrusted();
+      const rpc = client.scope('rollipop').rpc;
+      const state = await rpc.sharedState<DashboardEventsState>('events');
+      devServer.eventBus.emit({ type: 'bundle_build_started', bundlerId: 'ios-dev' });
+      devServer.eventBus.emit({
+        type: 'bundle_build_done',
+        bundlerId: 'ios-dev',
+        totalModules: 1,
+        transformedModules: 1,
+        cacheHitModules: 0,
+        duration: 1,
+      });
+      devServer.eventBus.emit({ type: 'watch_change', bundlerId: 'ios-dev', id: '/index.js' });
+      await expect.poll(() => state.value().lastEvent?.data.type).toBe('watch_change');
+      expect(Object.keys(state.value())).toEqual(['lastEvent']);
+      await rpc.call('get-builds');
+      await rpc.call('reload');
+      expect(discoveryCalls()).toHaveLength(0);
+      expect(warn).not.toHaveBeenCalled();
+
+      const snapshot = (await rpc.call('get-snapshot')) as Snapshot;
+      expect(snapshot.devices).toEqual([]);
+      expect(discoveryCalls()).toHaveLength(1);
+      // Explicit discovery keeps RN's normal warning behavior; nothing is filtered.
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      const page = {
+        id: '1',
+        title: 'Example87',
+        app: 'Example87',
+        capabilities: { nativePageReloads: true },
+      };
+
+      const received = once([...inspectorServer!.clients][0]!, 'message');
+      socket.send(JSON.stringify({ event: 'getPages', payload: [page] }));
+      await received;
+      await expect(rpc.call('get-device', 'device-1-1')).resolves.toEqual(
+        expect.objectContaining({ id: 'device-1-1' }),
+      );
+      expect(discoveryCalls()).toHaveLength(2);
+
+      const closed = once(socket, 'close', { signal: AbortSignal.timeout(2_000) });
+      socket.close();
+      await closed;
+      devServer.eventBus.emit({ type: 'cache_reset' });
+      expect(discoveryCalls()).toHaveLength(2);
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      for (const socket of devices) socket.terminate();
+      client?.close?.();
+      await devServer.instance.close();
+      fetchMock.mockRestore();
+      warn.mockRestore();
+    }
+  }, 10_000);
+
+  it('preserves and formats React Native middleware logs', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const error = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
+
+    try {
+      const middlewareLogger = vi.mocked(createDevMiddleware).mock.lastCall![0].logger!;
+      middlewareLogger.info("Connection established to DevTools for app='%s'.", 'Example87');
+      middlewareLogger.warn("Ignoring DevTools app debug target for '%s'.", 'Example87');
+      middlewareLogger.error(
+        "[timeout] connection terminated with DevTools for app='%s'.",
+        'Example87',
+      );
+
+      expect(info).toHaveBeenCalledWith("Connection established to DevTools for app='Example87'.");
+      expect(warn).toHaveBeenCalledWith("Ignoring DevTools app debug target for 'Example87'.");
+      expect(error).toHaveBeenCalledWith(
+        "[timeout] connection terminated with DevTools for app='Example87'.",
+      );
+    } finally {
+      await devServer.instance.close();
+      info.mockRestore();
+      warn.mockRestore();
+      error.mockRestore();
+    }
+  });
+
   it('closes active WebSocket connections before shutting down the HTTP server', async () => {
     const inspectorServer = new WebSocketServer({ noServer: true });
     vi.mocked(createDevMiddleware).mockReturnValueOnce({
@@ -377,7 +506,7 @@ describe('createDevServer', () => {
     }
   }, 10_000);
 
-  it('preserves each lifecycle event while dashboard refreshes are queued', async () => {
+  it('preserves each lifecycle notification without precomputing dashboard snapshots', async () => {
     const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
     let client: DevframeRpcClient | undefined;
     let unsubscribe: (() => void) | undefined;
@@ -386,10 +515,8 @@ describe('createDevServer', () => {
       const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
       client = await connectDashboardRpc(address);
       await client.ensureTrusted();
-      const state = await client
-        .scope('rollipop')
-        .rpc.sharedState<DashboardSharedState>('dashboard');
-      const events: NonNullable<DashboardSharedState['lastEvent']>[] = [];
+      const state = await client.scope('rollipop').rpc.sharedState<DashboardEventsState>('events');
+      const events: NonNullable<DashboardEventsState['lastEvent']>[] = [];
       unsubscribe = state.on('updated', (value) => {
         if (value.lastEvent != null) events.push(value.lastEvent);
       });
@@ -761,14 +888,21 @@ describe('createDevServer', () => {
       const devServer = await createDevServer(createTestConfig('/root/project'), { port: 0 });
       const devices: WebSocket[] = [];
       let client: DevframeRpcClient | undefined;
+      let unsubscribe: (() => void) | undefined;
 
       try {
         const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
         client = await connectDashboardRpc(address);
         await client.ensureTrusted();
-        const state = await client
-          .scope('rollipop')
-          .rpc.sharedState<DashboardSharedState>('dashboard');
+        const rpc = client.scope('rollipop').rpc;
+        const state = await rpc.sharedState<DashboardEventsState>('events');
+        let dashboardDevices: Snapshot['devices'] = [];
+        unsubscribe = state.on('updated', (value) => {
+          if (value.lastEvent?.data.type !== 'devices_changed') return;
+          void rpc.call('get-snapshot').then((snapshot: Snapshot) => {
+            dashboardDevices = snapshot.devices;
+          });
+        });
 
         for (const id of ['device-1', 'device-2']) {
           const socket = new WebSocket(
@@ -777,23 +911,20 @@ describe('createDevServer', () => {
           devices.push(socket);
           await once(socket, 'open', { signal: AbortSignal.timeout(2_000) });
         }
-        await client.scope('rollipop').rpc.call('get-snapshot');
-        await expect
-          .poll(() => state.value().snapshot.devices.map(({ id }) => id))
-          .toEqual(['device-1', 'device-2']);
+        dashboardDevices = ((await rpc.call('get-snapshot')) as Snapshot).devices;
+        expect(dashboardDevices.map(({ id }) => id)).toEqual(['device-1', 'device-2']);
         expect(devServer.hot.clients.size).toBe(0);
 
         devices[0]![disconnect]();
 
-        // Observe pushed shared state only; no manual snapshot request or HMR event.
-        await expect
-          .poll(() => state.value().snapshot.devices.map(({ id }) => id))
-          .toEqual(['device-2']);
+        // A mounted dashboard fetches in response to notifications, without an HMR event.
+        await expect.poll(() => dashboardDevices.map(({ id }) => id)).toEqual(['device-2']);
 
         // A server-side termination (for example, an Inspector heartbeat timeout) also refreshes.
         for (const socket of inspectorServer.clients) socket.terminate();
-        await expect.poll(() => state.value().snapshot.devices).toEqual([]);
+        await expect.poll(() => dashboardDevices).toEqual([]);
       } finally {
+        unsubscribe?.();
         for (const socket of devices) socket.terminate();
         client?.close?.();
         await devServer.instance.close();

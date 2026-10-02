@@ -30,7 +30,7 @@ import {
   resetBundlerState as requestResetBundlerState,
   resetCache as requestResetCache,
   triggerBundlerFullBuild as requestTriggerBundlerFullBuild,
-  type DashboardSharedState,
+  type DashboardEvent,
 } from './lib/api';
 import { queryKeys } from './lib/query';
 import { getSystemTheme, readStoredTheme, THEME_STORAGE_KEY, writeStoredTheme } from './lib/theme';
@@ -300,22 +300,22 @@ export function App() {
     },
     [scheduleDashboardDataRefresh, syncCompletedBuild],
   );
-  const handleDashboardState = useCallback(
-    (state: DashboardSharedState) => {
-      queryClient.setQueryData(queryKeys.snapshot, state.snapshot);
-      queryClient.setQueryData(queryKeys.builds, state.builds);
-      queryClient.setQueryData(queryKeys.featureFlags, state.featureFlags);
-      clearDashboardRpcError();
-      setDevServerConnected(true);
+  const handleDataEvent = useCallback(
+    (event: DashboardEvent) => {
+      void scheduleDashboardDataRefresh({ buildLogsBundlerId: event.bundlerId });
     },
-    [clearDashboardRpcError, queryClient],
+    [scheduleDashboardDataRefresh],
   );
-  const handleConnectionChange = useCallback((connected: boolean) => {
-    setDevServerConnected(connected);
-  }, []);
+  const handleConnectionChange = useCallback(
+    (connected: boolean) => {
+      setDevServerConnected(connected);
+      if (connected) void scheduleDashboardDataRefresh();
+    },
+    [scheduleDashboardDataRefresh],
+  );
 
   useDashboardEvents({
-    onState: handleDashboardState,
+    onDataEvent: handleDataEvent,
     onBuildEvent: handleBuildEvent,
     onConnectionChange: handleConnectionChange,
   });

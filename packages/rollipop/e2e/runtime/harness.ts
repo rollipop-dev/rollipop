@@ -7,7 +7,7 @@ import WebSocket from 'ws';
 
 import { loadConfig } from '../../src/config';
 import type { ResolvedConfig } from '../../src/config/defaults';
-import type { DashboardSharedState } from '../../src/server/devframe';
+import type { DashboardEventsState } from '../../src/server/devframe';
 import type { DevframeEvent } from '../../src/server/devframe/events';
 import type { DevServer } from '../../src/server/types';
 import type { HMRClientLogLevel, HMRClientMessage, HMRServerMessage } from '../../src/types/hmr';
@@ -146,7 +146,7 @@ export async function subscribeDevframeEvents(baseUrl: string): Promise<Devframe
   const events: DevframeEvent[] = [];
   const listeners = new Set<(event: DevframeEvent) => void>();
   await client.ensureTrusted();
-  const state = await client.scope('rollipop').rpc.sharedState<DashboardSharedState>('dashboard');
+  const state = await client.scope('rollipop').rpc.sharedState<DashboardEventsState>('events');
   let lastSequence = state.value().lastEvent?.sequence ?? 0;
   const unsubscribe = state.on('updated', (value) => {
     const next = value.lastEvent;

@@ -1,10 +1,6 @@
 import { useEffect } from 'react';
 
-import {
-  subscribeDashboardSharedState,
-  type DashboardEvent,
-  type DashboardSharedState,
-} from './api';
+import { subscribeDashboardEvents, type DashboardEvent } from './api';
 
 const BUILD_EVENT_TYPES = [
   'bundle_build_started',
@@ -17,15 +13,16 @@ const SNAPSHOT_EVENT_TYPES = [
   'server_ready',
   'client_connected',
   'client_disconnected',
+  'devices_changed',
+  'watch_change',
+  'hmr_failed',
 ] as const;
 
 export function useDashboardEvents({
-  onState,
   onBuildEvent,
   onDataEvent,
   onConnectionChange,
 }: {
-  onState?: (state: DashboardSharedState) => void;
   onBuildEvent?: (event: DashboardEvent) => void;
   onDataEvent?: (event: DashboardEvent) => void;
   onConnectionChange?: (connected: boolean) => void;
@@ -37,34 +34,23 @@ export function useDashboardEvents({
 
     let disposed = false;
     let unsubscribe: (() => void) | undefined;
-    let lastSequence: number | undefined;
 
-    void subscribeDashboardSharedState({
+    void subscribeDashboardEvents({
       onConnectionStatus(status) {
+        if (disposed) return;
         if (status === 'connected') {
           onConnectionChange?.(true);
         } else if (status !== 'connecting') {
           onConnectionChange?.(false);
         }
       },
-      onState(state) {
+      onEvent(event) {
         if (disposed) return;
-
-        onState?.(state);
-
-        const event = state.lastEvent;
-        if (lastSequence == null) {
-          lastSequence = event?.sequence ?? 0;
-          return;
+        if (isEventType(event.type, BUILD_EVENT_TYPES)) {
+          onBuildEvent?.(event);
         }
-        if (event == null || event.sequence <= lastSequence) return;
-
-        lastSequence = event.sequence;
-        if (isEventType(event.data.type, BUILD_EVENT_TYPES)) {
-          onBuildEvent?.(event.data);
-        }
-        if (isEventType(event.data.type, SNAPSHOT_EVENT_TYPES)) {
-          onDataEvent?.(event.data);
+        if (isEventType(event.type, SNAPSHOT_EVENT_TYPES)) {
+          onDataEvent?.(event);
         }
       },
     })
@@ -76,14 +62,14 @@ export function useDashboardEvents({
         }
       })
       .catch(() => {
-        onConnectionChange?.(false);
+        if (!disposed) onConnectionChange?.(false);
       });
 
     return () => {
       disposed = true;
       unsubscribe?.();
     };
-  }, [onBuildEvent, onConnectionChange, onDataEvent, onState]);
+  }, [onBuildEvent, onConnectionChange, onDataEvent]);
 }
 
 function isEventType(type: string, eventTypes: readonly string[]): boolean {

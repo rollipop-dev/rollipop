@@ -15,10 +15,7 @@ export const SERVER_BASE_URL = normalizeServerBaseUrl(
 );
 export const ROLLIPOP_DEVFRAME_BASE = '/__rollipop/';
 
-export interface DashboardSharedState {
-  snapshot: DashboardSnapshot;
-  builds: Build[];
-  featureFlags: FeatureFlags;
+export interface DashboardEventsState {
   lastEvent: {
     sequence: number;
     data: DashboardEvent;
@@ -95,11 +92,11 @@ export async function resetCache(): Promise<void> {
 export async function resetBundlerState(): Promise<void> {
   await dashboardRpc('reset-bundler-state');
 }
-export async function subscribeDashboardSharedState({
-  onState,
+export async function subscribeDashboardEvents({
+  onEvent,
   onConnectionStatus,
 }: {
-  onState: (state: DashboardSharedState) => void;
+  onEvent: (event: DashboardEvent) => void;
   onConnectionStatus?: (status: DevframeConnectionStatus) => void;
 }): Promise<() => void> {
   const client = await getDevframeClient();
@@ -108,13 +105,16 @@ export async function subscribeDashboardSharedState({
   const unsubscribeStatus = client.events.on('connection:status', (status) => {
     onConnectionStatus?.(status);
   });
-  const state = await scope.rpc.sharedState<DashboardSharedState>('dashboard');
+  const state = await scope.rpc.sharedState<DashboardEventsState>('events');
+  let lastSequence = state.value().lastEvent?.sequence ?? 0;
   const unsubscribeState = state.on('updated', (value) => {
-    onState(value);
+    const event = value.lastEvent;
+    if (event == null || event.sequence <= lastSequence) return;
+    lastSequence = event.sequence;
+    onEvent(event.data);
   });
 
   onConnectionStatus?.(client.status);
-  onState(state.value() as DashboardSharedState);
 
   return () => {
     unsubscribeState();

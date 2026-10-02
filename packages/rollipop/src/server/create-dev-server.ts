@@ -1,4 +1,5 @@
 import url from 'node:url';
+import { format } from 'node:util';
 
 import { createDevServerMiddleware } from '@react-native-community/cli-server-api';
 import { createDevMiddleware } from '@react-native/dev-middleware';
@@ -79,10 +80,14 @@ export async function createDevServer(
         if (args[0].includes('JavaScript logs have moved')) {
           return;
         }
-        logger.info(...args);
+        logger.info(format(...args));
       },
-      warn: logger.warn.bind(logger),
-      error: logger.error.bind(logger),
+      warn(...args) {
+        logger.warn(format(...args));
+      },
+      error(...args) {
+        logger.error(format(...args));
+      },
     },
     unstable_experiments: {
       enableNetworkInspector: true,
