@@ -7,8 +7,9 @@ import type { NormalizedConfig } from '../types';
 import { dedent } from './_dedent';
 
 export function generateHostInitCode(config: NormalizedConfig) {
-  const remotesArray = Object.values(config.remotes).map((remote) => ({
+  const remotesArray = Object.entries(config.remotes).map(([alias, remote]) => ({
     name: remote.name,
+    alias: alias === remote.name ? undefined : alias,
     entry: remote.entry,
     type: remote.type,
     entryGlobalName: remote.entryGlobalName,
