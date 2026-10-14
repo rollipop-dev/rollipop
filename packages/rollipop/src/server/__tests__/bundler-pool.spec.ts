@@ -42,11 +42,6 @@ vitest.mock('../logger', () => ({
   },
 }));
 
-function resetPool() {
-  // Clear static instances for test isolation
-  (BundlerPool as any).instances.clear();
-}
-
 function createMockDevEngine(boundConfig: any, run = vi.fn().mockResolvedValue(undefined)) {
   const eventBus = new EventBus();
   eventBus.subscribe((event) => boundConfig.reporter.update(event));
@@ -80,7 +75,6 @@ describe('BundlerPool', () => {
   });
 
   it('propagates initialization failures to bundle requests and rebuilds', async () => {
-    resetPool();
     const error = new Error('Asset registry could not be resolved');
     vi.mocked(Bundler).devEngine.mockRejectedValueOnce(error);
     const eventBus = new EventBus();
@@ -107,7 +101,6 @@ describe('BundlerPool', () => {
   it.each([false, true])(
     'closes a failed engine and preserves the startup error (close fails: %s)',
     async (closeFails) => {
-      resetPool();
       const error = new Error('Watcher startup failed');
       const engine = createMockDevEngine(config, vi.fn().mockRejectedValue(error));
       if (closeFails) {
@@ -125,7 +118,6 @@ describe('BundlerPool', () => {
   it.each([false, true])(
     'preserves cleanup and the startup error when a failure listener throws (close fails: %s)',
     async (closeFails) => {
-      resetPool();
       const error = new Error('Watcher startup failed');
       const engine = createMockDevEngine(config, vi.fn().mockRejectedValue(error));
       if (closeFails) {
@@ -150,7 +142,6 @@ describe('BundlerPool', () => {
   );
 
   it('should return a new instance for a new bundle', () => {
-    resetPool();
     const pool = createPool();
     const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
 
@@ -171,7 +162,6 @@ describe('BundlerPool', () => {
   });
 
   it('does not clear stored HMR updates when a dev engine is created', async () => {
-    resetPool();
     const pool = createPool();
     const hotPath = path.join(projectRoot, '.rollipop', 'hot', 'ios-true');
     fs.mkdirSync(hotPath, { recursive: true });
@@ -184,7 +174,6 @@ describe('BundlerPool', () => {
   });
 
   it('should initialize once for identical bundle + build options', async () => {
-    resetPool();
     const engine = createMockDevEngine(config);
     vi.mocked(Bundler).devEngine.mockResolvedValueOnce(engine);
     const pool = createPool();
@@ -196,8 +185,102 @@ describe('BundlerPool', () => {
     expect(engine.run).toHaveBeenCalledOnce();
   });
 
+  it('keeps bundlers and their server settings isolated between pools', async () => {
+    const firstPool = createPool();
+    const first = firstPool.get('index.bundle', { platform: 'ios', dev: true });
+    await first.ensureInitialized;
+    const secondPool = new BundlerPool(config, { ...serverOptions, port: 8082 }, new EventBus());
+
+    expect(secondPool.getInstances()).toEqual([]);
+    expect(secondPool.getInstanceById(first.id)).toBeUndefined();
+
+    const second = secondPool.get('index.bundle', { platform: 'ios', dev: true });
+    await second.ensureInitialized;
+
+    expect(second).not.toBe(first);
+    expect(firstPool.getInstances()).toEqual([first]);
+    expect(secondPool.getInstances()).toEqual([second]);
+    expect(vi.mocked(Bundler).devEngine).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ host: 'localhost', port: 8082 }),
+    );
+    await Promise.all([firstPool.close(), secondPool.close()]);
+  });
+
+  it.each(['creation', 'run'])(
+    'waits for engine %s before closing and rejects new requests during shutdown',
+    async (phase) => {
+      const initialization = Promise.withResolvers<void>();
+      const engine = createMockDevEngine(
+        config,
+        vi.fn(async () => {
+          if (phase === 'run') await initialization.promise;
+        }),
+      );
+      vi.mocked(Bundler).devEngine.mockImplementationOnce(async () => {
+        if (phase === 'creation') await initialization.promise;
+        return engine;
+      });
+      const pool = createPool();
+      const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
+
+      const closing = pool.close();
+      expect(pool.close()).toBe(closing);
+      expect(pool.getInstances()).toEqual([]);
+      expect(pool.getInstanceById(instance.id)).toBeUndefined();
+      expect(() => pool.get('index.bundle', { platform: 'ios', dev: true })).toThrow(
+        'Bundler pool is closed',
+      );
+      expect(engine.close).not.toHaveBeenCalled();
+
+      initialization.resolve();
+      await closing;
+      await pool.close();
+      expect(engine.close).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('does not close failed initialization twice or reject shutdown with the build error', async () => {
+    const engine = createMockDevEngine(
+      config,
+      vi.fn().mockRejectedValue(new Error('Build failed')),
+    );
+    vi.mocked(Bundler).devEngine.mockResolvedValueOnce(engine);
+    const pool = createPool();
+    pool.get('index.bundle', { platform: 'ios', dev: true });
+
+    await expect(pool.close()).resolves.toBeUndefined();
+    expect(engine.close).toHaveBeenCalledOnce();
+  });
+
+  it('waits for every engine to close even when one fails', async () => {
+    const cleanup = Promise.withResolvers<void>();
+    const failed = createMockDevEngine(config);
+    const pending = createMockDevEngine(config);
+    failed.close.mockRejectedValue(new Error('Cleanup failed'));
+    pending.close.mockReturnValue(cleanup.promise);
+    vi.mocked(Bundler).devEngine.mockResolvedValueOnce(failed).mockResolvedValueOnce(pending);
+    const pool = createPool();
+    pool.get('index.bundle', { platform: 'ios', dev: true });
+    pool.get('index.bundle', { platform: 'android', dev: true });
+
+    const closing = pool.close();
+    let settled = false;
+    const result = closing.catch((error: unknown) => {
+      settled = true;
+      return error;
+    });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(failed.close).toHaveBeenCalledOnce();
+    expect(pending.close).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+
+    cleanup.resolve();
+    await expect(result).resolves.toBeInstanceOf(AggregateError);
+  });
+
   it('should return different instances for different platforms', () => {
-    resetPool();
     const pool = createPool();
     const ios = pool.get('index.bundle', { platform: 'ios', dev: true });
     const android = pool.get('index.bundle', { platform: 'android', dev: true });
@@ -213,7 +296,6 @@ describe('BundlerPool', () => {
   });
 
   it('should return different instances for different dev modes', () => {
-    resetPool();
     const pool = createPool();
     const dev = pool.get('index.bundle', { platform: 'ios', dev: true });
     const prod = pool.get('index.bundle', { platform: 'ios', dev: false });
@@ -222,7 +304,6 @@ describe('BundlerPool', () => {
   });
 
   it('should strip leading slash and .bundle suffix from bundle names', () => {
-    resetPool();
     const pool = createPool();
     const instance1 = pool.get('/index.bundle', { platform: 'ios', dev: true });
     const instance2 = pool.get('index', { platform: 'ios', dev: true });
@@ -231,7 +312,6 @@ describe('BundlerPool', () => {
   });
 
   it('reports the initial build error when no source map is available', async () => {
-    resetPool();
     const error = new Error('Could not resolve entry');
     vi.mocked(Bundler).devEngine.mockImplementationOnce(
       async (boundConfig, _buildOptions, options) =>
@@ -248,7 +328,6 @@ describe('BundlerPool', () => {
   });
 
   it('keeps the source map of the last bundle until a bundle request rebuilds stale output', async () => {
-    resetPool();
     const sourceMap = '{"version":3,"sources":["index.ts"],"mappings":"AAAA"}';
     const updatedSourceMap = '{"version":3,"sources":["index.ts"],"mappings":";AAAA"}';
     const engine = createMockDevEngine(config);
@@ -280,7 +359,6 @@ describe('BundlerPool', () => {
   });
 
   it('emits bundle file path after writing build output', async () => {
-    resetPool();
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-bundler-pool-'));
     const eventBus = new EventBus();
     const events: unknown[] = [];
@@ -345,7 +423,6 @@ describe('BundlerPool', () => {
   });
 
   it('passes the dev-server source map URL to the dev engine', async () => {
-    resetPool();
     const pool = createPool();
     const instance = pool.get('index.bundle', { platform: 'ios', dev: true });
 
@@ -362,7 +439,6 @@ describe('BundlerPool', () => {
   });
 
   it('rewrites the last sourceMappingURL to the stored map URL before emitting HMR updates', async () => {
-    resetPool();
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-hmr-update-'));
     const eventBus = new EventBus();
     const events: unknown[] = [];
@@ -431,7 +507,6 @@ describe('BundlerPool', () => {
   });
 
   it('emits hmr_failed without build lifecycle events for failed HMR updates', async () => {
-    resetPool();
     const eventBus = new EventBus();
     const events: unknown[] = [];
     eventBus.subscribe((event) => {

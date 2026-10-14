@@ -278,10 +278,19 @@ export class BundlerDevEngine {
     await this.ensureInitialized;
     this.devEngine.triggerFullBuild();
   }
+
+  async close() {
+    // Failed initialization already closes its engine before rejecting.
+    await this.initializeTask.catch(() => {});
+    const devEngine = this._devEngine;
+    this._devEngine = null;
+    await devEngine?.close();
+  }
 }
 
 export class BundlerPool {
-  private static readonly instances: Map<string, BundlerDevEngine> = new Map();
+  private readonly instances: Map<string, BundlerDevEngine> = new Map();
+  private closeTask: Promise<void> | undefined;
   readonly hotUpdateStore: HotUpdateStore;
 
   constructor(
@@ -295,6 +304,7 @@ export class BundlerPool {
   }
 
   get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev'>) {
+    invariant(this.closeTask == null, 'Bundler pool is closed');
     const baseBundleName = getBaseBundleName(bundleName);
     const resolvedBuildOptions = resolveBuildOptions(this.config, {
       ...this.resolvedServerOptions.buildOptions,
@@ -302,7 +312,7 @@ export class BundlerPool {
     });
     const bundlerId = Bundler.createId(this.config, resolvedBuildOptions);
     const key = `${baseBundleName}-${bundlerId}`;
-    const instance = BundlerPool.instances.get(key);
+    const instance = this.instances.get(key);
 
     if (instance) {
       return instance;
@@ -319,7 +329,7 @@ export class BundlerPool {
         this.hotUpdateStore,
       );
       logger.debug('Setting new bundler instance', { key });
-      BundlerPool.instances.set(key, instance);
+      this.instances.set(key, instance);
 
       return instance;
     }
@@ -329,7 +339,7 @@ export class BundlerPool {
    * Look up a cached bundler by the id carried as `bundlerId` in events such as `bundle_build_done`. Returns `undefined` when no instance with that id has been created yet.
    */
   getInstanceById(id: string): BundlerDevEngine | undefined {
-    for (const instance of BundlerPool.instances.values()) {
+    for (const instance of this.instances.values()) {
       if (instance.id === id && instance.projectRoot === this.config.root) {
         return instance;
       }
@@ -338,6 +348,21 @@ export class BundlerPool {
   }
 
   getInstances(): BundlerDevEngine[] {
-    return Array.from(BundlerPool.instances.values());
+    return Array.from(this.instances.values());
+  }
+
+  close(): Promise<void> {
+    this.closeTask ??= (async () => {
+      const instances = this.getInstances();
+      this.instances.clear();
+      const results = await Promise.allSettled(instances.map((instance) => instance.close()));
+      const errors = results.flatMap((result) =>
+        result.status === 'rejected' ? [result.reason] : [],
+      );
+      if (errors.length > 0) {
+        throw new AggregateError(errors, 'Failed to close bundler engines');
+      }
+    })();
+    return this.closeTask;
   }
 }

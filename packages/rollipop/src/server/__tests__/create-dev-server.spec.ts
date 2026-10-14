@@ -17,7 +17,7 @@ import { EventBus } from '../../events/event-bus';
 import { FileStorage } from '../../storage/file-storage';
 import { createTestConfig } from '../../testing/config';
 import * as nodeResolve from '../../utils/node-resolve';
-import { type BundlerDevEngine, BundlerPool } from '../bundler-pool';
+import type { BundlerDevEngine } from '../bundler-pool';
 import { createDevServer } from '../create-dev-server';
 import type { DashboardEventsState } from '../devframe';
 import type { Snapshot } from '../devframe/data';
@@ -326,6 +326,7 @@ describe('createDevServer', () => {
       const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'rollipop-server-cache-'));
       const devEngine = vi.spyOn(Bundler, 'devEngine').mockResolvedValue({
         run: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn().mockResolvedValue(undefined),
         getContext: () => ({ eventBus: new EventBus() }),
       } as unknown as DevEngine);
       const devServer = await createDevServer(createTestConfig(projectRoot), {
@@ -345,7 +346,6 @@ describe('createDevServer', () => {
         );
       } finally {
         devEngine.mockRestore();
-        (BundlerPool as any).instances.clear();
         await devServer.instance.close();
         await fs.rm(projectRoot, { recursive: true, force: true });
       }
@@ -360,6 +360,30 @@ describe('createDevServer', () => {
     expect(devServer.instance.use).toBeDefined();
     expect(devServer.middlewares.use).toBeDefined();
     await devServer.instance.close();
+  });
+
+  it('closes owned bundler engines when the server shuts down', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'rollipop-server-close-'));
+    const close = vi.fn().mockResolvedValue(undefined);
+    const devEngine = vi.spyOn(Bundler, 'devEngine').mockResolvedValue({
+      run: vi.fn().mockResolvedValue(undefined),
+      close,
+      getContext: () => ({ eventBus: new EventBus() }),
+    } as unknown as DevEngine);
+    const devServer = await createDevServer(createTestConfig(projectRoot), { port: 0 });
+
+    try {
+      const bundler = devServer.bundlerPool.get('index.bundle', { platform: 'ios', dev: true });
+      await bundler.ensureInitialized;
+      await devServer.instance.close();
+
+      expect(close).toHaveBeenCalledOnce();
+      expect(devServer.bundlerPool.getInstances()).toEqual([]);
+    } finally {
+      await devServer.instance.close();
+      devEngine.mockRestore();
+      await fs.rm(projectRoot, { recursive: true, force: true });
+    }
   });
 
   it('should serve dashboard static files without redirecting root to dashboard', async () => {

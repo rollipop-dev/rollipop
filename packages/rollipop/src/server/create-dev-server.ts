@@ -181,6 +181,7 @@ export async function createDevServer(
       ),
     );
   });
+  fastify.addHook('onClose', () => bundlerPool.close());
 
   await invokePostConfigureServer();
 
