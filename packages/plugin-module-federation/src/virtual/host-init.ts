@@ -59,6 +59,7 @@ export function generateHostInitCode(config: NormalizedConfig) {
       const cache = {
         modules: Object.create(null),
         pending: Object.create(null),
+        errors: Object.create(null),
         load(id) {
           if (this.modules[id] !== undefined) {
             return Promise.resolve(this.modules[id]);
@@ -66,12 +67,20 @@ export function generateHostInitCode(config: NormalizedConfig) {
           if (this.pending[id]) {
             return this.pending[id];
           }
+          delete this.errors[id];
           const fetcher = instance.loadRemote(id);
-          this.pending[id] = fetcher.then((mod) => {
-            this.modules[id] = mod;
-            delete this.pending[id];
-            return mod;
-          });
+          this.pending[id] = fetcher.then(
+            (mod) => {
+              this.modules[id] = mod;
+              delete this.pending[id];
+              return mod;
+            },
+            (error) => {
+              this.errors[id] = error;
+              delete this.pending[id];
+              throw error;
+            },
+          );
           return this.pending[id];
         },
       };

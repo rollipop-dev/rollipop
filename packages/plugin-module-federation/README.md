@@ -69,6 +69,19 @@ const RemoteNavigator = React.lazy(() =>
 
 The plugin rewrites the `import()` call into a `loadRemote` invocation against the federation runtime — no native `import()` evaluation happens at runtime.
 
+Failed remote loads are thrown to the nearest React Error Boundary. From its retry action,
+reload the remote before resetting the boundary:
+
+```ts
+import { retryRemote } from '@rollipop/plugin-module-federation/runtime';
+
+await retryRemote('remote_app/RemoteNavigator');
+resetErrorBoundary();
+```
+
+Concurrent loads share one request. If a retry fails, the promise rejects and the boundary
+can keep showing its fallback until the user retries again.
+
 ## Remote
 
 ```ts

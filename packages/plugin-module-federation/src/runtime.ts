@@ -10,4 +10,15 @@ export interface RemoteEntryExports {
 declare global {
   // eslint-disable-next-line no-var
   var __rollipop_script_loader__: ModuleFederationScriptLoader | undefined;
+  // eslint-disable-next-line no-var
+  var __rollipop_module_federation_cache__: { load(id: string): Promise<unknown> } | undefined;
+}
+
+/** Retry a failed remote load before resetting the component's Error Boundary. */
+export async function retryRemote(id: string): Promise<unknown> {
+  const cache = globalThis.__rollipop_module_federation_cache__;
+  if (cache == null) {
+    throw new Error('[rollipop:module-federation] The host runtime is not initialized.');
+  }
+  return cache.load(id);
 }

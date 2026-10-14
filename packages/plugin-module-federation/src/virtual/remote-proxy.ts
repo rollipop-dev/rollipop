@@ -21,6 +21,9 @@ export function generateRemoteProxyCode({ remoteId }: RemoteProxyOptions) {
       if (__cache.modules[__id] !== undefined) {
         return __cache.modules[__id];
       }
+      if (__id in __cache.errors) {
+        throw __cache.errors[__id];
+      }
       throw __cache.load(__id);
     }
 
