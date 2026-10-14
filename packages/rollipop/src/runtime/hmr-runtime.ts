@@ -299,9 +299,6 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
     this.lastSeq = seq;
 
     const update = this.computeHmrUpdate(changedIds);
-    if (update.type === 'noop') {
-      return;
-    }
     if (update.type === 'full-reload') {
       this.reload(update.reason);
       return;
@@ -311,7 +308,9 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
     this.socketHolder.send(
       JSON.stringify({ type: 'hmr:payload-delivered', filename } satisfies HMRClientMessage),
     );
-    this.applyUpdate(update);
+    if (update.type === 'boundaries') {
+      this.applyUpdate(update);
+    }
   }
 
   private applyInvalidate(moduleId: string, firstInvalidatedBy: string) {

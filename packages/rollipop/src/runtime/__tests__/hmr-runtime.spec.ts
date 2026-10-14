@@ -522,10 +522,14 @@ describe('HMR runtime', () => {
     expect(reload).not.toHaveBeenCalled();
   });
 
-  it('does not evaluate or acknowledge changes for modules that were not executed', async () => {
-    const evaluate = vi.fn();
+  it('updates unexecuted modules without executing them until their first import', async () => {
+    // oxlint-disable-next-line no-eval
+    const evaluate = vi.fn((source: string) => (0, eval)(source));
     globalThis.globalEvalWithSourceUrl = evaluate;
-    const { socket } = await setupRuntime();
+    const { runtime, socket } = await setupRuntime();
+    runtime.registerFactory('dep.js', 'esm', (id) => {
+      runtime.registerModule(id, { exports: { value: 'before' } });
+    });
 
     socket.emit('message', {
       data: JSON.stringify({
@@ -539,8 +543,13 @@ describe('HMR runtime', () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(evaluate).not.toHaveBeenCalled();
-    expect(socket.sent).toEqual([]);
+    expect(runtime.isExecuted('dep.js')).toBe(false);
+    expect(runtime.initModule('dep.js')).toEqual({ value: 'after' });
+    expect(runtime.getImporters('dep.js')).toEqual(['entry.js']);
+    expect(evaluate).toHaveBeenCalledOnce();
+    expect(socket.sent.map((message) => JSON.parse(message))).toEqual([
+      { type: 'hmr:payload-delivered', filename: 'hmr_patch_1.js' },
+    ]);
     expect(reload).not.toHaveBeenCalled();
   });
 
