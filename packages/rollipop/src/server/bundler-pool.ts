@@ -303,7 +303,7 @@ export class BundlerPool {
     this.hotUpdateStore.clear();
   }
 
-  get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev'>) {
+  get(bundleName: string, buildOptions: Pick<BuildOptions, 'platform' | 'dev' | 'minify'>) {
     invariant(this.closeTask == null, 'Bundler pool is closed');
     const baseBundleName = getBaseBundleName(bundleName);
     const resolvedBuildOptions = resolveBuildOptions(this.config, {

@@ -3,13 +3,16 @@ import os from 'node:os';
 import path from 'node:path';
 
 import Fastify from 'fastify';
-import { SourceMapGenerator } from 'source-map';
+import { SourceMapConsumer, SourceMapGenerator } from 'source-map';
 import stripAnsi from 'strip-ansi';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
 import type { BundleStore } from '../bundle';
+import { RollipopDevframeController } from '../devframe';
+import type { AgentToolContext } from '../devframe/agent/tools';
 import { getHotUpdatePath, HotUpdateStore } from '../hot-update-store';
 import { symbolicate as symbolicateMiddleware } from '../middlewares/symbolicate';
+import type { SymbolicateResult } from '../symbolicate';
 import type { DevServerContext } from '../types';
 
 function createBundleStore(): BundleStore {
@@ -29,17 +32,83 @@ async function createServer(mode = 'development', hotUpdateStore?: HotUpdateStor
     hotUpdateStore: hotUpdateStore ?? { resolve: resolveHotUpdate },
   };
   const app = Fastify();
+  const context = {
+    config: { mode },
+    bundlerPool,
+  } as unknown as DevServerContext;
 
-  await app.register(symbolicateMiddleware, {
-    context: {
-      config: { mode },
-      bundlerPool,
-    } as unknown as DevServerContext,
-  });
+  await app.register(symbolicateMiddleware, { context });
   await app.ready();
 
-  return { app, bundlerPool, getBundle, resolveHotUpdate };
+  return { app, bundlerPool, getBundle, resolveHotUpdate, context };
 }
+
+describe.each(['middleware', 'dashboard'] as const)('%s bundle symbolication', (target) => {
+  it.each([
+    { minify: true, defaultMinify: false },
+    { minify: false, defaultMinify: true },
+    { minify: undefined, defaultMinify: true },
+  ])(
+    'uses the matching source map for $minify (default: $defaultMinify)',
+    async ({ minify, defaultMinify }) => {
+      const { app, bundlerPool, context } = await createServer();
+      const consumers = await Promise.all(
+        ['plain.ts', 'minified.ts'].map(async (source, index) => {
+          const map = new SourceMapGenerator({ file: 'index.bundle' });
+          const line = index === 0 ? 3 : 7;
+          map.addMapping({
+            generated: { line: 1, column: 0 },
+            original: { line, column: 0 },
+            source,
+          });
+          map.setSourceContent(source, '\n'.repeat(line - 1) + 'throw new Error("boom");');
+          return new SourceMapConsumer(map.toString());
+        }),
+      );
+      bundlerPool.get.mockImplementation((_name, options) => ({
+        getBundle: vi.fn().mockResolvedValue({
+          ...createBundleStore(),
+          sourceMapConsumer: Promise.resolve(consumers[(options.minify ?? defaultMinify) ? 1 : 0]),
+        }),
+      }));
+      const file =
+        'http://localhost:8081/index.bundle?platform=ios&dev=false' +
+        (minify == null ? '' : `&minify=${minify}`);
+
+      try {
+        let result: SymbolicateResult;
+        if (target === 'middleware') {
+          const response = await app.inject({
+            method: 'POST',
+            url: '/symbolicate',
+            payload: { stack: [{ file, lineNumber: 1, column: 0 }] },
+          });
+          expect(response.statusCode).toBe(200);
+          result = response.json();
+        } else {
+          const controller = new RollipopDevframeController(context, {} as AgentToolContext);
+          result = await controller.symbolicateBundlePosition(file, 0, 0);
+        }
+
+        const expectedMinify = minify ?? defaultMinify;
+        const expectedFile = expectedMinify ? 'minified.ts' : 'plain.ts';
+        const expectedLine = expectedMinify ? 7 : 3;
+        expect(result.stack[0]).toMatchObject({
+          file: expectedFile,
+          lineNumber: expectedLine,
+          column: 0,
+        });
+        expect(result.codeFrame).toMatchObject({
+          fileName: expectedFile,
+          location: { row: expectedLine, column: 0 },
+        });
+      } finally {
+        await app.close();
+        consumers.forEach((consumer) => consumer.destroy());
+      }
+    },
+  );
+});
 
 describe('symbolicate middleware', () => {
   it('returns the original stack when no frame has a platform query', async () => {

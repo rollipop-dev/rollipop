@@ -124,6 +124,7 @@ export class RollipopDevframeController {
     const bundler = this.context.bundlerPool.get(getBaseBundleName(pathname), {
       platform: String(query.platform),
       dev: query.dev === 'true',
+      ...(query.minify == null ? {} : { minify: query.minify === 'true' }),
     });
     const bundle = await bundler.getBundle();
 

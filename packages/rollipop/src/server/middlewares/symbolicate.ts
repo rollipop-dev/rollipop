@@ -104,7 +104,11 @@ function getBundleStoresByFrameUrl(
     const platform = query.platform;
     const dev = query.dev == null ? context.config.mode === 'development' : query.dev === 'true';
     const bundleName = getBaseBundleName(pathname);
-    const bundler = context.bundlerPool.get(bundleName, { platform, dev });
+    const bundler = context.bundlerPool.get(bundleName, {
+      platform,
+      dev,
+      ...(query.minify == null ? {} : { minify: query.minify === 'true' }),
+    });
     bundleStores.set(file, bundler.getBundle());
   }
 
