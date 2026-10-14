@@ -24,6 +24,16 @@ interface Bindings {
 }
 
 const MAX_PENDING_PAYLOADS_PER_CLIENT = 8;
+const RESERVED_WEBSOCKET_EVENTS = new Set([
+  'close',
+  'connection',
+  'error',
+  'headers',
+  'listening',
+  'wsClientError',
+  'newListener',
+  'removeListener',
+]);
 
 export class HMRServer extends WebSocketServer {
   private bundlerPool: BundlerPool;
@@ -42,10 +52,13 @@ export class HMRServer extends WebSocketServer {
 
   private parseClientMessage(data: ws.RawData) {
     const parsedData = JSON.parse(this.rawDataToString(data));
-    const clientMessage = 'type' in parsedData ? (parsedData as HMRClientMessage) : null;
-    invariant(clientMessage, 'Invalid HMR client message');
+    invariant(typeof parsedData?.type === 'string', 'Invalid HMR client message');
+    invariant(
+      !RESERVED_WEBSOCKET_EVENTS.has(parsedData.type),
+      `Reserved HMR event name: ${parsedData.type}`,
+    );
 
-    return clientMessage;
+    return parsedData as HMRClientMessage;
   }
 
   private async handleConnected(

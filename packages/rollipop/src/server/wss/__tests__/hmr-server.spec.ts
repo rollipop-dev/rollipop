@@ -384,6 +384,48 @@ describe('HMRServer', () => {
     expect(wssEmitSpy).toHaveBeenCalledWith('custom:event', { data: 'test' });
   });
 
+  it.each([
+    'error',
+    'connection',
+    'close',
+    'headers',
+    'listening',
+    'wsClientError',
+    'newListener',
+    'removeListener',
+  ])('rejects custom messages using the reserved event %s', (type) => {
+    const client = createMockClient(1);
+    const emit = vi.spyOn(testable.wss, 'emit');
+
+    expect(() =>
+      testable.onMessage(client, Buffer.from(JSON.stringify({ type, payload: 'test' }))),
+    ).not.toThrow();
+
+    expect(emit).not.toHaveBeenCalled();
+    expect(getSentMessages(testable, client)).toEqual([
+      expect.objectContaining({
+        type: 'InternalError',
+        errors: [{ description: `Reserved HMR event name: ${type}` }],
+      }),
+    ]);
+  });
+
+  it.each([null, 42, {}, ['error']].map((type) => [type]))(
+    'rejects a non-string event name %j',
+    (type) => {
+      const client = createMockClient(1);
+
+      expect(() =>
+        testable.onMessage(client, Buffer.from(JSON.stringify({ type, payload: 'test' }))),
+      ).not.toThrow();
+
+      expect(testable.send).toHaveBeenCalledWith(
+        client,
+        expect.stringContaining('"type":"InternalError"'),
+      );
+    },
+  );
+
   it('removes the runtime client and clears state on cleanup', async () => {
     const client = createMockClient(1);
     await connect(client);

@@ -400,6 +400,9 @@ if (import.meta.hot) {
 
 Then use `server.hot.on` and listen to the events on the server side:
 
+Client event names must not use the reserved WebSocket and EventEmitter names `close`,
+`connection`, `error`, `headers`, `listening`, `wsClientError`, `newListener`, or `removeListener`.
+
 ```ts
 {
   name: 'my-plugin',
