@@ -44,7 +44,8 @@ export default defineConfig({
 
 ## Universal Hooks
 
-Rollipop supports all plugins compatible with Rolldown.
+Rollipop supports Rolldown's public plugin hooks. The `transformCacheHit` hook is internal and is
+removed from user plugins.
 
 For more details, refer to the [Rolldown Plugin API documentation](https://rolldown.rs/apis/plugin-api/).
 
@@ -217,7 +218,8 @@ export default function myPlugin() {
 }
 ```
 
-**Note:** The `configureServer` hook only runs in development mode (when using the `start` command). It will not run during production builds.
+**Note:** The `configureServer` hook runs when creating a dev server with `runServer` or the
+`start` command. It does not run for `runBuild` or the `bundle` command.
 
 ### `devtools`
 
@@ -291,35 +293,45 @@ This keeps the definition portable across hosts while letting Rollipop own the d
 
 ## Plugin Ordering
 
-A Rollipop plugin can additionally specify an `order` property to adjust its application order. The value of `order` can be either `'pre'` or `'post'`.
+Rolldown hooks can use the object form with `order: 'pre'` or `order: 'post'` to adjust the order of
+that hook. Set `order` on the hook, not on the plugin object. Rollipop-specific `config` and
+`configureServer` hooks run in the order of the `plugins` array.
 
 ```ts title="plugins.ts"
-export function prePlugin() {
+import type { Plugin } from 'rollipop';
+
+export function prePlugin(): Plugin {
   return {
     name: 'pre-plugin',
-    order: 'pre',
-    transform(code, id) {
-      return transform(code); // 1st
+    transform: {
+      order: 'pre',
+      handler(code, id) {
+        console.log('First transform:', id);
+        return code;
+      },
     },
-  },
-};
+  };
+}
 
-export function postPlugin() {
+export function postPlugin(): Plugin {
   return {
     name: 'post-plugin',
-    order: 'post',
-    transform(code, id) {
-      return transform(code); // 2nd
+    transform: {
+      order: 'post',
+      handler(code, id) {
+        console.log('Last transform:', id);
+        return code;
+      },
     },
-  },
-};
+  };
+}
 ```
 
 ```ts title="rollipop.config.ts"
 import { prePlugin, postPlugin } from './plugins';
 
 export default defineConfig({
-  // The `order` field takes priority over the position in the `plugins` array.
+  // Hook order takes priority over array position for the transform hooks.
   plugins: [postPlugin(), prePlugin()],
 });
 ```
@@ -337,9 +349,7 @@ export default function myPlugin() {
     // Example: only call transform for .js files
     transform: {
       filter: {
-        include: {
-          id: jsFileRegex,
-        },
+        id: jsFileRegex,
       },
       handler(code, id) {
         return {
@@ -383,7 +393,7 @@ On the client side, use `hot.on` to listen to the events:
 ```ts
 if (import.meta.hot) {
   import.meta.hot.on('my-custom:from-server', (data) => {
-    console.log(data.msg); // hello
+    console.log(data.message); // Hello from server
   });
 }
 ```
@@ -419,7 +429,8 @@ Client event names must not use the reserved WebSocket and EventEmitter names `c
 You can also register a custom HMR handler globally via `setCustomHMRHandler`.
 
 ```ts
-import { setCustomHMRHandler, type HMRCustomMessage } from 'rollipop/runtime';
+import type { HMRCustomMessage } from 'rollipop';
+import { setCustomHMRHandler } from 'rollipop/runtime';
 
 setCustomHMRHandler((socket: WebSocket, message: HMRCustomMessage) => {
   console.log('Received custom HMR message:', message);

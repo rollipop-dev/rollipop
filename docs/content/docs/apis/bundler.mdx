@@ -19,7 +19,7 @@ function loadConfig(options?: LoadConfigOptions): Promise<ResolvedConfig>;
 | `options.cwd`        | `string`                        | Current working directory (default: `process.cwd()`) |
 | `options.configFile` | `string`                        | Path to the configuration file                       |
 | `options.mode`       | `'development' \| 'production'` | Mode to run the bundler in                           |
-| `options.context`    | `object`                        | Additional context to pass to the config             |
+| `options.context`    | `{ command?: string }`          | Additional context to pass to a config function      |
 
 ### Returns
 
@@ -51,20 +51,16 @@ The resolved Rollipop configuration (obtained from `loadConfig`).
 
 `options: ServerOptions`
 
-| Option         | Type           | Description                             | Default     |
-| -------------- | -------------- | --------------------------------------- | ----------- |
-| `port`         | `number`       | Port to start the development server on | `8081`      |
-| `host`         | `string`       | Host to start the development server on | `localhost` |
-| `https`        | `boolean`      | Enable HTTPS connections                | `false`     |
-| `key`          | `string`       | Path to custom SSL key                  | -           |
-| `cert`         | `string`       | Path to custom SSL certificate          | -           |
-| `buildOptions` | `BuildOptions` | Build options                           |             |
+| Option         | Type                          | Description                                                    | Default     |
+| -------------- | ----------------------------- | -------------------------------------------------------------- | ----------- |
+| `port`         | `number`                      | Port to start the development server on                        | `8081`      |
+| `host`         | `string`                      | Host to start the development server on                        | `localhost` |
+| `https`        | `boolean`                     | Reserved; `true` currently throws an unsupported-feature error | `false`     |
+| `key`          | `string`                      | Reserved; TLS keys are not currently used                      | -           |
+| `cert`         | `string`                      | Reserved; TLS certificates are not currently used              | -           |
+| `buildOptions` | `Pick<BuildOptions, 'cache'>` | Dev-server build options                                       |             |
 
-```ts
-interface BuildOptions {
-  cache?: boolean;
-}
-```
+Server build options currently expose only `cache`, a boolean that defaults to `true`.
 
 ### Returns
 
@@ -72,13 +68,23 @@ Returns a `Promise<DevServer>` containing the running development server instanc
 
 ### DevServer Interface
 
-The `DevServer` extends `Emitter<DevServerEvents>` and provides access to various server instances and APIs.
+The `DevServer` combines `DevServerContext` with `Emitter<DevServerEvents>` and provides access
+to server instances and APIs:
 
 ```ts
-interface DevServer extends Emitter<DevServerEvents> {
+type DevServer = DevServerContext &
+  Emitter<DevServerEvents> & {
+    instance: FastifyInstance;
+    middlewares: Middlewares;
+  };
+
+interface DevServerContext {
+  serverBaseUrl: string;
   config: ResolvedConfig;
-  instance: FastifyInstance;
-  middlewares: Middlewares;
+  options: ServerOptions;
+  bundlerPool: BundlerPool;
+  eventBus: EventBus;
+  state: DevServerState;
   message: ws.Server & {
     broadcast: (method: string, params?: Record<string, any>) => void;
   };
@@ -147,15 +153,16 @@ The resolved Rollipop configuration (obtained from `loadConfig`).
 
 `options: BuildOptions`
 
-| Option      | Type      | Description                          | Default |
-| ----------- | --------- | ------------------------------------ | ------- |
-| `platform`  | `string`  | Target platform (`ios` \| `android`) | -       |
-| `dev`       | `boolean` | Build in development mode            | `true`  |
-| `minify`    | `boolean` | Minify the bundle                    | `false` |
-| `cache`     | `boolean` | Enable or disable bundler caching    | `true`  |
-| `outfile`   | `string`  | Output file path                     | -       |
-| `sourcemap` | `string`  | Sourcemap file path                  | -       |
-| `assetsDir` | `string`  | Assets directory path                | -       |
+| Option             | Type                               | Description                                                     | Default                         |
+| ------------------ | ---------------------------------- | --------------------------------------------------------------- | ------------------------------- |
+| `platform`         | `string`                           | Required target platform, such as `ios` or `android`            | -                               |
+| `dev`              | `boolean`                          | Build in development mode                                       | `config.mode === 'development'` |
+| `minify`           | `rolldown.OutputOptions['minify']` | Minify the bundle                                               | `config.output.minify ?? false` |
+| `cache`            | `boolean`                          | Enable or disable bundler caching                               | `true`                          |
+| `outfile`          | `string`                           | Output file path                                                | -                               |
+| `sourcemap`        | `boolean \| 'inline' \| 'hidden'`  | Generate a source map                                           | `config.output.sourcemap`       |
+| `sourcemapOutfile` | `string`                           | Custom source map path when `sourcemap` is `true` or `'hidden'` | -                               |
+| `assetsDir`        | `string`                           | Assets directory path                                           | -                               |
 
 ### Returns
 
@@ -173,7 +180,8 @@ const result = await Rollipop.runBuild(config, {
   dev: false,
   minify: true,
   outfile: './dist/main.bundle.js',
-  sourcemap: './dist/main.bundle.map',
+  sourcemap: true,
+  sourcemapOutfile: './dist/main.bundle.map',
   assetsDir: './dist/assets',
 });
 

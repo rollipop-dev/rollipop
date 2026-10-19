@@ -138,21 +138,7 @@ const modules = import.meta.glob('./modules/module*.ts', {
 
 ## TypeScript
 
-Add Rollipop's client types once in your app, usually in `rollipop-env.d.ts`:
-
-```ts title="rollipop-env.d.ts"
-/// <reference types="rollipop/client" />
-```
-
-Then pass a generic to describe each loaded module value:
-
-```ts
-const files = import.meta.glob<{ default: string }>('./messages/*.ts');
-const eagerFiles = import.meta.glob<string>('./messages/*.ts', {
-  import: 'default',
-  eager: true,
-});
-```
+See the [TypeScript guide](/docs/get-started/typescript#glob-imports) to register client types and type lazy or eager glob imports.
 
 ## Caveats
 

@@ -60,7 +60,7 @@ export default defineConfig(async (context) => {
 - **Type:** `string`
 - **Default:** `process.cwd()`
 
-Project root directory. All relative paths in the configuration will be resolved from this directory.
+Project root directory, used for module resolution and resolving the app entry. Options that accept paths may have their own resolution rules; use absolute paths when referring to files outside the project root.
 
 ## mode
 
@@ -93,8 +93,8 @@ export default defineConfig({
 Module resolution configuration.
 
 <Callout>
-  `resolve` option extends Rolldown's
-  [`InputOptions['resolve']`](https://github.com/rolldown/rolldown/blob/v1.0.0-beta.57/packages/rolldown/src/binding.d.cts#L1905).
+  `resolve` extends Rolldown's `InputOptions['resolve']`, replacing `extensions` with
+  `sourceExtensions` and `assetExtensions`, and adding the options below.
 </Callout>
 
 ### resolve.sourceExtensions
@@ -165,9 +165,9 @@ Fields to check in package.json when resolving packages.
 ### resolve.conditionNames
 
 - **Type:** `string[]`
-- **Default:** `['react-native', 'import', 'require']`
+- **Default:** `['react-native']`
 
-Condition names for exports field resolution in package.json.
+Condition names for exports field resolution in package.json. Rolldown adds `import` or `require` internally according to the importing module.
 
 ### resolve.preferNativePlatform
 
@@ -252,7 +252,7 @@ export default defineConfig({
 ```ts
 interface BabelTransformRule {
   filter?: HookFilter | TopLevelFilterExpression[];
-  options: babel.TransformOptions | ((code: string, id: string) => babel.TransformOptions);
+  options: babel.InputOptions | ((code: string, id: string) => babel.InputOptions);
   standalone?: boolean;
 }
 ```
@@ -351,11 +351,11 @@ Each standalone SWC rule parses and transforms matching modules separately, whic
 ## prelude
 
 - **Type:** `string[]`
-- **Default:** React Native `InitializeCore`
+- **Default:** `react-native/setup-env` when available, with `react-native/Libraries/Core/InitializeCore` as a fallback
 
 Prelude modules imported before the app entry module.
 
-Each entry is imported as a file module before the app entry module.
+Each entry is imported as a file module before the app entry module. Entries supplied in the config are appended to the default prelude, with duplicates removed.
 
 ```ts
 export default defineConfig({
@@ -363,18 +363,10 @@ export default defineConfig({
 });
 ```
 
-**Note:** If you override this option, make sure to include the default prelude if your app relies on React Native's initialization:
-
-```ts
-export default defineConfig({
-  prelude: ['./src/custom-setup.js'],
-});
-```
-
 ## polyfills
 
 - **Type:** `(string | { type: 'plain' | 'iife'; code: string; withTransform?: boolean } | { type: 'plain' | 'iife'; path: string; withTransform?: boolean })[]`
-- **Default:** React Native polyfills from `react-native/rn-get-polyfills`
+- **Default:** React Native polyfills from `@react-native/js-polyfills`, with `react-native/rn-get-polyfills` as a fallback
 
 Polyfills injected before the app modules run.
 
@@ -414,8 +406,7 @@ Development mode configuration.
 File watcher configuration for development mode.
 
 <Callout>
-  `dev.watch` option extends Rolldown's
-  [`DevWatchOptions`](https://github.com/rolldown/rolldown/blob/v1.0.0-beta.57/packages/rolldown/src/binding.d.cts#L1718).
+  `dev.watch` accepts Rolldown's `DevWatchOptions`. The defaults below are set by Rollipop.
 </Callout>
 
 #### dev.watch.skipWrite
@@ -444,7 +435,7 @@ Debounce duration in milliseconds.
 - **Type:** `boolean | HmrConfig`
 - **Default:** `true`
 
-Enable or configure Hot Module Replacement (HMR).
+Enable or configure Hot Module Replacement (HMR). HMR is available only when `mode` is `development`.
 
 ```ts
 export default defineConfig({
@@ -456,12 +447,17 @@ export default defineConfig({
 
 **Advanced HMR Configuration:**
 
+The implementation fields accept source code, so read custom implementation files before passing them:
+
 ```ts
+import { readFileSync } from 'node:fs';
+import { defineConfig } from 'rollipop';
+
 export default defineConfig({
   dev: {
     hmr: {
-      runtimeImplement: './custom-hmr-runtime.js',
-      clientImplement: './custom-hmr-client.js',
+      runtimeImplement: readFileSync(new URL('./custom-hmr-runtime.js', import.meta.url), 'utf8'),
+      clientImplement: readFileSync(new URL('./custom-hmr-client.js', import.meta.url), 'utf8'),
     },
   },
 });
@@ -504,7 +500,7 @@ export default defineConfig({
 ### reactNative.assetRegistryPath
 
 - **Type:** `string | ((root: string) => string | Promise<string>)`
-- **Default:** `'react-native/Libraries/Image/AssetRegistry.js'`
+- **Default:** `'react-native/asset-registry'` when available, with `'react-native/Libraries/Image/AssetRegistry.js'` as a fallback
 
 Path to the asset registry module. Resolved relative to the project root. May also be a (possibly async) function that receives the project root and returns the path.
 
@@ -525,9 +521,9 @@ Path to the HMR client module used at runtime. Resolved the same way as `assetRe
 
 ## plugins
 
-- **Type:** `Plugin[]`
+- **Type:** `PluginOption`
 
-Array of Rollipop plugins. See [Plugin API](/docs/apis/plugin) for more details.
+Rollipop plugins, including arrays, promises, and conditional entries such as `false` or `undefined`. See [Plugin API](/docs/apis/plugin) for more details.
 
 ```ts
 import myPlugin from 'rollipop-plugin-example';
@@ -578,7 +574,7 @@ interface InteractiveCommandContext {
 - **Type:** `Reporter`
 - **Default:** `ClientLogReporter`
 
-Custom reporter for build events. Implement the `Reporter` interface to create custom reporters.
+Custom reporter for build events. Implement the `Reporter` interface to create custom reporters. A configured reporter is combined with the default reporter.
 
 See [Reporter](/docs/features/reporter) for more details.
 
@@ -668,9 +664,9 @@ See [Lazy Barrel Documentation](https://rolldown.rs/in-depth/lazy-barrel-optimiz
 ## output.sourcemap
 
 - **Type:** `boolean | 'inline' | 'hidden'`
-- **Default:** `true` in development, `false` in production
+- **Default:** `true` for the development server, `false` for standalone bundles
 
-Whether to generate sourcemaps.
+Whether to generate sourcemaps. The CLI's `--sourcemap-output` option enables sourcemaps for a bundle and selects the output file path.
 
 - `false`: No sourcemap will be generated
 - `true`: A separate sourcemap file will be generated
@@ -731,11 +727,11 @@ export default defineConfig({
 - **Type:** `boolean | string`
 - **Default:** `true`
 
-Configures TypeScript configuration file resolution and usage. When set to a string, it specifies the path to the `tsconfig.json` file.
+Configures TypeScript configuration file resolution and usage. When set to a string, it specifies the path to the `tsconfig.json` file. See the [TypeScript guide](/docs/get-started/typescript) for client types and type checking.
 
 ## experimental
 
-Experimental options. See [Experimental Features](/docs/features/experimental) for the full reference and stability notes.
+Experimental options. See [Experimental Features](/docs/experimental/overview) for the available features and stability notes.
 
 ## rolldownOptions
 

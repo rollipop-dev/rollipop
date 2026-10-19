@@ -10,7 +10,7 @@ Use this skill when Rollipop is installed or running and the task needs diagnost
 
 ## MCP Server
 
-Devframe MCP exposes structured Rollipop diagnostics whenever the dev server is running. Use it for build events, logs, cache actions, app logs, device status, reloads, build info, and symbolication. Read https://rollipop.dev/docs/features/mcp.md.
+Devframe MCP exposes structured Rollipop diagnostics while the dev server is running when the optional `@devframes/agentic` peer dependency is installed. Use it for build events, logs, cache actions, app logs, device status, reloads, build info, and symbolication. Read https://rollipop.dev/docs/features/mcp.md for installation and setup.
 
 ## React Native DevTools
 

@@ -11,7 +11,6 @@ We welcome contributions from the community and appreciate your efforts to help 
 - [How to Contribute](#how-to-contribute)
 - [Development Setup](#development-setup)
 - [Testing the CLI](#testing-the-cli)
-- [E2E Testing](#e2e-testing)
 - [Code Quality Checks](#code-quality-checks)
 - [Pull Request Process](#pull-request-process)
 - [Commit Message Guidelines](#commit-message-guidelines)

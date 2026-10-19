@@ -21,17 +21,17 @@ http://localhost:8081/dashboard
 ## Features
 
 - **Instances**: Inspect active bundler instances, targets, build options, bundle URLs, and the latest build status
-- **Devices**: View React Native app clients connected to the dev server
+- **Devices**: View connected React Native DevTools targets
 - **Bundles**: Preview large generated bundles by position without rendering the entire file
 - **Analyze**: Open bundle analysis reports when the analyzer is enabled
 - **Build Logs**: Inspect build logs by bundler instance and filter by log level
-- **Actions**: Reload connected clients, reset the transform cache, and reset development server state
+- **Actions**: Reload connected clients, reset the transform cache, and clear stored build summaries and logs
 
 ## Devframe Integration
 
-The dashboard uses a [Devframe](https://devfra.me/) scope mounted at `/__rollipop/` as its control plane. The browser discovers the connection from Devframe, receives live dashboard state through shared state, and performs queries and actions through RPC.
+The dashboard uses a [Devframe](https://devfra.me/) scope mounted at `/__rollipop/` as its control plane. The browser discovers the connection from Devframe, receives event notifications through shared state, and fetches dashboard data and performs actions through RPC.
 
-Devframe also exposes the Rollipop MCP server from the same integration. Dashboard and agent tools therefore operate on the same development-server state and actions.
+When the optional `@devframes/agentic` peer dependency is installed, Devframe also exposes the Rollipop MCP server from the same integration. See [MCP Server](/docs/features/mcp) for installation and client setup. The dashboard works without this dependency.
 
 All Devframe-owned endpoints stay under the Rollipop namespace; no root-level aliases such as `/__sse` or `/__mcp` are exposed.
 
@@ -39,7 +39,7 @@ All Devframe-owned endpoints stay under the Rollipop namespace; no root-level al
 | ------------------- | ------------------------------- |
 | Connection metadata | `/__rollipop/__connection.json` |
 | SSE transport       | `/__rollipop/__sse`             |
-| MCP                 | `/__rollipop/__mcp`             |
+| MCP (when enabled)  | `/__rollipop/__mcp`             |
 | Embedded dock UI    | `/__rollipop/embedded.js`       |
 
 Devframe's internal index, client-import, and renderer routes use the same `/__rollipop/` prefix.

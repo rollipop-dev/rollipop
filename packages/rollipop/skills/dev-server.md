@@ -18,7 +18,7 @@ Use Rollipop's dev server for React Native HMR, source maps, multi-platform deve
 
 ## MCP Server
 
-The Devframe MCP endpoint is available whenever the dev server is running. Read https://rollipop.dev/docs/features/mcp.md.
+The Devframe MCP endpoint is available while the dev server is running when the optional `@devframes/agentic` peer dependency is installed. Read https://rollipop.dev/docs/features/mcp.md for installation and setup.
 
 ## Interactive Tools
 
@@ -26,6 +26,6 @@ React Native DevTools and custom terminal commands belong to the dev-server work
 
 ## Watchpoints
 
-- Keep server options consistent with device/app URLs: host, port, HTTPS, key, and cert must match the running target.
+- Keep the host and port consistent with device/app URLs. HTTPS is not supported; `--https` fails even though the CLI accepts it alongside `--key` and `--cert`.
 - Interactive mode is useful for humans; disable it for automation when needed.
 - If dev-server startup or HMR fails, switch to `troubleshooting.md`; use `debugging.md` when diagnostics tooling is needed.

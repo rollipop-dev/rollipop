@@ -1,5 +1,5 @@
 {
   "title": "Getting Started",
-  "pages": ["introduction", "quick-start", "configuration", "cli-commands"],
+  "pages": ["introduction", "quick-start", "typescript", "configuration", "cli-commands"],
   "defaultOpen": true
 }

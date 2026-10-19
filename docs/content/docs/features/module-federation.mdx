@@ -9,7 +9,7 @@ title: Module Federation
   exact Rollipop version for reproducible results.
 </Callout>
 
-Module Federation is provided by the [`@rollipop/plugin-module-federation`](https://github.com/rollipop-dev/rollipop/tree/main/packages/plugin-module-federation) plugin. It wires [`@module-federation/runtime`](https://module-federation.io/) into the host bundle and emits a self-contained IIFE for each remote, with shared dependencies resolved through a host-owned global registry.
+Module Federation is provided by the [`@rollipop/plugin-module-federation`](https://github.com/rollipop-dev/rollipop/tree/main/packages/plugin-module-federation) plugin. It wires [`@module-federation/runtime`](https://module-federation.io/) into the host bundle and registers each remote's container on `globalThis`, with shared dependencies resolved through a host-owned global registry.
 
 ## Installation
 
@@ -22,16 +22,20 @@ yarn add @module-federation/runtime
 
 A single Rollipop config takes **exactly one role**. Defining both `remotes` and `exposes` throws.
 
-| Role   | Has       | Bundle output                                               |
-| ------ | --------- | ----------------------------------------------------------- |
-| Host   | `remotes` | Normal Rollipop bundle that consumes remotes at runtime.    |
-| Remote | `exposes` | IIFE that registers a federation container on `globalThis`. |
+| Role   | Has       | Bundle output                                                 |
+| ------ | --------- | ------------------------------------------------------------- |
+| Host   | `remotes` | Normal Rollipop bundle that consumes remotes at runtime.      |
+| Remote | `exposes` | IIFE for static builds; Rollipop format with HMR when served. |
 
 Split a host and a remote into two configs and run them as separate Rollipop processes.
 
 ## Host
 
 The host declares the remotes it consumes and the dependencies it shares.
+
+The script loader below uses the native `ScriptManager` supplied by the
+[`module-federation` example](https://github.com/rollipop-dev/rollipop/blob/main/examples/module-federation/mf-script-loader.ts).
+Provide a loader for your own app's native implementation.
 
 ```ts title="rollipop.host.config.ts"
 import { federation } from '@rollipop/plugin-module-federation';
@@ -53,6 +57,7 @@ export default defineConfig({
         // Register a `ModuleFederationScriptLoader` on `globalThis.__rollipop_script_loader__`.
         // Typically delegates to a native TurboModule that does fetch + JSI evaluate.
         implement: `
+          const NativeScriptManager = globalThis.nativeModuleProxy.ScriptManager;
           globalThis.__rollipop_script_loader__ = {
             async loadScript({ scriptId, url }) {
               await NativeScriptManager.loadScript(scriptId, { url });
@@ -73,7 +78,14 @@ const RemoteNavigator = React.lazy(() =>
 );
 ```
 
-The plugin resolves `import('<remote>/<expose>')` against the federation runtime — no native `import()` evaluation happens at runtime.
+The imported module's default export is a React component proxy. Rendering it loads the remote
+through the federation runtime and suspends while the request is pending, so render it inside a
+React `Suspense` boundary. The bundled code does not use native `import()` to fetch the remote.
+
+The `remotes` key is the import alias and may differ from the remote container's name. For example,
+`remotes: { catalog: 'catalog_app@https://example.com/catalog.bundle' }` is consumed as
+`import('catalog/RemoteNavigator')`. The object form is
+`{ catalog: { name: 'catalog_app', entry: 'https://example.com/catalog.bundle' } }`.
 
 Failed remote loads are thrown to the nearest React Error Boundary. In its retry action,
 reload the remote before resetting the boundary:
@@ -86,7 +98,8 @@ resetErrorBoundary();
 ```
 
 Concurrent loads share one request. A failed retry rejects, allowing the boundary to keep
-showing its fallback until the user retries again.
+showing its fallback until the user retries again. Pass the same alias and exposed path used by
+the import to `retryRemote`.
 
 ## Remote
 
@@ -113,7 +126,10 @@ export default defineConfig({
 });
 ```
 
-The bundle is emitted as an IIFE. Each shared dependency import is replaced with a stub that reads from the host's `globalThis.__rollipop_shared__` registry. Rollipop's prelude and polyfills are skipped because the host has already initialized the React Native runtime.
+Static builds emit an IIFE; the dev server uses Rollipop's format so each remote has its own HMR
+runtime. Each shared dependency import is replaced with a stub that reads from the host's
+`globalThis.__rollipop_shared__` registry. Rollipop's prelude and polyfills are skipped because the
+host has already initialized the React Native runtime.
 
 ## Script loader contract
 
@@ -129,11 +145,13 @@ The plugin's federation runtime adapter delegates `loadEntry` to it. After the s
 
 ## Globals exposed at runtime
 
-| Global                       | Owner  | Purpose                                                             |
-| ---------------------------- | ------ | ------------------------------------------------------------------- |
-| `__rollipop_script_loader__` | user   | `ModuleFederationScriptLoader` implementation.                      |
-| `__rollipop_shared__`        | host   | Shared dependency registry. Lazily populated; missing keys throw.   |
-| `__rollipop_load_remote__`   | plugin | `(id: string) => Promise<unknown>` — wraps federation `loadRemote`. |
+| Global                                 | Owner  | Purpose                                                                              |
+| -------------------------------------- | ------ | ------------------------------------------------------------------------------------ |
+| `__rollipop_script_loader__`           | user   | `ModuleFederationScriptLoader` implementation.                                       |
+| `__rollipop_shared__`                  | host   | Shared dependency registry populated during host initialization; missing keys throw. |
+| `__rollipop_module_federation_cache__` | plugin | Internal cache of loaded modules, pending requests, and load errors.                 |
+
+Use `retryRemote` from `@rollipop/plugin-module-federation/runtime` to retry a failed request.
 
 ## Limitations
 
@@ -142,8 +160,8 @@ The plugin's federation runtime adapter delegates `loadEntry` to it. After the s
   build both `expose` modules and `consume` remotes; that bidirectional / chained-federation model
   is **not supported yet** — lifting it requires emitting the federation container as a separate
   artifact from the app bundle, which is not implemented at this stage.
-- React Native does not support native `import()`; remote modules are consumed through dynamic
-  `import('<remote>/<expose>')`, which the plugin rewires to the federation runtime.
+- Remote imports expose a default React component proxy. Dynamic `import('<remote>/<expose>')`
+  resolves to a local module with this proxy as its default export.
 - Subpath imports of shared deps (`react/jsx-dev-runtime`, etc.) are bundled into the remote and
   consume the parent shared instance through `__rollipop_shared__`.
 

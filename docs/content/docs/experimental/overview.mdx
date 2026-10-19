@@ -1,5 +1,5 @@
 ---
-title: Experimental Features
+title: Overview
 ---
 
 <Callout type="warn">
@@ -10,7 +10,7 @@ title: Experimental Features
 
 Experimental features are configured under the top-level `experimental` field in `rollipop.config.ts`.
 
-Rollipop's built-in transform pipeline runs as a single SWC-based pass inside rolldown's Rust core. TypeScript and Flow stripping, React Native codegen marking, and optional worklet transformation are handled natively without a separate configuration flag.
+TypeScript and Flow support are enabled by default. Worklet transformation is a separate opt-in feature.
 
 ## `experimental.worklets`
 
@@ -18,4 +18,8 @@ Rollipop's built-in transform pipeline runs as a single SWC-based pass inside ro
 
 `react-native-worklets` transformation configuration, executed as part of the native SWC-based pass. Pass `worklets: {}` to opt in with defaults; omit the field entirely to skip the transform.
 
-See [Reanimated & Worklets](/docs/features/reanimated-worklets) for the full option reference.
+See [Reanimated & Worklets](/docs/experimental/reanimated-worklets) for setup and the full option reference.
+
+## Rolldown Options
+
+The `experimental` field also accepts Rolldown's experimental options, such as [`lazyBarrel`](/docs/get-started/configuration#experimentallazybarrel).

@@ -4,7 +4,7 @@ title: React Native DevTools
 
 ## Features
 
-All the features of React Native DevTools are available in Rollipop:
+Rollipop integrates React Native DevTools. Available features depend on the connected app's React Native version and include:
 
 - [Console](https://reactnative.dev/docs/react-native-devtools#console)
 - [Source & breakpoints](https://reactnative.dev/docs/react-native-devtools#sources--breakpoints)
@@ -18,10 +18,14 @@ All the features of React Native DevTools are available in Rollipop:
 To open DevTools, either:
 
 - Select "Open DevTools" in the Dev Menu.
-- Press `j` from the CLI.
+- Press `j` in the terminal running `rollipop start` with interactive mode enabled.
 
-<Callout>Press `Shift + D` to enable automatic DevTools launch on app startup.</Callout>
+<Callout>
+  Press `Shift + D` to toggle automatic DevTools launch. The preference is saved for the project and
+  checked when the first HMR client connects during a dev-server session. Keyboard shortcuts require
+  an interactive terminal and are disabled by `--no-interactive`.
+</Callout>
 
 ![devtool-cli](/devtool-cli.png)
 
-To learn more about React Native Devtools, check out the [official documentation](https://reactnative.dev/docs/react-native-devtools)
+To learn more about React Native DevTools, check out the [official documentation](https://reactnative.dev/docs/react-native-devtools).

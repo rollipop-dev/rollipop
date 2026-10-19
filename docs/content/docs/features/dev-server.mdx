@@ -2,10 +2,10 @@
 title: Dev Server
 ---
 
-- Hot Module Reloading: Instantly reflects code changes in the app
+- Hot Module Replacement: Reflects code changes in the app with Fast Refresh
 - Source Maps: Enables proper debugging with source code mapping
 - Multiple Platforms: Supports both iOS and Android development
-- Development Tools: Integrated with React Native DevTools and Flipper
+- Development Tools: Integrated with React Native DevTools and the Rollipop dashboard
 
 ## Usage
 
@@ -14,7 +14,7 @@ title: Dev Server
 To start the dev server, you can use the `start` command:
 
 <Tabs items={['npm', 'pnpm', 'yarn']}>
-  <Tab value="npm">```npm run rollipop start```</Tab>
+  <Tab value="npm">```npx rollipop start```</Tab>
   <Tab value="pnpm">```pnpm rollipop start```</Tab>
   <Tab value="yarn">```yarn rollipop start```</Tab>
 </Tabs>
@@ -25,12 +25,11 @@ You can customize the dev server with various options:
 # Start on a custom port
 rollipop start --port 3000
 
-# Start with HTTPS
-rollipop start --https
-
 # Reset cache on start
 rollipop start --reset-cache
 ```
+
+HTTPS is not supported yet. Although the CLI accepts `--https`, `--key`, and `--cert`, starting with `--https` fails.
 
 See [CLI Commands](/docs/get-started/cli-commands) for more available options.
 
@@ -41,7 +40,10 @@ You can also start the dev server programmatically using the Bundler API:
 ```ts
 import * as Rollipop from 'rollipop';
 
-const config = await Rollipop.loadConfig();
+const config = await Rollipop.loadConfig({
+  mode: 'development',
+  context: { command: 'start' },
+});
 
 const server = await Rollipop.runServer(config, {
   port: 8081,

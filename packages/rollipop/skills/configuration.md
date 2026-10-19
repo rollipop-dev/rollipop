@@ -18,7 +18,7 @@ Use https://rollipop.dev/docs/features/env.md when changing env file loading, pr
 
 ## Experimental Features
 
-Use https://rollipop.dev/docs/features/experimental.md before enabling experimental options. Keep the change explicit and mention stability/version risk. For worklets specifically, read https://rollipop.dev/docs/features/reanimated-worklets.md.
+Use https://rollipop.dev/docs/experimental/overview.md before enabling experimental options. Keep the change explicit and mention stability/version risk. For worklets specifically, read https://rollipop.dev/docs/experimental/reanimated-worklets.md.
 
 ## Resolve Changes
 
@@ -27,5 +27,5 @@ When changing module resolution behavior, verify package metadata (`exports`, `r
 ## Watchpoints
 
 - Translate intent from existing Metro config instead of copying Metro fields mechanically.
-- Overriding arrays can accidentally remove React Native defaults; check docs before replacing prelude or resolve extension lists.
+- Configured `prelude`, `polyfills`, `plugins`, `resolve.sourceExtensions`, and `resolve.assetExtensions` arrays are appended to the defaults with duplicates removed. Supplying an empty array does not remove the defaults.
 - If config is produced dynamically, inspect both the source config and the resolved behavior through dev-server diagnostics when available.

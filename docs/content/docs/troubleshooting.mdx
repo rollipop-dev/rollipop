@@ -33,11 +33,14 @@ When using Rollipop programmatically, you can also enable debug logging:
 // Set the environment variable before importing
 process.env.DEBUG_ROLLIPOP = '1';
 
-import * as Rollipop from 'rollipop';
+const Rollipop = await import('rollipop');
 
 const config = await Rollipop.loadConfig();
 const server = await Rollipop.runServer(config, { port: 8081 });
 ```
+
+Use a dynamic import so the environment variable is set before Rollipop initializes its loggers.
+Static imports run before the module body, even when written below the assignment.
 
 ## Inspect Generated Bundles
 

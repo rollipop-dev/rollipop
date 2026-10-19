@@ -28,12 +28,16 @@ export default defineConfig({
 
 Each command object has the following properties:
 
-| Property      | Type         | Required | Description                                                   |
-| ------------- | ------------ | -------- | ------------------------------------------------------------- |
-| `key`         | `string`     | Yes      | The keyboard key to trigger the command (e.g., 'a', 'b', 'c') |
-| `description` | `string`     | Yes      | A description of what the command does                        |
-| `handler`     | `() => void` | Yes      | The function to execute when the command is triggered         |
-| `shift`       | `boolean`    | No       | If `true`, requires Shift key to be pressed with the key      |
+| Property      | Type                                        | Required | Description                                                                                |
+| ------------- | ------------------------------------------- | -------- | ------------------------------------------------------------------------------------------ |
+| `key`         | `string`                                    | Yes      | The keyboard key to trigger the command (e.g., 'a', 'b', 'c')                              |
+| `description` | `string \| (() => string)`                  | Yes      | A description, or a function that returns it when the command list is printed              |
+| `handler`     | `(this: InteractiveCommandContext) => void` | Yes      | The function to execute; `this.server` and `this.logger` provide the dev server and logger |
+| `shift`       | `boolean`                                   | No       | If `true`, requires Shift key to be pressed with the key                                   |
+
+Use a single lowercase character for `key`. The built-in shortcuts `r`, `j`, `d`, and `Shift + d`
+are reserved. Custom commands run in the interactive terminal started by `rollipop start`;
+non-interactive environments do not enable keyboard shortcuts.
 
 ## Examples
 

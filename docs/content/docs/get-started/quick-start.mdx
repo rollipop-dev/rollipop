@@ -47,14 +47,15 @@ rollipop skills get <name>
 Start with `rollipop skills get core`, then switch to a narrower skill such as `dev-server`,
 `debugging`, `configuration`, `build`, `migration`, or `plugins` when the task calls for it.
 
-When an agent needs structured diagnostics, start the dev server. The Devframe MCP endpoint is available automatically:
+For structured diagnostics, install the optional `@devframes/agentic` dependency using the
+[MCP setup guide](/docs/features/mcp#setup), then start the dev server:
 
 ```bash
 rollipop start --reset-cache
 ```
 
-The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Adjust the URL and
-`Origin` header when using custom `--host`, `--port`, or `--https` options.
+The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Keep the URL and
+`Origin` header on a loopback host, and adjust the port to match the server.
 
 </details>
 
@@ -72,7 +73,7 @@ Stable releases use `latest`; alpha, beta, and development releases use `alpha`,
 
 ### Option 1: Automated Setup (Recommended)
 
-The quickest way to get started is to use `@rollipop/init`:
+Run `@rollipop/init` from your React Native project root:
 
 <Tabs items={['npm', 'pnpm', 'yarn']}>
   <Tab value="npm">```npx @rollipop/init```</Tab>
@@ -82,9 +83,20 @@ The quickest way to get started is to use `@rollipop/init`:
 
 This command will:
 
-- Install Rollipop as a dev dependency
-- Configure Android and iOS build scripts to use Rollipop CLI
-- Create a basic `rollipop.config.ts` configuration file (if it doesn't exist)
+- Add the matching Rollipop version to `devDependencies` in `package.json`
+- Create or update `react-native.config.js` to register Rollipop's CLI commands
+
+Then install the updated dependencies:
+
+<Tabs items={['npm', 'pnpm', 'yarn']}>
+  <Tab value="npm">```npm install```</Tab>
+  <Tab value="pnpm">```pnpm install```</Tab>
+  <Tab value="yarn">```yarn install```</Tab>
+</Tabs>
+
+If the initializer reports an existing `commands` property or a configuration it cannot update,
+complete the [React Native CLI configuration](#2-configure-react-native-cli) manually.
+To customize Rollipop, create a configuration file following the [Configuration guide](/docs/get-started/configuration).
 
 ### Option 2: Manual Installation
 

@@ -31,6 +31,8 @@ In development mode, there is no bundle output directory, so Rollipop writes id-
 - `.rollipop/analyze/<bundler-id>.json`
 - `.rollipop/analyze/<bundler-id>.html`
 
+Builds without an output directory also use this shared directory.
+
 You can also upload the JSON data file to the [Analyzer](https://leegeunhyeok.github.io/rolldown-analyzer) web app.
 
 ## Options
@@ -61,7 +63,8 @@ Output filename for the generated HTML report in build mode.
 - **Type:** `boolean`
 - **Default:** `false`
 
-Automatically open the generated report in the browser after a build completes.
+Automatically open the generated report in the browser after a standalone build completes.
+This option does not open reports automatically while the dev server is running.
 
 ```ts
 export default defineConfig({

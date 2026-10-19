@@ -38,11 +38,11 @@ Then add the MCP server to your project's `.mcp.json`:
 }
 ```
 
-Devframe applies a loopback Origin gate to the endpoint, so HTTP clients must send an `Origin` header matching the MCP URL. Keep both values on a loopback host and adjust both ports when using custom `--port`. A non-loopback `--host` is not automatically allowed.
+Devframe requires a loopback `Origin` header and a connection from the same machine. Use the MCP URL's origin as shown above, and adjust both ports when using custom `--port`. Binding the dev server to a non-loopback `--host` does not enable remote MCP access.
 
 ## Tool Discovery
 
-Use the MCP `tools/list` request for the current tool names, descriptions, and parameter schemas. With Streamable HTTP clients, initialize the session first, then call `tools/list` using the returned `mcp-session-id` header.
+Use the MCP `tools/list` request for the current tool names, descriptions, and parameter schemas. The endpoint is stateless: the initialization response does not return an `mcp-session-id`, and subsequent requests do not need that header. Raw HTTP requests must include `Content-Type: application/json`, `Accept: application/json, text/event-stream`, and the `Origin` header shown above.
 
 High-level tool groups:
 
@@ -54,25 +54,25 @@ High-level tool groups:
 
 ### `get_build_events`
 
-Subscribes to bundler events for a specified duration and returns all collected events.
+Collects events emitted after the tool call starts for `duration` milliseconds (default: `10000`, minimum: `1000`, maximum: `60000`). It does not replay earlier events, so start listening before the action you want to observe.
 
-Returns a JSON array of events collected during the listening period. Event types include:
+Returns an array of events collected during the listening period, or the message `No events received during the listening period.` when none arrive. Event types include:
 
 - `bundle_build_started` / `bundle_build_done` / `bundle_build_failed` — build lifecycle
 - `watch_change` — file change detected
 - `hmr_failed` — HMR update failure
 - `client_connected` / `client_disconnected` — HMR client lifecycle
-- `cache_reset` — cache cleared through the MCP `reset_cache` tool
+- `cache_reset` — cache cleared through MCP or the dashboard
 
 Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `hmr_failed`. Client lifecycle, server, and cache events omit `bundlerId`.
 
 App console logs are not build events. Use `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
 
-`bundle_build_done` also includes `bundleFilePath`, the file-system copy of the generated bundle. Rollipop normally keeps the latest bundle in memory, but if this file is edited after the build, the dev server serves the edited file content. Agents can use this path for bundle-level debugging.
+`bundle_build_done` also includes `bundleFilePath`, the file-system copy of the generated bundle. Rollipop normally keeps the latest bundle in memory, but if this file is edited after the build, the dev server serves the edited file content and stops using the now-stale source map. Agents can use this path for bundle-level debugging.
 
 ### `reset_cache`
 
-Clears the entire build cache. The bundler will rebuild from scratch on next file change.
+Clears the build cache without triggering a rebuild or reloading connected apps. To start a fresh dev-server session with the cache cleared, restart with `rollipop start --reset-cache`.
 
 ## App Logs and External Debugging
 
@@ -84,7 +84,7 @@ Build diagnostics and app logs are intentionally separate. Use `build_errors` fo
 
 For CDP debugging, runtime evaluation, runtime exceptions, network inspection, or CPU/heap profiling, use [`agent-cdp`](https://github.com/callstackincubator/agent-cdp) against the Rollipop dev server target. For React component tree inspection and React DevTools profiling, use [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools).
 
-Buffered diagnostics are cumulative by design. Before a focused repro, clear the relevant buffer with `clear_build_diagnostics` or `clear_console_logs` so older entries do not get mixed into the current observation.
+Build logs, build errors, and app logs each retain up to 500 entries across builds. Their query tools return the latest 100 by default and accept `limit` (1–500) and an optional `bundlerId`. Before a focused repro, clear the relevant buffer with `clear_build_diagnostics` or `clear_console_logs` so older entries do not get mixed into the current observation.
 
 ## Bundler Status
 
@@ -111,10 +111,10 @@ Agents can use this as a cheap pull-based alternative to `get_build_events` when
 
 An LLM agent can use MCP tools to interact with the bundler:
 
-1. Call `get_build_events` to observe bundler state
-2. Make code changes
-3. Call `get_build_events` again to wait for `bundle_build_done` or `bundle_build_failed` for bundle builds, or `hmr_failed` for HMR update failures
-4. Clear build/app log buffers before focused checks when older diagnostics may be noisy
+1. Clear build/app log buffers before focused checks when older diagnostics may be noisy
+2. Start `get_build_events` with a listening period long enough to cover the change
+3. Make code changes while the call is listening, then inspect its returned events for `bundle_build_done`, `bundle_build_failed`, or `hmr_failed`
+4. Use buffered `build_logs` and `build_errors` for diagnostics when an event occurred before listening started
 5. Use `bundleFilePath` from `bundle_build_done` when bundle-level debugging is needed
 6. If failed, read the error and fix the code
 7. If needed, call `reset_cache` to clear stale cache

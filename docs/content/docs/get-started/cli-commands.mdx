@@ -20,12 +20,15 @@ rollipop start [options]
 | `--host`           | Host to start the development server on                | `string`  | `localhost` |
 | `--port`           | Port to start the development server on                | `number`  | `8081`      |
 | `--reset-cache`    | Removes cached files                                   | `boolean` | -           |
-| `--https`          | Enables https connections to the server                | `boolean` | -           |
-| `--key`            | Path to custom SSL key                                 | `string`  | -           |
-| `--cert`           | Path to custom SSL cert                                | `string`  | -           |
 | `--no-interactive` | Disables interactive mode                              | `boolean` | -           |
 | `--client-logs`    | Enable client log streaming (deprecated)               | `boolean` | `false`     |
-| `--cache`          | If false, the bundler will not load or store any cache | `boolean` | -           |
+| `--cache`          | If false, the bundler will not load or store any cache | `boolean` | `true`      |
+
+Use `--cache false` to disable caching. Options marked as unsupported in `rollipop start --help`
+are accepted for React Native CLI compatibility but have no effect.
+
+HTTPS is not implemented. `--https` causes startup to fail with `HTTPS is not supported yet`;
+`--key` and `--cert` are accepted but unused.
 
 ### Examples
 
@@ -36,8 +39,8 @@ rollipop start
 # Start on a custom port with cache reset
 rollipop start --port 3000 --reset-cache
 
-# Start with HTTPS
-rollipop start --https --key ./key.pem --cert ./cert.pem
+# Disable bundler caching
+rollipop start --cache false
 ```
 
 ## bundle
@@ -50,24 +53,27 @@ rollipop bundle [options]
 
 ### Options
 
-| Option               | Description                                   | Type      | Default |
-| -------------------- | --------------------------------------------- | --------- | ------- |
-| `--config`           | Path to the Rollipop configuration file       | `string`  | -       |
-| `--entry-file` \*    | Path to the root JS file                      | `string`  | -       |
-| `--bundle-output` \* | File path where to store the resulting bundle | `string`  | -       |
-| `--platform`         | Target platform (`ios` \| `android`)          | `string`  | `ios`   |
-| `--dev`              | Build in development mode                     | `boolean` | `false` |
-| `--minify`           | Override bundle minification                  | `boolean` | `false` |
-| `--sourcemap-output` | File path where to store the sourcemap        | `string`  | -       |
-| `--assets-dest`      | Directory path where to store assets          | `string`  | -       |
-| `--cache`            | Enable or disable bundler caching             | `boolean` | `true`  |
-| `--reset-cache`      | Removes cached files before building          | `boolean` | -       |
+| Option               | Description                                   | Type      | Default                     |
+| -------------------- | --------------------------------------------- | --------- | --------------------------- |
+| `--config`           | Path to the Rollipop configuration file       | `string`  | -                           |
+| `--entry-file`       | Override the configured entry file            | `string`  | `config.entry` (`index.js`) |
+| `--bundle-output` \* | File path where to store the resulting bundle | `string`  | -                           |
+| `--platform`         | Target platform (`ios` \| `android`)          | `string`  | `ios`                       |
+| `--dev`              | Build in development mode                     | `boolean` | `false`                     |
+| `--minify`           | Override bundle minification                  | `boolean` | `false`                     |
+| `--sourcemap-output` | File path where to store the sourcemap        | `string`  | -                           |
+| `--assets-dest`      | Directory path where to store assets          | `string`  | -                           |
+| `--cache`            | Enable or disable bundler caching             | `boolean` | `true`                      |
+| `--reset-cache`      | Removes cached files before building          | `boolean` | -                           |
 
 <small>* Required option</small>
 
 `--dev` defaults to whether `config.mode` is `development`; `rollipop bundle` uses `production` unless overridden in the configuration.
 
 `--minify` overrides `output.minify`, which defaults to `false` independently of `--dev`. Pass `--minify true` to explicitly enable minification.
+
+Options marked as unsupported in `rollipop bundle --help` have no effect. The accepted
+`--sourcemap-sources-root` and `--sourcemap-use-absolute-path` options are also currently ignored.
 
 ### Examples
 
@@ -105,7 +111,9 @@ The command prints a compact agent guide, including:
 - external debugging integrations
 - the recommended build-event workflow for agents
 
-It does not start the dev server or perform any actions by itself. The Devframe MCP endpoint is available whenever the dev server is running.
+It does not start the dev server or perform any actions by itself. The Devframe MCP endpoint is
+available while the dev server is running when the optional `@devframes/agentic` dependency is
+installed. Follow the [MCP setup guide](/docs/features/mcp#setup) to enable it.
 
 Use `rollipop agent` as the first reference when wiring an agent into a local Rollipop dev server. For task-specific guidance, list the bundled skills and print the one that matches the current task.
 
