@@ -1,4 +1,14 @@
 
+## [1.0.0-beta.0] - 2026-10-19
+
+### ⚙️ Miscellaneous Tasks
+
+- prepare for beta release by @leegeunhyeok
+- deps: bump source-map-js from 1.2.1 to 1.2.2 (#207) by @dependabot[bot]
+- deps: bump @modelcontextprotocol/sdk from 1.29.0 to 1.32.1 (#205) by @dependabot[bot]
+- deps: bump @modelcontextprotocol/client from 2.1.0 to 2.3.1 (#203) by @dependabot[bot]
+
+
 ## [1.0.0-alpha.34] - 2026-10-19
 
 ### 🐛 Bug Fixes
