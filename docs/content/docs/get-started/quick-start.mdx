@@ -67,18 +67,16 @@ The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Keep the U
 
 You have two options for getting started with Rollipop: using the automated setup command or manual installation.
 
-Release candidates are published under the `rc` tag. Use `npx @rollipop/init@rc` for automated setup or install `rollipop@rc` manually. The initializer adds its matching Rollipop version to your project, so prerelease setup does not fall back to `latest`.
-
-Stable releases use `latest`; alpha, beta, and development releases use `alpha`, `beta`, and `dev`.
+Beta releases of Rollipop and its official plugins are published under the `beta` tag. Use `@beta` in installation commands during the beta period; the `latest` tag is reserved for stable releases. The initializer adds its matching Rollipop version to your project.
 
 ### Option 1: Automated Setup (Recommended)
 
 Run `@rollipop/init` from your React Native project root:
 
 <Tabs items={['npm', 'pnpm', 'yarn']}>
-  <Tab value="npm">```npx @rollipop/init```</Tab>
-  <Tab value="pnpm">```pnpm dlx @rollipop/init```</Tab>
-  <Tab value="yarn">```yarn dlx @rollipop/init```</Tab>
+  <Tab value="npm">```npx @rollipop/init@beta```</Tab>
+  <Tab value="pnpm">```pnpm dlx @rollipop/init@beta```</Tab>
+  <Tab value="yarn">```yarn dlx @rollipop/init@beta```</Tab>
 </Tabs>
 
 This command will:
@@ -105,9 +103,9 @@ If you prefer to set up Rollipop manually:
 #### 1. Install the package
 
 <Tabs items={['npm', 'pnpm', 'yarn']}>
-  <Tab value="npm">```npm install --save-dev rollipop```</Tab>
-  <Tab value="pnpm">```pnpm add -D rollipop```</Tab>
-  <Tab value="yarn">```yarn add -D rollipop```</Tab>
+  <Tab value="npm">```npm install --save-dev rollipop@beta```</Tab>
+  <Tab value="pnpm">```pnpm add -D rollipop@beta```</Tab>
+  <Tab value="yarn">```yarn add -D rollipop@beta```</Tab>
 </Tabs>
 
 #### 2. Configure React Native CLI

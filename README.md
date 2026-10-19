@@ -9,7 +9,7 @@ Modern build toolkit for React Native. Powered by [Rolldown](https://rolldown.rs
 </div>
 
 > [!NOTE]
-> This project is under development (early alpha stage)
+> This project is under development (beta stage)
 
 ## Overview
 

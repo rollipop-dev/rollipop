@@ -1,3 +1,4 @@
+import packageJson from '../../package.json';
 import type {
   Build,
   BuildLog,
@@ -145,7 +146,7 @@ export class MockDashboardStore {
 
 function createProject(configPath: string | null, startedAt: number): ProjectInfo {
   return {
-    bundlerVersion: '1.0.0-alpha.24',
+    bundlerVersion: packageJson.version,
     rootPath: '/path/to/project',
     configPath,
     server: {
