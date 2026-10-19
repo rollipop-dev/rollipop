@@ -1,4 +1,28 @@
 
+## [1.0.0-alpha.34] - 2026-10-19
+
+### 🐛 Bug Fixes
+
+- server: preserve minify option during symbolication by @leegeunhyeok
+- module-federation: preserve remote aliases by @leegeunhyeok
+- module-federation: allow retrying failed remote loads by @leegeunhyeok
+- server: close owned bundler engines on shutdown by @leegeunhyeok
+- hmr: apply patches for unexecuted modules by @leegeunhyeok
+- hmr: reject reserved websocket event names by @leegeunhyeok
+
+### 📚 Documentation
+
+- refresh guides and navigation by @leegeunhyeok
+- align Node.js support with dependency requirements by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- bump yarn to 4.18.1 by @leegeunhyeok
+- deps: bump up rolldown by @leegeunhyeok
+- deps: bump up rolldown by @leegeunhyeok
+- deps: bump activesupport from 6.1.7.10 to 7.2.3.1 in /examples/0.87 (#198) by @dependabot[bot]
+
+
 ## [1.0.0-alpha.33] - 2026-10-02
 
 ### 🚀 Features
