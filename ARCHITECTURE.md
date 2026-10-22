@@ -47,6 +47,14 @@ Rolldown still owns the core bundler work: module loading, resolving, parsing, l
 
 The production build path stays intentionally small: once the target is described, Rolldown does the bundling work. Rollipop-specific behavior enters through explicit plugins, output options, and finalization rather than ad-hoc work after the bundle has already been emitted.
 
+## React Native runtime compatibility
+
+`src/internal/react-native/runtime.ts` selects one runtime strategy from the installed React Native package version using `semver`, including prereleases. The strategy owns the prelude modules, polyfill scripts, and asset registry entry point. `getDefaultConfig()` consumes that injection plan once; bundler plugins do not make independent version decisions.
+
+`legacy.ts` covers versions before 0.87 and keeps `Libraries/Core/InitializeCore` and the legacy asset registry. `public-assets.ts` covers 0.87 and keeps `InitializeCore` with the public `react-native/asset-registry` entry point. `public.ts` switches to `react-native/setup-env` from 0.88 onward.
+
+Setup remains a prelude, so it executes before the application even when the entry does not import `react-native`. The shared polyfill resolver preserves direct, nested Metro-config, and legacy `rn-get-polyfills` providers. New runtime contracts belong in a strategy with its own version range rather than scattered feature probes.
+
 ## Dev server mode
 
 `runServer()` prepares the development target and starts a Fastify-based server with React Native-compatible APIs. The server is not Metro internally, but it preserves the interface shape that React Native clients, dev middleware, symbolication, bundle requests, asset requests, and HMR clients expect.

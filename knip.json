@@ -6,7 +6,7 @@
     "examples/module-federation/src/host/App.tsx": ["unlisted"],
     "examples/0.72/hmr-client.ts": ["unresolved"],
     "packages/rollipop/src/runtime/hmr-client.ts": ["unresolved"],
-    "packages/rollipop/src/internal/react-native.ts": ["unlisted"],
+    "packages/rollipop/src/internal/react-native/polyfills.ts": ["unlisted", "unresolved"],
     "packages/plugin-rozenite/src/patch.ts": ["unlisted"]
   },
   "workspaces": {
@@ -34,6 +34,11 @@
       "ignoreDependencies": ["@babel/runtime", "@swc/helpers"]
     },
     "examples/0.87": {
+      "entry": ["App.tsx", "rollipop.config.ts", "__tests__/**/*.{js,jsx,ts,tsx}"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
+      "ignoreDependencies": ["@babel/preset-env", "@babel/runtime"]
+    },
+    "examples/0.88": {
       "entry": ["App.tsx", "rollipop.config.ts", "__tests__/**/*.{js,jsx,ts,tsx}"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
       "ignoreDependencies": ["@babel/preset-env", "@babel/runtime"]
