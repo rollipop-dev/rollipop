@@ -4837,15 +4837,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@modelcontextprotocol/core@npm:2.1.0":
-  version: 2.1.0
-  resolution: "@modelcontextprotocol/core@npm:2.1.0"
-  dependencies:
-    zod: "npm:^4.2.0"
-  checksum: 10c0/a349dd0ebd64b093008c8d4d93c2852222c090126a3ba18f071756fdef0bd872dbf43b09ae21bebc599a16d40acec8a906fa97ba5409787806d8633decce2c61
-  languageName: node
-  linkType: hard
-
 "@modelcontextprotocol/core@npm:2.3.1":
   version: 2.3.1
   resolution: "@modelcontextprotocol/core@npm:2.3.1"
@@ -4889,12 +4880,12 @@ __metadata:
   linkType: hard
 
 "@modelcontextprotocol/server@npm:^2.0.0":
-  version: 2.1.0
-  resolution: "@modelcontextprotocol/server@npm:2.1.0"
+  version: 2.3.1
+  resolution: "@modelcontextprotocol/server@npm:2.3.1"
   dependencies:
-    "@modelcontextprotocol/core": "npm:2.1.0"
+    "@modelcontextprotocol/core": "npm:2.3.1"
     zod: "npm:^4.2.0"
-  checksum: 10c0/69572e99b859782018aa394520fcb62d22f3854ca9cb8d5fef14a9b23c7177cc041d91a8f8c3f7a529b5916416f439e644e88258a135a880d2b9b1daf1a56b1e
+  checksum: 10c0/f3e8159af5cb51211109ae4817c0cfcdf349171c090d4a355dafe6117038f9a807052289cb1376d67ad4c005e3772cf1af076dbded498636a022d7c641253f12
   languageName: node
   linkType: hard
 
