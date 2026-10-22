@@ -36,7 +36,7 @@
     "examples/0.87": {
       "entry": ["App.tsx", "rollipop.config.ts", "__tests__/**/*.{js,jsx,ts,tsx}"],
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
-      "ignoreDependencies": ["@babel/preset-env", "@babel/runtime", "@swc/helpers"]
+      "ignoreDependencies": ["@babel/preset-env", "@babel/runtime"]
     },
     "examples/module-federation": {
       "entry": [
@@ -69,8 +69,7 @@
     },
     "packages/plugin-module-federation": {
       "entry": ["src/index.ts", "src/runtime.ts", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
-      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"],
-      "ignoreDependencies": ["@module-federation/runtime"]
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!dist/**"]
     },
     "packages/plugin-rozenite": {
       "entry": ["src/index.ts"],
