@@ -3,11 +3,17 @@ import path from 'node:path';
 
 import type * as rolldown from '@rollipop/rolldown';
 import type { TransformOptions as RollipopTransformOptions } from '@rollipop/rolldown/utils';
-import { invariant, isNotNil, toMerged } from 'es-toolkit';
+import { invariant, isNotNil, mergeWith, toMerged } from 'es-toolkit';
 
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
-import type { ResolvedConfig, RollipopReactNativeWorkletsConfig } from '../config';
+import type {
+  ResolvedConfig,
+  TransformConfig,
+  WorkletsConfig,
+  JsxOptions,
+  SwcConfig,
+} from '../config';
 import { applyRolldownOptionsConfig } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { CompatStatusReporter, ProgressBarStatusReporter } from '../events/builtin-reporters';
@@ -123,7 +129,7 @@ export async function resolveRolldownOptions(
   const { intro: rolldownIntro, ...rolldownOutput } = config.output;
   const { worklets: _experimentalWorklets, ...rolldownExperimental } = config.experimental;
 
-  const { flow: _flow, babel: _babel, swc: _swc, ...rolldownTransform } = config.transform;
+  const rolldownTransform = resolveRolldownTransformConfig(config.transform);
 
   // User Plugins
   const userPlugins = config.plugins;
@@ -145,12 +151,10 @@ export async function resolveRolldownOptions(
   );
 
   const defaultTransformOptions = {
-    cwd: config.root,
     target: 'esnext',
     jsx: {
       runtime: 'automatic',
       development: dev,
-      compiler: undefined,
     },
     define: {
       __DEV__: asLiteral(dev),
@@ -165,7 +169,6 @@ export async function resolveRolldownOptions(
     },
   } satisfies RollipopTransformOptions;
   const mergedTransformOptions = toMerged(defaultTransformOptions, rolldownTransform);
-  applyReactCompilerDefaults(mergedTransformOptions);
 
   const reactRefreshFilter = resolveReactRefreshFilter(mergedTransformOptions);
   const entryPluginOptions = resolveEntryPluginOptions(config, context);
@@ -364,14 +367,12 @@ function resolveReactNativeBuiltinPluginConfig(
     envName: config.mode,
     runtimeTarget: config.runtimeTarget,
     flow: config.transform.flow,
-    swc: config.transform.swc?.native,
+    swc: resolveNativeSwcConfig(config.transform),
     worklets: resolveWorkletsConfig(config),
   };
 }
 
-function resolveWorkletsConfig(
-  config: ResolvedConfig,
-): RollipopReactNativeWorkletsConfig | undefined {
+function resolveWorkletsConfig(config: ResolvedConfig): WorkletsConfig | undefined {
   const { worklets } = config.experimental ?? {};
 
   if (worklets == null) {
@@ -387,21 +388,35 @@ function resolveWorkletsConfig(
   );
 }
 
-function applyReactCompilerDefaults(transform: RolldownTransformOptions) {
-  const jsx = transform.jsx;
-  if (jsx == null || typeof jsx !== 'object') {
-    return;
+function resolveRolldownTransformConfig(config: TransformConfig): RolldownTransformOptions {
+  const { flow: _flow, babel: _babel, swc: _swc, ...transform } = config;
+
+  if (transform.jsx != null && typeof transform.jsx === 'object') {
+    const { compiler: _compiler, ...jsx } = transform.jsx;
+    return { ...transform, jsx };
   }
 
-  const jsxOptions = jsx as RolldownJsxOptions;
-  if (jsxOptions.compiler == null) {
-    return;
+  return transform;
+}
+
+function resolveNativeSwcConfig({ jsx, swc }: TransformConfig): SwcConfig | undefined {
+  const jsxCompiler = jsx != null && typeof jsx === 'object' ? jsx.compiler : undefined;
+  const native = swc?.native;
+  const nativeCompiler = native?.react?.compiler;
+
+  if (jsxCompiler == null && nativeCompiler == null) {
+    return native;
   }
 
-  jsxOptions.compiler = {
-    ...jsxOptions.compiler,
-    exclude: jsxOptions.compiler.exclude ?? [/node_modules/],
-  };
+  const compiler: NonNullable<JsxOptions['compiler']> = mergeWith(
+    toMerged({}, jsxCompiler ?? {}),
+    nativeCompiler ?? {},
+    // Explicit native lists replace JSX lists, including an empty list.
+    (_target, source) => (Array.isArray(source) ? [...source] : undefined),
+  );
+  compiler.exclude ??= [/node_modules/];
+
+  return { ...native, react: { ...native?.react, compiler } };
 }
 
 function resolveBabelPluginOptions(

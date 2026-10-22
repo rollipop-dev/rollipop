@@ -3,6 +3,7 @@ import path from 'node:path';
 import type * as rolldown from '@rollipop/rolldown';
 import { describe, expect, it, vi } from 'vite-plus/test';
 
+import type { JsxOptions } from '../../config';
 import { CompatStatusReporter, ProgressBarStatusReporter } from '../../events/builtin-reporters';
 import { EventBus } from '../../events/event-bus';
 import { createTestConfig } from '../../testing/config';
@@ -10,13 +11,6 @@ import type { ReportableEvent } from '../../types';
 import { resolveBuildOptions } from '../../utils/build-options';
 import { getOverrideOptionsForDevServer, resolveRolldownOptions } from '../rolldown';
 import type { BundlerContext } from '../types';
-
-type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
-type RolldownJsxOptions = RolldownTransformOptions['jsx'] extends infer T
-  ? T extends object
-    ? T
-    : never
-  : never;
 
 function getPlugins(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
   const plugins: rolldown.Plugin[] = [];
@@ -53,6 +47,16 @@ async function getResolvedPlugins(options: Awaited<ReturnType<typeof resolveRoll
   await visit(options.input?.plugins);
 
   return plugins;
+}
+
+async function getReactNativePluginOptions(
+  options: Awaited<ReturnType<typeof resolveRolldownOptions>>,
+) {
+  const plugin = (await getResolvedPlugins(options)).find(
+    (plugin) => plugin.name === 'builtin:rollipop-react-native',
+  );
+  expect(plugin).toBeDefined();
+  return Reflect.get(plugin!, '_options');
 }
 
 function findReporterPlugin(options: Awaited<ReturnType<typeof resolveRolldownOptions>>) {
@@ -196,7 +200,7 @@ describe('resolveRolldownOptions', () => {
       { host: 'localhost', port: 8081, bundleEntry: 'index.bundle' },
     );
 
-    const refresh = (options.input?.transform?.jsx as RolldownJsxOptions)?.refresh;
+    const refresh = (options.input?.transform?.jsx as JsxOptions)?.refresh;
     expect(refresh).toEqual(expect.objectContaining({ include, exclude }));
 
     const wrapper = (await getResolvedPlugins(options)).find(
@@ -213,36 +217,148 @@ describe('resolveRolldownOptions', () => {
       'test-bundler-react-compiler-disabled',
     );
 
-    expect((options.input?.transform?.jsx as RolldownJsxOptions)?.compiler).toBeUndefined();
+    expect((await getReactNativePluginOptions(options)).swc?.react?.compiler).toBeUndefined();
+    expect(options.input?.transform?.jsx).not.toHaveProperty('compiler');
   });
 
-  it('enables react compiler with default exclude when configured with an empty object', async () => {
+  it.each(['jsx', 'swc'] as const)(
+    'enables react compiler with default exclude when configured through %s with an empty object',
+    async (source) => {
+      const config = createTestConfig(process.cwd());
+      if (source === 'jsx') {
+        config.transform.jsx = { compiler: {} };
+      } else {
+        config.transform.swc = { native: { react: { compiler: {} } } };
+      }
+
+      const options = await resolveTestRolldownOptions(
+        config,
+        `test-bundler-react-compiler-empty-object-${source}`,
+      );
+
+      expect((await getReactNativePluginOptions(options)).swc.react.compiler).toEqual({
+        exclude: [/node_modules/],
+      });
+      expect(options.input?.transform?.jsx).not.toHaveProperty('compiler');
+    },
+  );
+
+  it.each([{ exclude: [/vendor/] }, { exclude: [] }])(
+    'preserves explicit react compiler exclude patterns: $exclude',
+    async ({ exclude }) => {
+      const config = createTestConfig(process.cwd());
+      config.transform.jsx = { compiler: { exclude, target: '18' } };
+
+      const options = await resolveTestRolldownOptions(
+        config,
+        'test-bundler-react-compiler-custom-exclude',
+      );
+
+      expect((await getReactNativePluginOptions(options)).swc.react.compiler).toEqual({
+        exclude,
+        target: '18',
+      });
+      expect(options.input?.transform?.jsx).not.toHaveProperty('compiler');
+    },
+  );
+
+  it.each([{ exclude: [/generated/] }, { exclude: [] }])(
+    'merges compiler options with native options taking precedence: $exclude',
+    async ({ exclude }) => {
+      const config = createTestConfig(process.cwd());
+      config.transform.jsx = {
+        runtime: 'classic',
+        pragma: 'h',
+        pragmaFrag: 'Fragment',
+        compiler: {
+          include: [/app/],
+          exclude: [/vendor/, /legacy/],
+          target: '18',
+          compilationMode: 'annotation',
+        },
+      };
+      config.transform.swc = {
+        native: {
+          externalHelpers: false,
+          runPluginFirst: true,
+          globals: { __TEST__: 'true' },
+          react: {
+            runtime: 'Preserve',
+            importSource: 'native-runtime',
+            compiler: { exclude, target: '19', noEmit: true },
+          },
+        },
+      };
+
+      const options = await resolveTestRolldownOptions(
+        config,
+        'test-bundler-react-compiler-native-precedence',
+      );
+
+      expect((await getReactNativePluginOptions(options)).swc).toMatchObject({
+        externalHelpers: false,
+        runPluginFirst: true,
+        globals: { __TEST__: 'true' },
+        react: {
+          runtime: 'Preserve',
+          importSource: 'native-runtime',
+          compiler: {
+            include: [/app/],
+            exclude,
+            target: '19',
+            compilationMode: 'annotation',
+            noEmit: true,
+          },
+        },
+      });
+      expect(options.input?.transform?.jsx).toEqual({
+        runtime: 'classic',
+        development: true,
+        pragma: 'h',
+        pragmaFrag: 'Fragment',
+      });
+    },
+  );
+
+  it.each([false, 'react', 'react-jsx', 'preserve'] as const)(
+    'preserves non-object JSX mode %s while configuring the native compiler',
+    async (jsx) => {
+      const config = createTestConfig(process.cwd());
+      config.transform.jsx = jsx;
+      config.transform.swc = { native: { react: { compiler: {} } } };
+
+      const options = await resolveTestRolldownOptions(
+        config,
+        `test-bundler-react-compiler-jsx-${jsx}`,
+      );
+
+      expect(options.input?.transform?.jsx).toBe(jsx);
+      expect((await getReactNativePluginOptions(options)).swc.react.compiler).toEqual({
+        exclude: [/node_modules/],
+      });
+    },
+  );
+
+  it('resolves react compiler options repeatedly without mutating the input configuration', async () => {
     const config = createTestConfig(process.cwd());
-    config.transform.jsx = { compiler: {} };
+    config.transform.jsx = { compiler: { compilationMode: 'annotation' } };
+    config.transform.swc = { native: { react: { compiler: { target: '19' } } } };
+    const originalTransform = structuredClone(config.transform);
 
-    const options = await resolveTestRolldownOptions(
-      config,
-      'test-bundler-react-compiler-empty-object',
-    );
+    for (let iteration = 0; iteration < 2; iteration++) {
+      const options = await resolveTestRolldownOptions(
+        config,
+        `test-bundler-react-compiler-immutable-${iteration}`,
+      );
 
-    expect((options.input?.transform?.jsx as RolldownJsxOptions)?.compiler).toEqual({
-      exclude: [/node_modules/],
-    });
-  });
-
-  it('uses user react compiler exclude patterns instead of the default node_modules rule', async () => {
-    const config = createTestConfig(process.cwd());
-    config.transform.jsx = { compiler: { exclude: [/vendor/], target: '18' } };
-
-    const options = await resolveTestRolldownOptions(
-      config,
-      'test-bundler-react-compiler-custom-exclude',
-    );
-
-    expect((options.input?.transform?.jsx as RolldownJsxOptions)?.compiler).toEqual({
-      exclude: [/vendor/],
-      target: '18',
-    });
+      expect((await getReactNativePluginOptions(options)).swc.react.compiler).toEqual({
+        compilationMode: 'annotation',
+        target: '19',
+        exclude: [/node_modules/],
+      });
+      expect(options.input?.transform?.jsx).not.toHaveProperty('compiler');
+      expect(config.transform).toEqual(originalTransform);
+    }
   });
 
   it('applies rolldownOptions after Rollipop internal build overrides', async () => {

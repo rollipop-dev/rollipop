@@ -6,6 +6,7 @@ export type { BuildDiagnosticLog, ReportableEvent } from './events/types';
 
 // Utility Types
 export type MaybePromise<T> = T | Promise<T>;
+export type ExtractObject<T> = T extends object ? T : never;
 export type NullValue<T = void> = T | undefined | null | void;
 export type DeepRequired<T> = {
   [K in keyof T]-?: T[K] extends object ? DeepRequired<T[K]> : T[K];

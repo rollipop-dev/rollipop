@@ -2,24 +2,28 @@ import type * as babel from '@babel/core';
 import type * as rolldown from '@rollipop/rolldown';
 import type {
   DevWatchOptions,
-  RollipopReactNativeFlowConfig,
-  RollipopReactNativeSwcConfig,
-  RollipopReactNativeWorkletsConfig,
+  RollipopReactNativeReactConfig as ReactConfig,
+  RollipopReactNativeFlowConfig as FlowConfig,
+  RollipopReactNativeSwcConfig as SwcConfig,
+  RollipopReactNativeWorkletsConfig as WorkletsConfig,
 } from '@rollipop/rolldown/experimental';
 import type { TopLevelFilterExpression } from '@rollipop/rolldown/filter';
 import type * as swc from '@swc/core';
 
 export type {
-  RollipopReactNativeFlowConfig,
-  RollipopReactNativeSwcConfig,
-  RollipopReactNativeWorkletsConfig,
+  FlowConfig,
+  SwcConfig,
+  WorkletsConfig,
+  FlowConfig as RollipopReactNativeFlowConfig,
+  SwcConfig as RollipopReactNativeSwcConfig,
+  WorkletsConfig as RollipopReactNativeWorkletsConfig,
 };
 
 import type { AliasEntry } from '../core/plugins';
 import type { Plugin } from '../core/plugins/types';
 import type { RolldownOptionsConfig } from '../core/rolldown';
 import type { InteractiveCommand } from '../node/cli-utils';
-import type { MaybePromise, NullValue, Reporter } from '../types';
+import type { ExtractObject, MaybePromise, NullValue, Reporter } from '../types';
 
 export type {
   RolldownOptions,
@@ -30,6 +34,7 @@ export type {
 
 type RolldownExperimentalOptions = NonNullable<rolldown.InputOptions['experimental']>;
 type RolldownTransformOptions = NonNullable<rolldown.InputOptions['transform']>;
+type RolldownJsxOptions = ExtractObject<NonNullable<RolldownTransformOptions['jsx']>>;
 
 type RollipopManagedInputOption =
   | 'input'
@@ -223,12 +228,21 @@ export type AliasConfig = NonNullable<rolldown.InputOptions['resolve']>['alias']
 
 export type TransformConfig = Omit<
   RolldownTransformOptions,
-  'cwd' | 'lang' | 'sourceType' | 'plugins'
+  'cwd' | 'lang' | 'sourceType' | 'jsx' | 'plugins'
 > & {
+  /**
+   * Controls how JSX syntax is transformed.
+   *
+   * - If set to `false`, an error will be thrown if JSX syntax is encountered.
+   * - If set to `'react'`, JSX syntax will be transformed to classic runtime React code.
+   * - If set to `'react-jsx'`, JSX syntax will be transformed to automatic runtime React code.
+   * - If set to `'preserve'`, JSX syntax will be preserved as-is.
+   */
+  jsx?: false | 'react' | 'react-jsx' | 'preserve' | JsxOptions;
   /**
    * Flow handling configuration for the built-in transform pipeline.
    */
-  flow?: RollipopReactNativeFlowConfig;
+  flow?: FlowConfig;
   /**
    * Babel transformation configuration.
    */
@@ -239,9 +253,17 @@ export type TransformConfig = Omit<
   swc?: SwcTransformConfig;
 };
 
+export type JsxOptions = RolldownJsxOptions & {
+  /**
+   * React Compiler options forwarded to the native SWC pipeline.
+   * Explicit `transform.swc.native.react.compiler` options take precedence.
+   */
+  compiler?: ReactConfig['compiler'];
+};
+
 export type BabelTransformConfig = { rules?: TransformRule<babel.InputOptions>[] };
 export type SwcTransformConfig = {
-  native?: RollipopReactNativeSwcConfig;
+  native?: SwcConfig;
   rules?: TransformRule<swc.Options>[];
 };
 
@@ -260,7 +282,7 @@ export interface ExperimentalConfig extends RolldownExperimentalOptions {
   /**
    * `react-native-worklets` transformation configuration.
    */
-  worklets?: RollipopReactNativeWorkletsConfig;
+  worklets?: WorkletsConfig;
 }
 
 export interface OutputConfig extends Omit<rolldown.OutputOptions, RollipopManagedOutputOption> {}

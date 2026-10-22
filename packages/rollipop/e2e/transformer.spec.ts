@@ -43,6 +43,47 @@ describe('transformer', () => {
 
       expect(chunk.code).not.toContain('jsxDEV');
     });
+
+    it.each([
+      {
+        name: 'transform.jsx.compiler only',
+        transform: { jsx: { compiler: { target: '19' } } },
+        runtime: 'react/compiler-runtime',
+      },
+      {
+        name: 'transform.swc.native.react.compiler only',
+        transform: { swc: { native: { react: { compiler: { target: '18' } } } } },
+        runtime: 'react-compiler-runtime',
+      },
+      {
+        name: 'both compiler options with native target taking precedence',
+        transform: {
+          jsx: { compiler: { target: '19' } },
+          swc: { native: { react: { compiler: { target: '18' } } } },
+        },
+        runtime: 'react-compiler-runtime',
+      },
+      {
+        name: 'both compiler options with undefined native target',
+        transform: {
+          jsx: { compiler: { target: '19' } },
+          swc: { native: { react: { compiler: { target: undefined } } } },
+        },
+        runtime: 'react/compiler-runtime',
+      },
+    ] as const)('runs React Compiler with $name', async ({ transform, runtime }) => {
+      const chunk = await build('transformer/jsx', {
+        entry: 'index.tsx',
+        external: [/^react/],
+        transform,
+      });
+
+      expect(chunk.code).toContain(runtime);
+      expect(chunk.code).not.toContain(
+        runtime === 'react/compiler-runtime' ? 'react-compiler-runtime' : 'react/compiler-runtime',
+      );
+      expect(chunk.code).not.toContain('<div');
+    });
   });
 
   describe('Flow', () => {
