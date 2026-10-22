@@ -1,4 +1,15 @@
 
+## [1.0.0-beta.1] - 2026-10-22
+
+### 🚀 Features
+
+- transform: route react-compiler options through native swc by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- remove stale dependency ignore entries by @leegeunhyeok
+
+
 ## [1.0.0-beta.0] - 2026-10-19
 
 ### ⚙️ Miscellaneous Tasks
