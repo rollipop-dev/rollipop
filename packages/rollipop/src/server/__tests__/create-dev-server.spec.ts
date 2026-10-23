@@ -50,6 +50,44 @@ vitest.mock('@react-native/dev-middleware', () => ({
 }));
 
 describe('createDevServer', () => {
+  it('uses a host inspector for HTTP, WebSocket upgrades and shutdown', async () => {
+    const networkServer = new WebSocketServer({ noServer: true });
+    networkServer.on('connection', (socket) => socket.send('host inspector'));
+    const factoryCalls = vi.mocked(createDevMiddleware).mock.calls.length;
+    const devServer = await createDevServer(createTestConfig('/root/project'), {
+      port: 0,
+      inspector: {
+        middleware(req, res, next) {
+          if (req.url !== '/host-inspector') return next();
+          res.end('host inspector');
+        },
+        websocketEndpoints: { '/inspector/network': networkServer },
+      },
+    });
+    let socket: WebSocket | undefined;
+
+    try {
+      expect(vi.mocked(createDevMiddleware).mock.calls).toHaveLength(factoryCalls);
+      const address = await devServer.instance.listen({ host: '127.0.0.1', port: 0 });
+      expect(await (await fetch(new URL('/host-inspector', address))).text()).toBe(
+        'host inspector',
+      );
+      socket = new WebSocket(`${address.replace('http:', 'ws:')}/inspector/network`);
+      const message = once(socket, 'message');
+      await once(socket, 'open');
+      expect((await message)[0].toString()).toBe('host inspector');
+      expect(networkServer.clients.size).toBe(1);
+      const closed = once(socket, 'close');
+      await devServer.instance.close();
+      await closed;
+      expect(networkServer.clients.size).toBe(0);
+    } finally {
+      socket?.terminate();
+      await devServer.instance.close();
+      networkServer.close();
+    }
+  });
+
   it('discovers devices only on an explicit RPC request, not on startup or lifecycle notifications', async () => {
     const actual = await vi.importActual<typeof import('@react-native/dev-middleware')>(
       '@react-native/dev-middleware',

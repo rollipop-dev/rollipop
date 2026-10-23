@@ -29,6 +29,11 @@ export interface ServerOptions {
   key?: string;
   cert?: string;
   buildOptions?: Pick<BuildOptions, 'cache'>;
+  /** Override the inspector middleware and WebSocket endpoints for a host's debugging protocol. */
+  inspector?: {
+    middleware: fastifyMiddie.Handler;
+    websocketEndpoints: Record<string, ws.Server>;
+  };
 }
 
 export interface DevServerContext {

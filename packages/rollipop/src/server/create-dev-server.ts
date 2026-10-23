@@ -73,27 +73,29 @@ export async function createDevServer(
   eventBus.subscribe(createReactNativeEventListener(reportEvent));
   eventBus.subscribe(createDevServerEventListener(emitter));
 
-  const { middleware: devMiddleware, websocketEndpoints } = createDevMiddleware({
-    serverBaseUrl,
-    logger: {
-      info(...args) {
-        if (args[0].includes('JavaScript logs have moved')) {
-          return;
-        }
-        logger.info(format(...args));
+  const { middleware: devMiddleware, websocketEndpoints } =
+    options?.inspector ??
+    createDevMiddleware({
+      serverBaseUrl,
+      logger: {
+        info(...args) {
+          if (args[0].includes('JavaScript logs have moved')) {
+            return;
+          }
+          logger.info(format(...args));
+        },
+        warn(...args) {
+          logger.warn(format(...args));
+        },
+        error(...args) {
+          logger.error(format(...args));
+        },
       },
-      warn(...args) {
-        logger.warn(format(...args));
+      unstable_experiments: {
+        enableNetworkInspector: true,
+        enableStandaloneFuseboxShell: true,
       },
-      error(...args) {
-        logger.error(format(...args));
-      },
-    },
-    unstable_experiments: {
-      enableNetworkInspector: true,
-      enableStandaloneFuseboxShell: true,
-    },
-  });
+    });
 
   const hmrServer = new HMRServer({
     bundlerPool,

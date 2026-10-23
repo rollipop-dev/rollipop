@@ -1,5 +1,5 @@
 {
   "title": "Experimental Features",
-  "pages": ["overview", "reanimated-worklets"],
+  "pages": ["overview", "expo", "reanimated-worklets"],
   "defaultOpen": true
 }

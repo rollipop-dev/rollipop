@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Rollipop Expo SDK 58",
+    "slug": "rollipop-expo-58",
+    "version": "1.0.0",
+    "scheme": "rollipop-expo-58",
+    "platforms": ["ios", "android"],
+    "web": {
+      "output": "server"
+    },
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "plugins": ["expo-router", "@rollipop/expo"],
+    "ios": {
+      "bundleIdentifier": "dev.rollipop.expo58"
+    },
+    "android": {
+      "package": "dev.rollipop.expo58"
+    }
+  }
+}

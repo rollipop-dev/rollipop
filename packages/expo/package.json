@@ -1,0 +1,61 @@
+{
+  "name": "@rollipop/expo",
+  "version": "1.0.0-beta.1",
+  "description": "Use Rollipop with Expo native apps through an Expo config plugin.",
+  "homepage": "https://github.com/rollipop-dev/rollipop/tree/main/packages/expo#readme",
+  "bugs": {
+    "url": "https://github.com/rollipop-dev/rollipop/issues"
+  },
+  "license": "MIT",
+  "author": "leegeunhyeok <dev.ghlee@gmail.com> (https://github.com/leegeunhyeok)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rollipop-dev/rollipop.git",
+    "directory": "packages/expo"
+  },
+  "files": [
+    "dist",
+    "app.plugin.js"
+  ],
+  "type": "commonjs",
+  "main": "./dist/register.cjs",
+  "types": "./dist/register.d.cts",
+  "exports": {
+    ".": {
+      "types": "./dist/register.d.cts",
+      "default": "./dist/register.cjs"
+    },
+    "./app.plugin.js": {
+      "types": "./dist/app.plugin.d.cts",
+      "default": "./app.plugin.js"
+    },
+    "./updates-preload.cjs": "./dist/updates-preload.cjs",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "prepack": "yarn build",
+    "typecheck": "tsc --noEmit",
+    "build": "vp pack",
+    "test": "yarn build && node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "rollipop": "workspace:*",
+    "semver": "7.8.5"
+  },
+  "devDependencies": {
+    "@types/semver": "7.8.0",
+    "expo": "58.0.17",
+    "source-map": "0.8.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:vp"
+  },
+  "peerDependencies": {
+    "expo": ">=55.0.0 <59.0.0"
+  },
+  "engines": {
+    "node": "^22.18.0 || ^24.11.0 || >=26.0.0"
+  },
+  "installConfig": {
+    "hoistingLimits": "none"
+  }
+}

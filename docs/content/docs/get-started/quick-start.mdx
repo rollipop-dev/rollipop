@@ -67,7 +67,7 @@ The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Keep the U
 
 You have two options for getting started with Rollipop: using the automated setup command or manual installation.
 
-Beta releases of Rollipop and its official plugins are published under the `beta` tag. Use `@beta` in installation commands during the beta period; the `latest` tag is reserved for stable releases. The initializer adds its matching Rollipop version to your project.
+Beta releases of Rollipop and its official plugins are published under the `beta` tag. Use `@beta` in installation commands during the beta period; the `latest` tag is reserved for stable releases. The initializer adds its matching Rollipop or Expo adapter version to your project.
 
 ### Option 1: Automated Setup (Recommended)
 
@@ -79,10 +79,10 @@ Run `@rollipop/init` from your React Native project root:
   <Tab value="yarn">```yarn dlx @rollipop/init@beta```</Tab>
 </Tabs>
 
-This command will:
+The initializer detects the project type from the `expo` dependency in `package.json` and logs `bare project detected` or `expo project detected`:
 
-- Add the matching Rollipop version to `devDependencies` in `package.json`
-- Create or update `react-native.config.js` to register Rollipop's CLI commands
+- **Bare React Native:** Adds `rollipop` to `devDependencies` and creates or updates `react-native.config.js` to register Rollipop's CLI commands.
+- **Expo:** Adds `@rollipop/expo` to `devDependencies` and registers the config plugin in `app.json` or `app.config.json`. Dynamic `app.config.ts/js` files are preserved, with instructions to add the plugin manually. See the [Expo guide](/docs/experimental/expo) for requirements and native build setup.
 
 Then install the updated dependencies:
 
@@ -92,13 +92,14 @@ Then install the updated dependencies:
   <Tab value="yarn">```yarn install```</Tab>
 </Tabs>
 
-If the initializer reports an existing `commands` property or a configuration it cannot update,
-complete the [React Native CLI configuration](#2-configure-react-native-cli) manually.
+If the initializer reports a configuration it cannot update, follow its instructions to complete the [React Native CLI configuration](#2-configure-react-native-cli) or [Expo configuration](/docs/experimental/expo#manual-setup) manually.
 To customize Rollipop, create a configuration file following the [Configuration guide](/docs/get-started/configuration).
 
 ### Option 2: Manual Installation
 
 If you prefer to set up Rollipop manually:
+
+For Expo projects, follow the [Expo setup guide](/docs/experimental/expo#manual-setup). The steps below apply to bare React Native projects.
 
 #### 1. Install the package
 

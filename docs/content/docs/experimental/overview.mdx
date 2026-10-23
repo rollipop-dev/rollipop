@@ -8,7 +8,13 @@ title: Overview
   validating builds locally, and pin to an exact Rollipop version for reproducible results.
 </Callout>
 
-Experimental features are configured under the top-level `experimental` field in `rollipop.config.ts`.
+## Expo
+
+[`@rollipop/expo`](/docs/experimental/expo) integrates Rollipop with Expo SDK 55–58 for native development and exports. The initializer detects Expo projects and adds the config plugin automatically for JSON configuration files.
+
+## Transform Options
+
+Experimental transform options are configured under the top-level `experimental` field in `rollipop.config.ts`.
 
 TypeScript and Flow support are enabled by default. Worklet transformation is a separate opt-in feature.
 
