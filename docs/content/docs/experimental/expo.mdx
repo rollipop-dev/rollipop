@@ -1,0 +1,116 @@
+---
+title: Expo
+description: Use Rollipop with Expo SDK 55–58 native apps.
+---
+
+`@rollipop/expo` connects Expo's native development server, exports, and native bundle builds to Rollipop. Keep using Expo CLI, Expo Go, Expo Router, and development builds after enabling the config plugin.
+
+<Callout type="warn">
+
+Expo integration is experimental and supports SDK 55–58 with the matching `@expo/cli` major. The adapter uses private CLI APIs and checks their contract at startup and when loading feature helpers. Pin package versions and validate your app before adopting it.
+
+</Callout>
+
+## Automated Setup
+
+Run the initializer from your Expo project root:
+
+<Tabs items={['npm', 'pnpm', 'yarn']}>
+  <Tab value="npm">```npx @rollipop/init@beta```</Tab>
+  <Tab value="pnpm">```pnpm dlx @rollipop/init@beta```</Tab>
+  <Tab value="yarn">```yarn dlx @rollipop/init@beta```</Tab>
+</Tabs>
+
+The initializer prints `expo project detected`, adds matching `rollipop` and `@rollipop/expo` versions to `devDependencies`, and appends the plugin to `app.json` or `app.config.json`. Existing plugins and other configuration are preserved, and running it again does not duplicate the plugin. Projects with generated `ios/` or `android/` directories are still detected as Expo projects.
+
+Install the updated dependencies using your package manager, then start Expo as usual:
+
+```sh
+npx expo start
+```
+
+If your project uses a dynamic `app.config.ts/js` or another supported JS/TS extension, the initializer leaves it unchanged and prints the plugin entry to add manually. Follow the configuration example below before starting Expo.
+
+## Manual Setup
+
+Install the bundler and adapter at the same version:
+
+<Tabs items={['npm', 'pnpm', 'yarn']}>
+  <Tab value="npm">```npm install --save-dev rollipop@beta @rollipop/expo@beta```</Tab>
+  <Tab value="pnpm">```pnpm add -D rollipop@beta @rollipop/expo@beta```</Tab>
+  <Tab value="yarn">```yarn add -D rollipop@beta @rollipop/expo@beta```</Tab>
+</Tabs>
+
+`rollipop` is a required peer dependency of `@rollipop/expo`. Declare both packages in your project's `devDependencies`.
+
+Add `@rollipop/expo` to your existing Expo plugin list. Keep other entries, including `expo-router`:
+
+```json title="app.json"
+{
+  "expo": {
+    "plugins": ["expo-router", "@rollipop/expo"]
+  }
+}
+```
+
+For a dynamic config, append the plugin to the final exported configuration:
+
+```ts title="app.config.ts"
+import type { ConfigContext } from 'expo/config';
+
+export default ({ config }: ConfigContext) => ({
+  ...config,
+  plugins: [...(config.plugins ?? []), '@rollipop/expo'],
+});
+```
+
+The config plugin registers the CLI hooks and native Expo Updates preloads. A separate `react-native.config.js` entry is unnecessary for Expo.
+
+## SDK Compatibility
+
+| Expo SDK | Initialization entry | Default Hermes syntax target |
+| -------- | -------------------- | ---------------------------- |
+| 55       | Expo source entry    | Classic Hermes               |
+| 56–57    | Expo source entry    | Hermes V1                    |
+| 58       | Expo compiled entry  | Hermes V1                    |
+
+The adapter selects these policies internally; the plugin configuration is the same for every supported SDK. CLI patch and minor releases are accepted within the matching SDK major, provided the required private API contract is available. SDK 54, SDK 59+, and mismatched Expo/CLI majors are rejected.
+
+Hermes selection also honors `expo-build-properties`, generated iOS/Android properties, and native build environment settings. The adapter derives Rollipop's `runtimeTarget` from Expo rather than requiring a separate Rollipop setting. When platform engines differ, the shared configuration uses classic Hermes syntax, which is compatible with V1 as well. Hermes bytecode compilation continues to use Expo's helper and the project's React Native compiler.
+
+## Development and Native Builds
+
+Continue using the standard Expo commands:
+
+```sh
+npx expo start
+npx expo run:ios
+npx expo run:android
+npx expo export --platform ios --platform android
+```
+
+Expo Router keeps dynamic routes, route groups, typed routes, and synchronous native routing. Native exports preserve assets, Hermes bytecode compilation, and source map artifacts.
+
+The config plugin also connects Expo Updates resource generation to Rollipop. If native projects are checked into source control, run `npx expo prebuild` after enabling the plugin and commit the generated native changes. Continuous Native Generation and EAS prebuild apply these changes through the same config plugin. EAS cloud signing, uploads, and store submission have not been verified; native build scripts and Updates resources have been checked locally.
+
+## Worklets and React Compiler
+
+Installing `react-native-worklets` automatically enables the built-in Worklets transform, including Reanimated 4 worklets. Setting `experiments.reactCompiler: true` in your Expo config enables React Compiler through Rollipop's existing `transform.jsx.compiler` option. These transforms require no additional Babel configuration.
+
+An optional `rollipop.config.ts` can customize Rollipop transforms, resolution, and plugins. See [Configuration](/docs/get-started/configuration) and [Reanimated & Worklets](/docs/experimental/reanimated-worklets) for the underlying options.
+
+## Current Limits
+
+- The adapter supports iOS and Android. Web, DOM/CSS components, API route servers, middleware, React Server Components, and server functions are unsupported.
+- Custom Babel and Metro plugins are not executed. Existing configuration files produce a diagnostic; move required customizations to Rollipop configuration.
+- Native async route splitting and tunnel URLs are unsupported. Use synchronous routes and `--lan` or `--localhost`.
+- `EXPO_PUBLIC_*` variables are inlined at startup. Restart Expo CLI after changing environment files.
+- Expo's LogBox modules and asset resolver are preserved. The default native warning UI uses React Native LogBox, matching Expo CLI. The opt-in `EXPO_UNSTABLE_LOG_BOX` DOM overlay is unsupported.
+
+<Callout type="warn">
+
+The current engine has an upstream source map concatenation bug that can shift component and hook locations after Worklets-generated unmapped code. This also affects builds outside Expo. [The upstream fix proposal](https://github.com/oxc-project/oxc-sourcemap/pull/471) was closed without merging; the regression test keeps the expected locations and is skipped until the engine is fixed.
+
+</Callout>
+
+See the [SDK 58 example](https://github.com/rollipop-dev/rollipop/tree/main/examples/expo-58) for an app with Router, assets, UI-thread Worklets, Reanimated, and React Compiler.
