@@ -2,7 +2,7 @@
 title: Jest
 ---
 
-`@rollipop/jest-preset` replaces the React Native preset's `babel-jest` transform with Rollipop's native transformer.
+Run React Native tests with Rollipop's transforms using `@rollipop/jest-preset`.
 
 ## Setup
 
@@ -35,15 +35,15 @@ module.exports = {
 | -------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------- |
 | `mode`                                       | `'development' \| 'production'`     | `NODE_ENV` when it is one of these values; otherwise `'development'`. |
 | `root`                                       | `string`                            | Fallback environment directory; `process.cwd()` when omitted.         |
-| `runtimeTarget`                              | `'hermes' \| 'hermes-v1'`           | Native default: `'hermes-v1'`.                                        |
-| `flow`                                       | `{ requireDirective?: boolean }`    | Native Flow options.                                                  |
+| `runtimeTarget`                              | `'hermes' \| 'hermes-v1'`           | `'hermes-v1'`.                                                        |
+| `flow`                                       | `{ requireDirective?: boolean }`    | Flow parsing options.                                                 |
 | `worklets`                                   | `RollipopReactNativeWorkletsConfig` | Disabled when omitted; `{}` enables it.                               |
 | `envDir`                                     | `string`                            | `root`, then `process.cwd()`.                                         |
 | `envFile`                                    | `string`                            | `'.env'`                                                              |
 | `envPrefix`                                  | `string`                            | `'ROLLIPOP_'`                                                         |
 | `experimental.customCoverageInstrumentation` | coverage options                    | Disabled by default.                                                  |
 
-The transformer replaces `import.meta.env.*` and sets `import.meta.hot` to `undefined`. It selects CommonJS or preserved ESM from Jest's `supportsStaticESM` flag and enables Jest hoisting.
+The transformer replaces `import.meta.env.*` and sets `import.meta.hot` to `undefined`. Both CommonJS and ESM tests are supported.
 
 ## Glob Imports
 
@@ -65,6 +65,6 @@ The callback receives `{ importer, pattern, options }`. Register it before impor
 
 ## Coverage
 
-Set `experimental.customCoverageInstrumentation.enabled: true` to use native SWC coverage instrumentation when Jest requests coverage. Additional options are `coverageVariable`, `compact`, `reportLogic`, `ignoreClassMethods`, and `instrumentLog: { level, enableTrace }`.
+Set `experimental.customCoverageInstrumentation.enabled: true` to instrument coverage in the Rollipop transformer. Additional options are `coverageVariable`, `compact`, `reportLogic`, `ignoreClassMethods`, and `instrumentLog: { level, enableTrace }`.
 
-When disabled, the transformer reports `canInstrument: false` and leaves coverage instrumentation to Jest.
+Otherwise, Jest handles coverage instrumentation.

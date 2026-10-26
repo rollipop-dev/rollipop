@@ -40,8 +40,7 @@ export default defineConfig({
 
 ## Universal Hooks
 
-Rollipop supports Rolldown's public plugin hooks. The `transformCacheHit` hook is internal and is
-removed from user plugins.
+Rollipop supports Rolldown's public plugin hooks.
 
 ## Rollipop Specific Hooks
 
@@ -193,7 +192,7 @@ export default function myPlugin() {
 
 ### `devtools`
 
-Add development UI and tooling to the Rollipop dashboard with the `devtools` option. It follows the [`devtools.setup(context)` pattern from Vite DevTools Kit](https://devtools.vite.dev/kit/devtools-plugin.html): the setup context exposes the shared Devframe Hub surfaces for docks, RPC, commands, messages, and terminals, along with `rollipopConfig` and `rollipopServer`.
+Add UI and tooling to the dashboard with [`devtools.setup(context)`](https://devtools.vite.dev/kit/devtools-plugin.html). The context also provides `rollipopConfig` and `rollipopServer`.
 
 Register an iframe dock for a UI served by the plugin:
 
@@ -257,7 +256,7 @@ export default function inspectorPlugin(): Plugin {
 }
 ```
 
-The adapter mounts `clientAssets`, installs the Devframe definition into Rollipop's shared Hub, and derives an iframe dock entry from the definition's `id`, `name`, `icon`, and mount path. Use the adapter's `dock` option to override dock metadata, or its `setup` option for Rollipop-only Hub setup.
+The adapter serves `clientAssets` and adds a dashboard tab. Use `dock` to customize the tab or `setup` for additional initialization.
 
 Adapter options:
 
@@ -316,7 +315,7 @@ export default defineConfig({
 
 ## Hook Filters
 
-Use [hook filters](https://rolldown.rs/apis/plugin-hook-filters) to skip JavaScript hook calls for unmatched modules:
+Use [hook filters](https://rolldown.rs/apis/plugin-hook-filters) to run hooks only for matching modules:
 
 ```ts title="my-plugin.ts"
 export default function myPlugin() {

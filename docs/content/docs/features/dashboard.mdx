@@ -12,21 +12,12 @@ Run `rollipop start`, then open [localhost:8081/dashboard](http://localhost:8081
 
 - **Instances**: Inspect active bundler instances, targets, build options, bundle URLs, and the latest build status
 - **Devices**: View connected React Native DevTools targets
-- **Bundles**: Preview large generated bundles by position without rendering the entire file
+- **Bundles**: Browse generated bundles
 - **Analyze**: Open bundle analysis reports when the analyzer is enabled
 - **Build Logs**: Inspect build logs by bundler instance and filter by log level
 - **Actions**: Reload connected clients, reset the transform cache, and clear stored build summaries and logs
 
-## Devframe Integration
-
-The dashboard uses [Devframe](https://devfra.me/) under `/__rollipop/`. Install `@devframes/agentic` to also enable [MCP Server](/docs/features/mcp); the dashboard does not require it.
-
-| Purpose             | Endpoint                        |
-| ------------------- | ------------------------------- |
-| Connection metadata | `/__rollipop/__connection.json` |
-| SSE transport       | `/__rollipop/__sse`             |
-| MCP (when enabled)  | `/__rollipop/__mcp`             |
-| Embedded dock UI    | `/__rollipop/embedded.js`       |
+For agent access to build diagnostics and app logs, see [MCP Server](/docs/features/mcp).
 
 ## Bundle Analysis
 

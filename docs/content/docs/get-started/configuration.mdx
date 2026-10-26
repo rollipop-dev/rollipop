@@ -75,7 +75,7 @@ Project root directory, used for module resolution and resolving the app entry. 
 - **Type:** `'development' | 'production'`
 - **Default:** `'development'` for `rollipop start`, `'production'` for `rollipop bundle`.
 
-Controls environment file selection, `import.meta.env.MODE`, and native transform defaults. `--dev` controls bundle development flags independently; it does not change `mode` or select a different `.env` file.
+Controls environment file selection, `import.meta.env.MODE`, and transform defaults. `--dev` controls bundle development flags independently; it does not change `mode` or select a different `.env` file.
 
 ```ts
 export default defineConfig({
@@ -159,7 +159,7 @@ export default defineConfig({
 
 The first matching array entry is applied first. When `find` is a regular expression, `replacement` can use replacement groups such as `$1`.
 
-Object aliases are forwarded to the native resolver. Array aliases are installed through Rollipop's alias plugin, so other plugins' `resolveId` hooks can participate when resolving the replacement.
+Use array aliases when replacements need to be resolved by other plugins' `resolveId` hooks.
 
 Use absolute paths for file-system aliases; relative replacements are used as-is.
 
@@ -182,7 +182,7 @@ Package fields containing per-module path aliases.
 - **Type:** `string[]`
 - **Default:** `['react-native']`
 
-Condition names for exports field resolution in package.json. Rolldown adds `import` or `require` internally according to the importing module.
+Condition names for exports field resolution in package.json. `import` or `require` is added automatically according to the importing module.
 
 ### resolve.preferNativePlatform
 
@@ -266,14 +266,14 @@ Rollipop already defines `__DEV__`, `process.env.NODE_ENV`, `process.env.DEBUG_R
 
 - **Type:** `RollipopReactNativeFlowConfig`
 
-Flow parsing configuration for the built-in transform pipeline.
+Flow parsing options.
 
 `transform.flow.requireDirective`
 
 - **Type:** `boolean`
 - **Default:** `false`
 
-When `true`, only files containing an `@flow` or `@noflow` directive comment are parsed as Flow. By default, every JavaScript module is parsed as Flow to match Metro and Babel behavior.
+When `true`, only files containing an `@flow` or `@noflow` directive comment are parsed as Flow. By default, every JavaScript module is parsed as Flow.
 
 ```ts
 export default defineConfig({
@@ -324,9 +324,7 @@ interface BabelTransformRule {
 
 With `standalone: false` (the default), options from matching rules are merged, and Babel parses and transforms each matching module once.
 
-With `standalone: true`, the rule runs independently in its own filtered transform hook. Standalone rules run in declaration order before the merged rules, regardless of their positions in the array. Code-based filters and options callbacks receive the output of preceding transforms.
-
-If all Babel rules are standalone, the shared transform hook is omitted, avoiding JavaScript hook calls for modules that do not match any rule's filter.
+With `standalone: true`, rules run separately, in declaration order, before the merged rules. Code-based filters and options callbacks receive the output of preceding transforms.
 
 <Callout type="warn">
 
@@ -336,29 +334,29 @@ Each standalone Babel rule adds a separate parse and transform pass. Use a narro
 
 ### transform.swc
 
-Native React Native SWC pipeline options and custom SWC transformation rules.
+SWC options and custom transformation rules.
 
 `swc.native`
 
 - **Type:** `RollipopReactNativeSwcConfig`
 
-Configure the native React Native SWC pipeline:
+Configure built-in SWC transforms:
 
-| Option            | Type                                                                            | Default       | Description                                               |
-| ----------------- | ------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------- | --------------------------------------------- |
-| `plugins`         | `[string, Record<string, unknown>, { filter?: TopLevelFilterExpression[] }?][]` | —             | WASM path, plugin config, and optional per-plugin filter. |
-| `runPluginFirst`  | `boolean`                                                                       | `false`       | Run WASM plugins before type stripping.                   |
-| `externalHelpers` | `boolean`                                                                       | `true`        | Import helpers from `@swc/helpers`.                       |
-| `jest`            | `boolean`                                                                       | `false`       | Enable Jest hoisting.                                     |
-| `react`           | `RollipopReactNativeReactConfig`                                                | —             | Native JSX and React Compiler options.                    |
-| `module`          | `{ type?: 'unambiguous'                                                         | 'commonjs' }` | `{ type: 'unambiguous' }`                                 | Preserve modules or convert them to CommonJS. |
-| `globals`         | `Record<string, string>`                                                        | —             | Replace expressions in the native transform.              |
+| Option            | Type                                                                            | Default                   | Description                                               |
+| ----------------- | ------------------------------------------------------------------------------- | ------------------------- | --------------------------------------------------------- |
+| `plugins`         | `[string, Record<string, unknown>, { filter?: TopLevelFilterExpression[] }?][]` | —                         | WASM path, plugin config, and optional per-plugin filter. |
+| `runPluginFirst`  | `boolean`                                                                       | `false`                   | Run WASM plugins before type stripping.                   |
+| `externalHelpers` | `boolean`                                                                       | `true`                    | Import helpers from `@swc/helpers`.                       |
+| `jest`            | `boolean`                                                                       | `false`                   | Enable Jest hoisting.                                     |
+| `react`           | `RollipopReactNativeReactConfig`                                                | —                         | JSX and React Compiler options.                           |
+| `module`          | `{ type?: 'unambiguous' \| 'commonjs' }`                                        | `{ type: 'unambiguous' }` | Preserve modules or convert them to CommonJS.             |
+| `globals`         | `Record<string, string>`                                                        | —                         | Replace expressions.                                      |
 
-A WASM filter applies only to that plugin and is evaluated against the original transform input. Other native transforms still run.
+Each WASM plugin filter matches the original source and applies only to that plugin.
 
-`react` accepts `runtime` (`'Preserve'`, `'Automatic'`, or `'Classic'`), `importSource`, `pragma`, `pragmaFrag`, `throwIfNamespace`, `development`, and `compiler`. Native JSX defaults to `'Preserve'` so the bundler handles JSX. Explicit `native.react.compiler` fields override `transform.jsx.compiler`, including replacement of filter arrays.
+`react` accepts `runtime` (`'Preserve'`, `'Automatic'`, or `'Classic'`), `importSource`, `pragma`, `pragmaFrag`, `throwIfNamespace`, `development`, and `compiler`. `runtime` defaults to `'Preserve'`. Explicit `native.react.compiler` fields override `transform.jsx.compiler`, including replacement of filter arrays.
 
-`native.runPluginFirst` defaults to `false`, matching `@swc/core`: plugins run after TypeScript/Flow type stripping. Set it to `true` to run plugins before stripping. Scope resolution runs before plugins in both cases.
+`native.runPluginFirst` controls whether WASM plugins run before (`true`) or after (`false`, the default) TypeScript/Flow types are removed.
 
 ```ts
 import { createRequire } from 'node:module';
@@ -417,9 +415,7 @@ interface SwcTransformRule {
 
 With `standalone: false` (the default), options from matching rules are merged, and SWC parses and transforms each matching module once.
 
-With `standalone: true`, the rule runs independently in its own filtered transform hook. Standalone rules run in declaration order before the merged rules, regardless of their positions in the array. Code-based filters and options callbacks receive the output of preceding transforms.
-
-If all SWC rules are standalone, the shared transform hook is omitted, avoiding JavaScript hook calls for modules that do not match any rule's filter.
+With `standalone: true`, rules run separately, in declaration order, before the merged rules. Code-based filters and options callbacks receive the output of preceding transforms.
 
 <Callout type="warn">
 
@@ -445,11 +441,11 @@ export default defineConfig({
 - **Type:** `(string | { type: 'plain' | 'iife'; code: string; withTransform?: boolean } | { type: 'plain' | 'iife'; path: string; withTransform?: boolean })[]`
 - **Default:** React Native polyfills from `@react-native/js-polyfills`, with `react-native/rn-get-polyfills` as a fallback
 
-Polyfills injected before the app modules run.
+Polyfills run before app modules.
 
-String entries are loaded as raw source from files. Object entries can provide inline `code` or a file `path`. Relative file paths resolve from the process working directory. Set `withTransform: true` on an object to apply the native React Native transform; the default is `false`.
+String entries are loaded as raw source from files. Object entries can provide inline `code` or a file `path`. Relative file paths resolve from the process working directory. Set `withTransform: true` on an object to transform the polyfill; the default is `false`.
 Use `type: 'iife'` when the polyfill should run in its own function scope, or `type: 'plain'`
-when the code should be injected as-is.
+to run it as-is.
 
 ```ts
 export default defineConfig({
@@ -467,8 +463,8 @@ export default defineConfig({
 Output configuration.
 
 <Callout>
-  `output` option extends Rolldown's `OutputOptions`. Rollipop internally owns `file`, `dir`,
-  `format`, `codeSplitting`, and `persistentCache`.
+  `output` extends Rolldown's `OutputOptions`, except `file`, `dir`, `format`, `codeSplitting`, and
+  `persistentCache`, which Rollipop manages automatically.
 </Callout>
 
 Other Rolldown output options such as `banner`, `footer`, `intro`, `outro`, `sourcemap`, and
@@ -747,7 +743,7 @@ export default defineConfig({
 - **Type:** `boolean`
 - **Default:** `false`
 
-Enable lazy barrel optimization. Avoids compiling unused re-export modules in side-effect-free barrel modules, significantly improving build performance for large codebases with many barrel modules.
+Skip unused re-exports in side-effect-free barrel modules to reduce build time.
 
 See [Lazy Barrel Documentation](https://rolldown.rs/in-depth/lazy-barrel-optimization) for details.
 
@@ -836,7 +832,7 @@ export default defineConfig({
 - **Type:** `'hermes' | 'hermes-v1'`
 - **Default:** `'hermes-v1'`
 
-Internal native transform target. Use `'hermes'` when targeting the older Hermes transform preset.
+Target JavaScript engine. Use `'hermes'` for Hermes versions before Hermes V1.
 
 ## experimental
 

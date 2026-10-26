@@ -2,7 +2,7 @@
 title: Rozenite
 ---
 
-`@rollipop/plugin-rozenite` adds Rozenite middleware to the development server.
+`@rollipop/plugin-rozenite` enables Rozenite DevTools extensions.
 
 ## Setup
 
@@ -19,7 +19,7 @@ export default defineConfig({
 });
 ```
 
-`enabled` defaults to `false`. Other options are forwarded to `@rozenite/middleware`, except `projectRoot` and `projectType`, which Rollipop supplies. The plugin runs only during dev-server setup.
+`enabled` defaults to `false`. Accepts `@rozenite/middleware` options except `projectRoot` and `projectType`, which are set automatically. Available only in the dev server.
 
 ## Options
 

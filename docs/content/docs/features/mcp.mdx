@@ -2,7 +2,7 @@
 title: MCP Server
 ---
 
-The dev server exposes Rollipop diagnostics through Devframe's [MCP (Model Context Protocol)](https://modelcontextprotocol.io) adapter. The Streamable HTTP endpoint is available at `/__rollipop/__mcp` when the optional `@devframes/agentic` peer dependency is installed.
+Connect an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) client to the dev server for build diagnostics and app logs.
 
 ## Setup
 
@@ -34,11 +34,11 @@ Then add the MCP server to your project's `.mcp.json`:
 }
 ```
 
-Devframe requires a loopback `Origin` header and a connection from the same machine. Use the MCP URL's origin as shown above, and adjust both ports when using custom `--port`. Binding the dev server to a non-loopback `--host` does not enable remote MCP access.
+MCP access requires a loopback `Origin` header and a connection from the same machine. Use the MCP URL's origin as shown above, and adjust both ports when using custom `--port`. Binding the dev server to a non-loopback `--host` does not enable remote MCP access.
 
 ## Tool Discovery
 
-Use the MCP `tools/list` request for the current tool names, descriptions, and parameter schemas. The endpoint is stateless: the initialization response does not return an `mcp-session-id`, and subsequent requests do not need that header. Raw HTTP requests must include `Content-Type: application/json`, `Accept: application/json, text/event-stream`, and the `Origin` header shown above.
+Use the MCP `tools/list` request for the current tool names, descriptions, and parameter schemas. Raw HTTP requests must include `Content-Type: application/json`, `Accept: application/json, text/event-stream`, and the `Origin` header shown above.
 
 | Tool                                             | Arguments                                                 | Result                                                                           |
 | ------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -75,7 +75,7 @@ Bundler-scoped events include `bundlerId` in their JSON payload. This includes b
 
 App console logs are not build events. Use `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
 
-`bundle_build_done.bundleFilePath` points to the generated bundle. Editing this file makes the dev server serve it instead of the in-memory bundle and disables the stale source map.
+`bundle_build_done.bundleFilePath` points to the generated bundle. Edit it to test bundle changes. Source maps are unavailable for edited bundles.
 
 ### `reset_cache`
 
@@ -83,7 +83,7 @@ Clears the build cache without triggering a rebuild or reloading connected apps.
 
 ## App Logs and External Debugging
 
-Use `build_errors` for bundler warnings, crashes, and HMR failures. Use `get_console_logs` for app logs forwarded by the React Native HMR client.
+Use `build_errors` for bundler warnings, crashes, and HMR failures. Use `get_console_logs` for app logs.
 
 For CDP debugging, runtime evaluation, runtime exceptions, network inspection, or CPU/heap profiling, use [`agent-cdp`](https://github.com/callstackincubator/agent-cdp) against the Rollipop dev server target. For React component tree inspection and React DevTools profiling, use [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools).
 

@@ -2,7 +2,7 @@
 title: React Compiler
 ---
 
-Rollipop supports Rolldown's native React Compiler transform.
+Enable React Compiler to optimize React components and hooks.
 
 ## Setup
 
@@ -37,18 +37,18 @@ With the empty object form, Rollipop skips files whose module id matches `/node_
 
 ### Additional Compiler Options
 
-| Option                   | Type                                              | Default | Description                                          |
-| ------------------------ | ------------------------------------------------- | ------- | ---------------------------------------------------- |
-| `outputMode`             | `'client' \| 'ssr' \| 'lint'`                     | —       | Compiler output mode.                                |
-| `ignoreUseNoForget`      | `boolean`                                         | `false` | Compile functions with opt-out directives.           |
-| `flowSuppressions`       | `boolean`                                         | `true`  | Treat Flow suppression comments as opt-outs.         |
-| `enableReanimated`       | `boolean`                                         | `false` | Enable Reanimated support in the compiler.           |
-| `isDev`                  | `boolean`                                         | `false` | Compiler development mode.                           |
-| `filename`               | `string`                                          | —       | File name for diagnostics and the Fast Refresh hash. |
-| `eslintSuppressionRules` | `string[]`                                        | —       | ESLint suppressions that opt functions out.          |
-| `customOptOutDirectives` | `string[]`                                        | —       | Additional opt-out directives.                       |
-| `gating`                 | `{ source: string; importSpecifierName: string }` | —       | Import a gate and emit gated compiled functions.     |
-| `dynamicGating`          | `{ source: string }`                              | —       | Dynamic gating import source.                        |
+| Option                   | Type                                              | Default | Description                                      |
+| ------------------------ | ------------------------------------------------- | ------- | ------------------------------------------------ |
+| `outputMode`             | `'client' \| 'ssr' \| 'lint'`                     | —       | Compiler output mode.                            |
+| `ignoreUseNoForget`      | `boolean`                                         | `false` | Compile functions with opt-out directives.       |
+| `flowSuppressions`       | `boolean`                                         | `true`  | Treat Flow suppression comments as opt-outs.     |
+| `enableReanimated`       | `boolean`                                         | `false` | Enable Reanimated support in the compiler.       |
+| `isDev`                  | `boolean`                                         | `false` | Compiler development mode.                       |
+| `filename`               | `string`                                          | —       | Source file name for diagnostics.                |
+| `eslintSuppressionRules` | `string[]`                                        | —       | ESLint suppressions that opt functions out.      |
+| `customOptOutDirectives` | `string[]`                                        | —       | Additional opt-out directives.                   |
+| `gating`                 | `{ source: string; importSpecifierName: string }` | —       | Import a gate and emit gated compiled functions. |
+| `dynamicGating`          | `{ source: string }`                              | —       | Dynamic gating import source.                    |
 
 `compilationMode` defaults to `'infer'`, `panicThreshold` to `'none'`, `target` to `'19'`, and `noEmit` to `false`.
 

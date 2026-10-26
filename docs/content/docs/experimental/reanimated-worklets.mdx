@@ -2,7 +2,7 @@
 title: Reanimated & Worklets
 ---
 
-Rollipop transforms [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) v4+ worklets through its native SWC pipeline. Requires `react-native-worklets` in your project.
+Rollipop transforms [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) v4+ worklets. Requires `react-native-worklets` in your project.
 
 <Callout type="warn">
   Worklet transformation is experimental and may change without a major version bump.
@@ -26,15 +26,15 @@ export default defineConfig({
 
 Omit `experimental.worklets` to disable the transform.
 
-| Property                     | Type       | Description                                                                                                       |
-| ---------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
-| `globals`                    | `string[]` | Identifiers treated as globals — never captured into worklet closures.                                            |
-| `strictGlobal`               | `boolean`  | When `true`, only the names listed in `globals` are considered safe.                                              |
-| `omitNativeOnlyData`         | `boolean`  | Omit native-only data (`init_data`) from the output. Useful for web builds.                                       |
-| `disableSourceMaps`          | `boolean`  | Disable source map generation for worklets.                                                                       |
-| `relativeSourceLocation`     | `boolean`  | Use paths relative to `cwd` for source locations.                                                                 |
-| `disableWorkletClasses`      | `boolean`  | Disable Worklet Classes support.                                                                                  |
-| `disableInlineStylesWarning` | `boolean`  | Suppress the inline-shared-values warning.                                                                        |
-| `bundleMode`                 | `boolean`  | Enable Bundle Mode.                                                                                               |
-| `isRelease`                  | `boolean`  | Release builds skip debug info such as stack details, version, and location. Defaults to `mode === 'production'`. |
-| `pluginVersion`              | `string`   | Version string emitted as `__pluginVersion`. Defaults to the installed `react-native-worklets` version.           |
+| Property                     | Type       | Description                                                                           |
+| ---------------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| `globals`                    | `string[]` | Identifiers treated as globals — never captured into worklet closures.                |
+| `strictGlobal`               | `boolean`  | When `true`, only the names listed in `globals` are considered safe.                  |
+| `omitNativeOnlyData`         | `boolean`  | Omit native-only data for web builds.                                                 |
+| `disableSourceMaps`          | `boolean`  | Disable source map generation for worklets.                                           |
+| `relativeSourceLocation`     | `boolean`  | Use paths relative to `cwd` for source locations.                                     |
+| `disableWorkletClasses`      | `boolean`  | Disable Worklet Classes support.                                                      |
+| `disableInlineStylesWarning` | `boolean`  | Suppress the inline-shared-values warning.                                            |
+| `bundleMode`                 | `boolean`  | Enable Bundle Mode.                                                                   |
+| `isRelease`                  | `boolean`  | Omit debugging information. Defaults to `mode === 'production'`.                      |
+| `pluginVersion`              | `string`   | Worklets version override. Defaults to the installed `react-native-worklets` version. |

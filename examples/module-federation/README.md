@@ -39,7 +39,7 @@ yarn ios
 # Or: yarn android
 ```
 
-The host config uses the iOS remote URL above. Update its host and platform for the target environment. The remote container is appended to the remote entry bundle; there is no separate `remoteEntry.js` or chunk server.
+The host config uses the iOS remote URL above. Update its host and platform for the target environment. Use the remote bundle URL directly; there is no separate `remoteEntry.js`.
 
 ## Static Bundles
 
@@ -50,10 +50,10 @@ yarn bundle:host --platform ios --bundle-output dist/host.bundle
 yarn bundle:remote --platform ios --bundle-output dist/remote.bundle
 ```
 
-Static remotes use IIFE output; dev-server remotes use Rollipop output with their own HMR graph. See [Module Federation](https://rollipop.dev/docs/features/module-federation) for loader and sharing options.
+See [Module Federation](https://rollipop.dev/docs/features/module-federation) for loader and sharing options.
 
 ## Native Integration
 
 Android registers `ScriptManagerPackage` in `MainApplication.kt` and builds the JNI library through CMake. iOS compiles `ScriptManager.mm` in the app target. Codegen uses `MFExampleSpec` and the `native` directory from `package.json`.
 
-The native loader downloads and evaluates the supplied URL. It does not implement signature verification, retry policies, or relative sub-chunk URL resolution. Runtime module caching and `retryRemote` are provided separately by the federation plugin.
+The native loader downloads and evaluates the supplied URL. It does not implement signature verification, retry policies, or relative sub-chunk URL resolution. Use `retryRemote` from the federation plugin to retry a failed load.
