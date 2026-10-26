@@ -4,12 +4,52 @@ import path from 'node:path';
 import { parseSync, Visitor } from 'oxc-parser';
 import type { AssignmentExpression, ObjectExpression, ObjectProperty } from 'oxc-parser';
 
-import { version } from '../package.json' with { type: 'json' };
+import metadata from '../package.json' with { type: 'json' };
 
+const { version } = metadata;
 const RN_CONFIG_FILE = 'react-native.config.js';
 const COMMANDS_REQUIRE = "require('rollipop/commands')";
 
 export type SetupResult = 'created' | 'updated' | 'already-configured' | 'manual-required';
+
+export function detectProject(cwd: string): 'bare' | 'expo' {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf8'));
+  return packageJson.dependencies?.expo || packageJson.devDependencies?.expo ? 'expo' : 'bare';
+}
+
+export function setupExpoConfig(cwd: string): { status: SetupResult; filename: string } {
+  // Match Expo's config precedence without evaluating user configuration.
+  const dynamicConfig = ['ts', 'mts', 'cts', 'mjs', 'cjs', 'js']
+    .map((extension) => `app.config.${extension}`)
+    .find((filename) => fs.existsSync(path.join(cwd, filename)));
+  if (dynamicConfig) {
+    return { status: 'manual-required', filename: dynamicConfig };
+  }
+
+  const filename =
+    ['app.config.json', 'app.json'].find((name) => fs.existsSync(path.join(cwd, name))) ??
+    'app.json';
+  const configPath = path.join(cwd, filename);
+  const exists = fs.existsSync(configPath);
+  const root = exists ? JSON.parse(fs.readFileSync(configPath, 'utf8')) : { expo: {} };
+  if (!root || typeof root !== 'object' || Array.isArray(root)) {
+    throw new Error(`${filename} must contain an Expo configuration object`);
+  }
+  const config = 'expo' in root ? root.expo : root;
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    throw new Error(`${filename}: 'expo' must be an object`);
+  }
+  const plugins = config.plugins ?? [];
+  if (!Array.isArray(plugins)) {
+    throw new Error(`${filename}: 'plugins' must be an array`);
+  }
+  if (plugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === '@rollipop/expo')) {
+    return { status: 'already-configured', filename };
+  }
+  config.plugins = [...plugins, '@rollipop/expo'];
+  fs.writeFileSync(configPath, JSON.stringify(root, null, 2) + '\n');
+  return { status: exists ? 'updated' : 'created', filename };
+}
 
 export function setupReactNativeConfig(cwd: string): SetupResult {
   const configPath = path.join(cwd, RN_CONFIG_FILE);
@@ -138,9 +178,14 @@ function applyInjection(content: string, insertOffset: number, needsComma: boole
 export function setupPackage(cwd: string) {
   const packageJsonPath = path.join(cwd, 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const dependencies = {
+    rollipop: version,
+    ...(detectProject(cwd) === 'expo' ? { '@rollipop/expo': version } : {}),
+  };
   packageJson.devDependencies = {
     ...packageJson.devDependencies,
-    rollipop: version,
+    ...dependencies,
   };
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+  return Object.keys(dependencies);
 }

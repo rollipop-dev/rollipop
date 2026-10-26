@@ -44,7 +44,10 @@ Run `@rollipop/init` from your React Native project root:
   <Tab value="yarn">```yarn dlx @rollipop/init@beta```</Tab>
 </Tabs>
 
-The initializer adds its matching Rollipop version to `devDependencies` and registers the CLI commands in `react-native.config.js`.
+The initializer detects the project type from the `expo` dependency in `package.json` and logs `bare project detected` or `expo project detected`:
+
+- **Bare React Native:** Adds the matching `rollipop` version to `devDependencies` and creates or updates `react-native.config.js` to register Rollipop's CLI commands.
+- **Expo:** Adds matching `rollipop` and `@rollipop/expo` versions to `devDependencies` and registers the config plugin in `app.json` or `app.config.json`. Dynamic `app.config.ts/js` files are preserved, with instructions to add the plugin manually. See the [Expo guide](/docs/experimental/expo) for requirements and native build setup.
 
 Then install the updated dependencies:
 
@@ -54,11 +57,12 @@ Then install the updated dependencies:
   <Tab value="yarn">```yarn install```</Tab>
 </Tabs>
 
-If the initializer reports an existing `commands` property or a configuration it cannot update,
-complete the [React Native CLI configuration](#2-configure-react-native-cli) manually.
+If the initializer reports a configuration it cannot update, follow its instructions to complete the [React Native CLI configuration](#2-configure-react-native-cli) or [Expo configuration](/docs/experimental/expo#manual-setup) manually.
 To customize Rollipop, create a configuration file following the [Configuration guide](/docs/get-started/configuration).
 
 ### Manual Installation
+
+For Expo projects, follow the [Expo setup guide](/docs/experimental/expo#manual-setup). The steps below apply to bare React Native projects.
 
 #### 1. Install the package
 

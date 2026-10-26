@@ -1,0 +1,91 @@
+# @rollipop/expo
+
+Use Rollipop for Expo SDK 55–58 native development, exports, and native bundle builds.
+
+Run `npx @rollipop/init@beta` from your Expo project root for automatic JSON config setup and matching `rollipop` and `@rollipop/expo` development dependencies, then install the updated dependencies. Dynamic JS/TS config files receive manual instructions. See the [Expo guide](https://rollipop.dev/docs/experimental/expo) for details.
+
+For manual setup:
+
+```sh
+yarn add -D rollipop@beta @rollipop/expo@beta
+```
+
+Install both packages at the same version. `rollipop` is a required peer dependency of `@rollipop/expo` and must be declared in your project.
+
+Add one plugin entry to your existing Expo configuration:
+
+```json
+{
+  "expo": {
+    "plugins": ["@rollipop/expo"]
+  }
+}
+```
+
+Keep existing plugins such as `expo-router`. Continue using `expo start`, `expo run:ios`, `expo run:android`, and `expo export --platform ios --platform android`.
+
+The plugin also configures Expo Updates resource generation during `expo prebuild`. Regenerate native projects after adding it if you keep `ios/` or `android/` in source control. Continuous Native Generation and EAS prebuild apply the same mods automatically.
+
+## Release status
+
+This integration is a prerelease. Publish this workspace together with the Rollipop inspector integration. Native runtime, builds, and package installation have been verified locally; cloud EAS signing, upload, and store submission have not been verified.
+
+The release workflow uses `id-token: write` and publishes public packages with provenance. Before the first automated release, ensure this package exists on npm and configure its [Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) for GitHub owner `rollipop-dev`, repository `rollipop`, and workflow `release.yml`. This package's repository metadata points to that repository and the `packages/expo` directory.
+
+Known engine limitation: the pinned `@rollipop/rolldown@1.1.1` can shift source locations after Worklets-generated unmapped code. The same `oxc_sourcemap` bug exists upstream; [a proposed fix](https://github.com/oxc-project/oxc-sourcemap/pull/471) was closed without merging. The regression in `test/sourcemap.test.cjs` retains the correct original-location assertions and is marked `it.skip` with the upstream PR context.
+
+## Compatibility
+
+At startup, the adapter checks that `rollipop` is installed in the project and reports matching-version installation commands if it is missing.
+
+The adapter supports Expo SDK 55–58 with the matching `@expo/cli` major. Patch and minor CLI releases are accepted when the required private API contract is available; incompatible SDK/CLI pairs and missing methods fail with a diagnostic. Hooks are scoped to projects that enabled the plugin.
+
+SDK policies and private CLI bindings live in `src/compatibility/`. SDK 55–57 use Expo's source initialization entry, while SDK 58 uses its compiled entry. The development server, Router, exports, and Updates integration share the same implementation.
+
+Hermes syntax targeting follows the SDK default (classic Hermes on SDK 55; V1 on SDK 56–58), `expo-build-properties`, generated native properties, and native build environment settings. When the two platforms use different engines, the shared configuration selects classic Hermes syntax, which also runs on V1. Expo's Hermes compiler helper still selects the project's RN-matched compiler. Configure native engine selection through Expo; the adapter derives Rollipop's `runtimeTarget` from those settings. On classic Hermes, a scoped Constants compatibility transform preserves native HostObject values that SWC's object-rest helper would otherwise drop.
+
+| SDK | Expo / CLI        | React Native | Worklets | Hermes bytecode |
+| --- | ----------------- | ------------ | -------- | --------------- |
+| 55  | 55.0.32 / 55.0.37 | 0.83.10      | 0.7.4    | 96              |
+| 56  | 56.0.24 / 56.1.27 | 0.85.3       | 0.8.3    | 98              |
+| 57  | 57.0.31 / 57.0.32 | 0.86.3       | 0.10.1   | 98              |
+| 58  | 58.0.19 / 58.1.15 | 0.88.0       | 0.13.0   | 99              |
+
+Each matrix entry was checked with an installed package tarball for iOS and Android: development manifests/bundles/maps, native JS/Hermes exports, assets, Router type updates, Inspector connections, React Compiler memoization, Worklets output, and Updates resource generation. These checks reject Metro graph creation. Simulator runtime and native builds were previously verified on SDK 58 with Expo Go 58.0.5; the expanded SDK 55–57 matrix covers the JS build pipeline, without additional native app builds.
+
+Installed Worklets automatically enables Rollipop's native SWC transform. `experiments.reactCompiler` enables the compiler through the existing `transform.jsx.compiler` configuration. Compiler opt-outs include the standard `use no memo` and `use no forget` directives plus `worklet` and `widget`. No additional Babel Worklets plugin or second OXC compiler pass is installed.
+
+Expo Router retains its runtime, dynamic routes, route groups, synchronous native context, and typed routes. Both `app/` and `src/app/` follow Expo's root selection; the Router plugin's custom root is also respected. Typed declarations update when routes are added or removed.
+
+Exports preserve Expo's artifact writers, per-scale asset hashes, native resource names, Hermes compilation, and composed source maps. Expo Updates' separate asset-discovery process is connected through native preloads generated by the config plugin.
+
+## Configuration and limits
+
+An optional `rollipop.config.ts` or supported JS/JSON variant supplies Rollipop plugins, transforms, and resolver settings. Custom Metro and Babel files produce a diagnostic because their plugins are not executed. Migrate those customizations to Rollipop configuration. Default native bundling, Worklets, and React Compiler require no Babel configuration.
+
+This package targets iOS and Android. Web, DOM/CSS components, API route servers, middleware, React Server Components, and server functions are unsupported. The plugin disables SDK 58's implicit API-server export for native-only apps even when the template has `web.output: 'server'`; explicit server configuration and actual server route files fail with a diagnostic. Native async route splitting and tunnel URLs are unsupported; use synchronous routes and `--lan` or `--localhost`.
+
+`EXPO_PUBLIC_*` variables are inlined at startup. Restart the CLI after changing environment files. Expo's LogBox modules and native asset resolver are preserved. The adapter folds LogBox's web-only branches before dependency scanning, including during HMR. As in Expo CLI, the default native warning UI is React Native LogBox; the opt-in `EXPO_UNSTABLE_LOG_BOX` overlay requires Expo's DOM/CSS pipeline and is unsupported.
+
+## Development
+
+The [SDK 58 example](../../examples/expo-58/README.md) exercises Router, a local image, UI-thread Worklets, Reanimated, and React Compiler.
+
+From the repository root:
+
+```sh
+yarn workspace @rollipop/expo test
+yarn workspace @rollipop/expo typecheck
+yarn workspace @rollipop/expo build
+```
+
+The implementation is written in TypeScript under `src/`. The build emits CommonJS modules and type declarations under `dist/`; the root `app.plugin.js` delegates to the compiled config plugin so Expo can discover it. `prepack` builds the package before publishing. Tests exercise the compiled modules, SDK policy selection, CLI contract guards, engine settings, and delegation to projects that did not opt in.
+
+## Programmatic registration
+
+```js
+const register = require('@rollipop/expo');
+register(__dirname);
+```
+
+Use the config plugin for ordinary apps so native Updates preloads and native-only Router configuration are applied as well. Direct registration only installs CLI hooks.

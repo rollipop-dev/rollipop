@@ -43,6 +43,29 @@
       "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**"],
       "ignoreDependencies": ["@babel/preset-env", "@babel/runtime"]
     },
+    "examples/expo-58": {
+      "entry": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}"],
+      "project": ["**/*.{js,jsx,ts,tsx,mjs,mts,cjs,cts}", "!android/**", "!ios/**", "!.expo/**"],
+      "ignoreDependencies": [
+        "expo-device",
+        "expo-glass-effect",
+        "expo-image",
+        "expo-splash-screen",
+        "expo-status-bar",
+        "expo-system-ui",
+        "expo-web-browser"
+      ]
+    },
+    "packages/expo": {
+      "entry": [
+        "src/register.ts",
+        "src/adapter.ts",
+        "src/app.plugin.ts",
+        "src/updates-preload.ts",
+        "test/*.test.cjs"
+      ],
+      "project": ["src/**/*.ts", "test/*.cjs"]
+    },
     "examples/module-federation": {
       "entry": [
         "rollipop.host.config.ts",
