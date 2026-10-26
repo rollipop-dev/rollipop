@@ -1,0 +1,12 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "enabledManagers": ["npm"],
+  "timezone": "Asia/Seoul",
+  "schedule": ["* * * * 1"],
+  "rangeStrategy": "bump",
+  "minimumReleaseAge": "7 days",
+  "automerge": false,
+  "lockFileMaintenance": {
+    "enabled": false
+  }
+}
