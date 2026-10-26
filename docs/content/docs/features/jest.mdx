@@ -1,0 +1,70 @@
+---
+title: Jest
+---
+
+`@rollipop/jest-preset` replaces the React Native preset's `babel-jest` transform with Rollipop's native transformer.
+
+## Setup
+
+```bash
+yarn add -D @rollipop/jest-preset@beta
+```
+
+```js title="jest.config.js"
+module.exports = {
+  preset: '@rollipop/jest-preset',
+};
+```
+
+The preset loads `@react-native/jest-preset` when installed, falling back to `react-native/jest-preset`. It requires one of these base presets and retains its non-Babel transforms.
+
+## Transformer Options
+
+The Jest transformer does not load `rollipop.config.ts`. Pass its options through Jest's `transform` configuration:
+
+```js title="jest.config.js"
+module.exports = {
+  preset: '@rollipop/jest-preset',
+  transform: {
+    '^.+\\.[jt]sx?$': ['@rollipop/jest-preset/transformer', { mode: 'development', worklets: {} }],
+  },
+};
+```
+
+| Option                                       | Type                                | Default / behavior                                                    |
+| -------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `mode`                                       | `'development' \| 'production'`     | `NODE_ENV` when it is one of these values; otherwise `'development'`. |
+| `root`                                       | `string`                            | Fallback environment directory; `process.cwd()` when omitted.         |
+| `runtimeTarget`                              | `'hermes' \| 'hermes-v1'`           | Native default: `'hermes-v1'`.                                        |
+| `flow`                                       | `{ requireDirective?: boolean }`    | Native Flow options.                                                  |
+| `worklets`                                   | `RollipopReactNativeWorkletsConfig` | Disabled when omitted; `{}` enables it.                               |
+| `envDir`                                     | `string`                            | `root`, then `process.cwd()`.                                         |
+| `envFile`                                    | `string`                            | `'.env'`                                                              |
+| `envPrefix`                                  | `string`                            | `'ROLLIPOP_'`                                                         |
+| `experimental.customCoverageInstrumentation` | coverage options                    | Disabled by default.                                                  |
+
+The transformer replaces `import.meta.env.*` and sets `import.meta.hot` to `undefined`. It selects CommonJS or preserved ESM from Jest's `supportsStaticESM` flag and enables Jest hoisting.
+
+## Glob Imports
+
+Glob imports require a mock; Jest does not scan the file system for `import.meta.glob`:
+
+```ts
+import { mockGlobImport, resetGlobImport } from '@rollipop/jest-preset/mock';
+
+beforeEach(() => {
+  mockGlobImport(({ options }) => ({
+    './messages/en.ts': options?.eager ? { default: 'Hello' } : async () => ({ default: 'Hello' }),
+  }));
+});
+
+afterEach(resetGlobImport);
+```
+
+The callback receives `{ importer, pattern, options }`. Register it before importing code that calls `import.meta.glob`. An unmocked glob call throws. `resetRollipopJestPresetMocks()` also clears the mock.
+
+## Coverage
+
+Set `experimental.customCoverageInstrumentation.enabled: true` to use native SWC coverage instrumentation when Jest requests coverage. Additional options are `coverageVariable`, `compact`, `reportLogic`, `ignoreClassMethods`, and `instrumentLog: { level, enableTrace }`.
+
+When disabled, the transformer reports `canInstrument: false` and leaves coverage instrumentation to Jest.

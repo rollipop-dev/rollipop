@@ -1,43 +1,32 @@
-# docs
+# Documentation
 
-This is a Next.js application generated with
-[Create Fumadocs](https://github.com/fuma-nama/fumadocs).
-
-Run development server:
+Next.js and Fumadocs site. Run commands from the repository root:
 
 ```bash
-npm run dev
-# or
-pnpm dev
-# or
-yarn dev
+yarn docs:dev
+yarn docs:build
 ```
 
-Open http://localhost:3000 with your browser to see the result.
+The development server runs at `http://localhost:3000`. Builds export to `docs/out` and generate plain Markdown copies of each page.
 
-## Explore
+## Content
 
-In the project, you can see:
+- `content/docs/**/*.mdx`: public documentation.
+- `content/docs/**/meta.json`: navigation labels and page order.
+- `source.config.ts`: MDX schema and processing.
+- `src/lib/source.ts`: page loader.
+- `src/app/llms.txt/route.ts`: Markdown page index.
+- `src/app/llms-full.txt/route.ts`: combined documentation.
 
-- `lib/source.ts`: Code for content source adapter, [`loader()`](https://fumadocs.dev/docs/headless/source-api) provides the interface to access your content.
-  | Route                     | Description                                            |
-  | ------------------------- | ------------------------------------------------------ |
-  | `app/(home)`              | The route group for your landing page and other pages. |
-  | `app/docs`                | The documentation layout and pages.                    |
-  | `app/api/search/route.ts` | The Route Handler for search.                          |
+Keep examples aligned with package source types and defaults. When removing a page, update navigation and incoming links, including bundled guides in `packages/rollipop/skills`.
 
-### Fumadocs MDX
+## Checks
 
-A `source.config.ts` config file has been included, you can customise different options like frontmatter schema.
+```bash
+yarn vp fmt docs/content/docs --check
+yarn workspace docs exec fumadocs-mdx
+yarn workspace docs exec tsc --noEmit
+yarn docs:build
+```
 
-Read the [Introduction](https://fumadocs.dev/docs/mdx) for further details.
-
-## Learn More
-
-To learn more about Next.js and Fumadocs, take a look at the following
-resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js
-  features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [Fumadocs](https://fumadocs.dev) - learn about Fumadocs
+Run generation and checks sequentially; Next.js commands share generated files. Production builds download the Inter font from Google Fonts.

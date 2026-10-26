@@ -2,11 +2,11 @@
 title: Configuration
 ---
 
-When running `rollipop` from the command line, Rollipop will automatically try to resolve a config file named `rollipop.config.ts` inside project root (other JS and TS extensions are also supported).
+Rollipop loads `rollipop.config.ts` from the project root. Other JS and TS extensions are also supported.
 
 ## `defineConfig`
 
-`defineConfig` is a helper function that provides type hints for configuration. It accepts either a static configuration object or a function that returns a configuration.
+`defineConfig` provides configuration types and accepts an object or a function.
 
 ### Static Configuration
 
@@ -20,7 +20,7 @@ export default defineConfig({
 
 ### Dynamic Configuration
 
-You can also pass a function to `defineConfig` for dynamic configuration based on the current context:
+Use a function to configure by command or extend defaults:
 
 ```ts title="rollipop.config.ts"
 import { defineConfig } from 'rollipop';
@@ -55,6 +55,14 @@ export default defineConfig(async (context) => {
 });
 ```
 
+## Configuration Merging
+
+`resolve.sourceExtensions`, `resolve.assetExtensions`, `prelude`, `polyfills`, and `plugins` append to defaults with duplicates removed. An empty array does not clear them. A plugin's `config` hook can mutate the merged arrays to remove entries.
+
+Reporters are combined. `rolldownOptions` overrides are composed in merge order.
+
+Rollipop also accepts Rolldown input options such as `external`, `moduleTypes`, `optimization`, and `tsconfig`. Use `output` for output options. Rollipop manages the entry, platform, plugins, logging, and output format.
+
 ## root
 
 - **Type:** `string`
@@ -67,7 +75,7 @@ Project root directory, used for module resolution and resolving the app entry. 
 - **Type:** `'development' | 'production'`
 - **Default:** `'development'` for `rollipop start`, `'production'` for `rollipop bundle`.
 
-The mode to run the bundler in. This affects various optimizations and defaults throughout the bundler.
+Controls environment file selection, `import.meta.env.MODE`, and native transform defaults. `--dev` controls bundle development flags independently; it does not change `mode` or select a different `.env` file.
 
 ```ts
 export default defineConfig({
@@ -113,11 +121,11 @@ File extensions to resolve as asset files.
 
 ### resolve.alias
 
-- **Type:** `Record<string, string> | Array<{ find: string | RegExp; replacement: string }>`
+- **Type:** `Record<string, string | string[] | false> | Array<{ find: string | RegExp; replacement: string }>`
 
 Substitute one package or module path for another in `import` or `require` statements.
 
-Object aliases are concise and work well for simple key/value replacements:
+Object values accept a replacement string, an ordered list of replacements, or `false` to ignore a module:
 
 ```ts title="rollipop.config.ts"
 import path from 'node:path';
@@ -153,7 +161,7 @@ The first matching array entry is applied first. When `find` is a regular expres
 
 Object aliases are forwarded to the native resolver. Array aliases are installed through Rollipop's alias plugin, so other plugins' `resolveId` hooks can participate when resolving the replacement.
 
-When aliasing to file-system paths, prefer absolute paths. Relative replacement values are used as-is and are not resolved into absolute paths for you.
+Use absolute paths for file-system aliases; relative replacements are used as-is.
 
 ### resolve.mainFields
 
@@ -161,6 +169,13 @@ When aliasing to file-system paths, prefer absolute paths. Relative replacement 
 - **Default:** `['react-native', 'browser', 'main']`
 
 Fields to check in package.json when resolving packages.
+
+### resolve.aliasFields
+
+- **Type:** `string[][]`
+- **Default:** `[['react-native'], ['browser']]`
+
+Package fields containing per-module path aliases.
 
 ### resolve.conditionNames
 
@@ -188,6 +203,17 @@ For example:
 
 Whether to resolve symlinks to their symlinked location.
 
+### Other Resolver Options
+
+| Option                   | Type                       | Default            | Description                                                                      |
+| ------------------------ | -------------------------- | ------------------ | -------------------------------------------------------------------------------- |
+| `resolve.extensionAlias` | `Record<string, string[]>` | —                  | Resolve an explicit extension to alternatives, e.g. `{ '.js': ['.ts', '.js'] }`. |
+| `resolve.exportsFields`  | `string[][]`               | `[['exports']]`    | Package export-map fields.                                                       |
+| `resolve.mainFiles`      | `string[]`                 | `['index']`        | File names tried for directory imports.                                          |
+| `resolve.modules`        | `string[]`                 | `['node_modules']` | Module search directories.                                                       |
+
+`resolve.tsconfigFilename` is deprecated; use top-level [`tsconfig`](#tsconfig).
+
 ## transform
 
 Source code transformation configuration.
@@ -196,6 +222,45 @@ Source code transformation configuration.
   `transform` option extends Rolldown's `InputOptions['transform']` with Rollipop-specific transform
   extensions.
 </Callout>
+
+### transform.jsx
+
+- **Type:** `false | 'react' | 'react-jsx' | 'preserve' | JsxOptions`
+- **Default:** automatic runtime, with development output controlled by the bundle's `dev` flag
+
+`'react'` selects the classic runtime, `'react-jsx'` selects the automatic runtime, `'preserve'` leaves JSX intact, and `false` rejects JSX.
+
+```ts title="rollipop.config.ts"
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  transform: {
+    jsx: {
+      runtime: 'automatic',
+      importSource: 'react',
+      compiler: {},
+    },
+  },
+});
+```
+
+`compiler` enables [React Compiler](/docs/features/react-compiler). `refresh.include` and `refresh.exclude` select Fast Refresh files; see [Dev Server](/docs/features/dev-server#fast-refresh).
+
+### transform.define
+
+- **Type:** `Record<string, string>`
+
+Replace expressions during bundling. Values are JavaScript source strings:
+
+```ts
+export default defineConfig({
+  transform: {
+    define: { __APP_VERSION__: JSON.stringify('1.0.0') },
+  },
+});
+```
+
+Rollipop already defines `__DEV__`, `process.env.NODE_ENV`, `process.env.DEBUG_ROLLIPOP`, and exposed [`import.meta.env` values](/docs/features/env).
 
 ### transform.flow
 
@@ -226,7 +291,7 @@ Custom Babel transformation rules.
 
 `babel.rules`
 
-- **Type:** `BabelTransformRule[]`
+- **Type:** `TransformRule<babel.InputOptions>[]`
 
 Define custom Babel transformation rules for specific files.
 
@@ -265,7 +330,7 @@ If all Babel rules are standalone, the shared transform hook is omitted, avoidin
 
 <Callout type="warn">
 
-Each standalone Babel rule parses and transforms matching modules separately, which can hurt build performance, especially when multiple standalone rules match the same modules. Use `standalone: true` only when needed, and set a narrow `filter` so the rule runs only on modules that require it.
+Each standalone Babel rule adds a separate parse and transform pass. Use a narrow `filter` to limit the cost.
 
 </Callout>
 
@@ -277,7 +342,21 @@ Native React Native SWC pipeline options and custom SWC transformation rules.
 
 - **Type:** `RollipopReactNativeSwcConfig`
 
-Configure the native React Native SWC pipeline, including WASM plugins. Plugin entries use the resolved `.wasm` path and their plugin-specific configuration.
+Configure the native React Native SWC pipeline:
+
+| Option            | Type                                                                            | Default       | Description                                               |
+| ----------------- | ------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------- | --------------------------------------------- |
+| `plugins`         | `[string, Record<string, unknown>, { filter?: TopLevelFilterExpression[] }?][]` | —             | WASM path, plugin config, and optional per-plugin filter. |
+| `runPluginFirst`  | `boolean`                                                                       | `false`       | Run WASM plugins before type stripping.                   |
+| `externalHelpers` | `boolean`                                                                       | `true`        | Import helpers from `@swc/helpers`.                       |
+| `jest`            | `boolean`                                                                       | `false`       | Enable Jest hoisting.                                     |
+| `react`           | `RollipopReactNativeReactConfig`                                                | —             | Native JSX and React Compiler options.                    |
+| `module`          | `{ type?: 'unambiguous'                                                         | 'commonjs' }` | `{ type: 'unambiguous' }`                                 | Preserve modules or convert them to CommonJS. |
+| `globals`         | `Record<string, string>`                                                        | —             | Replace expressions in the native transform.              |
+
+A WASM filter applies only to that plugin and is evaluated against the original transform input. Other native transforms still run.
+
+`react` accepts `runtime` (`'Preserve'`, `'Automatic'`, or `'Classic'`), `importSource`, `pragma`, `pragmaFrag`, `throwIfNamespace`, `development`, and `compiler`. Native JSX defaults to `'Preserve'` so the bundler handles JSX. Explicit `native.react.compiler` fields override `transform.jsx.compiler`, including replacement of filter arrays.
 
 `native.runPluginFirst` defaults to `false`, matching `@swc/core`: plugins run after TypeScript/Flow type stripping. Set it to `true` to run plugins before stripping. Scope resolution runs before plugins in both cases.
 
@@ -301,7 +380,7 @@ export default defineConfig({
 
 `swc.rules`
 
-- **Type:** `SwcTransformRule[]`
+- **Type:** `TransformRule<swc.Options>[]`
 
 Define custom SWC transformation rules for specific files.
 
@@ -344,7 +423,7 @@ If all SWC rules are standalone, the shared transform hook is omitted, avoiding 
 
 <Callout type="warn">
 
-Each standalone SWC rule parses and transforms matching modules separately, which can hurt build performance, especially when multiple standalone rules match the same modules. Use `standalone: true` only when needed, and set a narrow `filter` so the rule runs only on modules that require it.
+Each standalone SWC rule adds a separate parse and transform pass. Use a narrow `filter` to limit the cost.
 
 </Callout>
 
@@ -353,9 +432,7 @@ Each standalone SWC rule parses and transforms matching modules separately, whic
 - **Type:** `string[]`
 - **Default:** `react-native/setup-env` when available, with `react-native/Libraries/Core/InitializeCore` as a fallback
 
-Prelude modules imported before the app entry module.
-
-Each entry is imported as a file module before the app entry module. Entries supplied in the config are appended to the default prelude, with duplicates removed.
+Modules imported before the app entry. Configured entries are appended to the defaults, with duplicates removed.
 
 ```ts
 export default defineConfig({
@@ -370,7 +447,7 @@ export default defineConfig({
 
 Polyfills injected before the app modules run.
 
-String entries are loaded from files. Object entries can provide inline `code` or a file `path`.
+String entries are loaded as raw source from files. Object entries can provide inline `code` or a file `path`. Relative file paths resolve from the process working directory. Set `withTransform: true` on an object to apply the native React Native transform; the default is `false`.
 Use `type: 'iife'` when the polyfill should run in its own function scope, or `type: 'plain'`
 when the code should be injected as-is.
 
@@ -430,6 +507,20 @@ Use debouncing for file change events.
 
 Debounce duration in milliseconds.
 
+#### Other Watch Options
+
+| Option                      | Type                                       | Default               | Description                                                                             |
+| --------------------------- | ------------------------------------------ | --------------------- | --------------------------------------------------------------------------------------- |
+| `enabled`                   | `boolean`                                  | `true`                | Enable file watching and automatic rebuilds.                                            |
+| `usePolling`                | `boolean`                                  | `false`               | Poll instead of using native file-system events.                                        |
+| `pollInterval`              | `number`                                   | `100`                 | Polling interval in milliseconds.                                                       |
+| `compareContentsForPolling` | `boolean`                                  | `false`               | Compare contents when polling.                                                          |
+| `debounceTickRate`          | `number`                                   | automatic             | Debouncer tick interval in milliseconds; defaults to one quarter of `debounceDuration`. |
+| `include`                   | `string \| RegExp \| (string \| RegExp)[]` | `[]`                  | Limit which discovered files are watched. Strings are globs.                            |
+| `exclude`                   | `string \| RegExp \| (string \| RegExp)[]` | `['**/.rollipop/**']` | Exclude discovered files from watching. Strings are globs.                              |
+
+These options belong under `dev.watch`.
+
 ### dev.hmr
 
 - **Type:** `boolean | HmrConfig`
@@ -481,13 +572,7 @@ React Native specific configuration.
 - **Type:** `string`
 - **Default:** value of the `ROLLIPOP_REACT_NATIVE_PATH` environment variable if set, otherwise the resolved `react-native` package path from the project root
 
-Path to the React Native package. Override this if your project resolves `react-native` from a non-standard location.
-
-Resolution order (highest priority first):
-
-1. `reactNative.reactNativePath` set in the config
-2. `ROLLIPOP_REACT_NATIVE_PATH` environment variable (used only to compute the default value)
-3. The `react-native` package resolved from the project root
+Path to the React Native package. An explicit value overrides the environment variable and package resolution.
 
 ```ts
 export default defineConfig({
@@ -578,12 +663,19 @@ Custom reporter for build events. Implement the `Reporter` interface to create c
 
 See [Reporter](/docs/features/reporter) for more details.
 
+## analyzer
+
+- **Type:** `AnalyzerConfig`
+- **Default:** `{ enabled: false, analyzeFile: 'analyze-data.json', reportFile: 'report.html', autoOpen: false }`
+
+Generate bundle analysis data and an HTML report. See [Bundle Analysis](/docs/features/analyze) for all four options and output paths.
+
 ## envDir
 
 - **Type:** `string`
-- **Default:** `config.root`
+- **Default:** the `cwd` passed to `loadConfig` (`process.cwd()` by default)
 
-Directory to load environment files from.
+Directory to load environment files from. Setting `root` alone does not change this default; set `envDir` explicitly when using a different environment directory.
 
 ```ts
 export default defineConfig({
@@ -598,9 +690,7 @@ export default defineConfig({
 
 Base name for environment files loaded from [`envDir`](#envdir).
 
-Acts as the basename of the standard four-file resolution: the loader looks for `${envFile}`, `${envFile}.local`, `${envFile}.[mode]`, and `${envFile}.[mode].local`. Override this to use a custom name such as `.rollipop-env` instead of the default `.env`.
-
-Expects a file name (not a path). The lookup directory is [`envDir`](#envdir).
+The loader checks `${envFile}`, `${envFile}.local`, `${envFile}.[mode]`, and `${envFile}.[mode].local`. Use a file name, not a path.
 
 ```ts
 export default defineConfig({
@@ -623,14 +713,14 @@ export default defineConfig({
 
 ## treeshake
 
-- **Type:** `boolean | TreeshakeConfig`
+- **Type:** `boolean | rolldown.TreeshakingOptions`
 - **Default:** `true`
 
-Controls tree-shaking (dead code elimination). When `false`, tree-shaking will be disabled.
+Enable or configure tree-shaking for standalone bundles. The development server disables tree-shaking for development bundles.
 
 ## optimization
 
-Rolldown optimization configuration. This maps to Rolldown's `InputOptions['optimization']`.
+Rolldown optimization configuration. Rollipop forces `inlineConst: false` for its module format; use `rolldownOptions` only if you need to override the final generated settings.
 
 ## output.minify
 
@@ -710,7 +800,7 @@ Control which source files are included in the sourcemap ignore list. Files in t
 
 - **Type:** `(source: string, sourcemapPath: string) => string`
 
-Transform each path in a sourcemap.
+Transform each path in a sourcemap. By default, Rollipop rewrites source paths relative to the project root.
 
 ```ts
 export default defineConfig({
@@ -727,11 +817,30 @@ export default defineConfig({
 - **Type:** `boolean | string`
 - **Default:** `true`
 
-Configures TypeScript configuration file resolution and usage. When set to a string, it specifies the path to the `tsconfig.json` file. See the [TypeScript guide](/docs/get-started/typescript) for client types and type checking.
+Use `true` for automatic resolution, `false` to disable it, or a string for an explicit `tsconfig.json` path. See [TypeScript](/docs/get-started/typescript) for client types and type checking.
+
+## external
+
+- **Type:** `string | RegExp | (string | RegExp)[] | ((source: string, importer: string | undefined, isResolved: boolean) => boolean | null | undefined)`
+
+Exclude modules from the bundle. The runtime must provide them, or the application must handle their absence.
+
+```ts
+export default defineConfig({
+  external: ['optional-native-integration'],
+});
+```
+
+## runtimeTarget
+
+- **Type:** `'hermes' | 'hermes-v1'`
+- **Default:** `'hermes-v1'`
+
+Internal native transform target. Use `'hermes'` when targeting the older Hermes transform preset.
 
 ## experimental
 
-Experimental options. See [Experimental Features](/docs/experimental/overview) for the available features and stability notes.
+Accepts Rolldown's experimental options and Rollipop's [`worklets`](/docs/experimental/reanimated-worklets) transform. These options may change without a major version bump.
 
 ## rolldownOptions
 
@@ -740,10 +849,22 @@ Experimental options. See [Experimental Features](/docs/experimental/overview) f
 Override Rollipop's final generated Rolldown configuration.
 
 Object values are merged after Rollipop's generated options. Function values receive the final
-generated options and can return a replacement.
+generated options and can return a replacement. The second argument contains resolved build options plus `id`, `root`, and `buildType` (`'build'` or `'serve'`):
+
+```ts
+export default defineConfig({
+  rolldownOptions: (options, { platform, buildType }) => ({
+    ...options,
+    output: {
+      ...options.output,
+      banner: `/* ${platform}: ${buildType} */`,
+    },
+  }),
+});
+```
 
 <Callout type="warn">
-  This option can break the build. Use only when you know exactly what you're doing.
+  Overrides can replace Rollipop's required bundler settings and break the build.
 </Callout>
 
 ```ts

@@ -6,17 +6,7 @@ Rollipop includes a built-in dashboard for inspecting the development server fro
 
 ![Rollipop dashboard overview](/dashboard.png)
 
-Open the dashboard from the dev server:
-
-```bash
-rollipop start
-```
-
-Then visit:
-
-```txt
-http://localhost:8081/dashboard
-```
+Run `rollipop start`, then open [localhost:8081/dashboard](http://localhost:8081/dashboard).
 
 ## Features
 
@@ -29,11 +19,7 @@ http://localhost:8081/dashboard
 
 ## Devframe Integration
 
-The dashboard uses a [Devframe](https://devfra.me/) scope mounted at `/__rollipop/` as its control plane. The browser discovers the connection from Devframe, receives event notifications through shared state, and fetches dashboard data and performs actions through RPC.
-
-When the optional `@devframes/agentic` peer dependency is installed, Devframe also exposes the Rollipop MCP server from the same integration. See [MCP Server](/docs/features/mcp) for installation and client setup. The dashboard works without this dependency.
-
-All Devframe-owned endpoints stay under the Rollipop namespace; no root-level aliases such as `/__sse` or `/__mcp` are exposed.
+The dashboard uses [Devframe](https://devfra.me/) under `/__rollipop/`. Install `@devframes/agentic` to also enable [MCP Server](/docs/features/mcp); the dashboard does not require it.
 
 | Purpose             | Endpoint                        |
 | ------------------- | ------------------------------- |
@@ -41,8 +27,6 @@ All Devframe-owned endpoints stay under the Rollipop namespace; no root-level al
 | SSE transport       | `/__rollipop/__sse`             |
 | MCP (when enabled)  | `/__rollipop/__mcp`             |
 | Embedded dock UI    | `/__rollipop/embedded.js`       |
-
-Devframe's internal index, client-import, and renderer routes use the same `/__rollipop/` prefix.
 
 ## Bundle Analysis
 

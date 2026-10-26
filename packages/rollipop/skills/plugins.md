@@ -28,7 +28,7 @@ Use the built-in analyzer config when the task is to inspect bundle size or modu
 
 ### Rozenite
 
-Use the Rozenite plugin when the app needs Rozenite DevTools middleware integrated into the Rollipop dev server. Keep it development-focused and follow Rozenite's app-side setup guidance for companion plugins. Read https://www.rozenite.dev.
+Use the Rozenite plugin when the app needs Rozenite DevTools middleware integrated into the Rollipop dev server. Keep it development-focused and follow Rozenite's app-side setup guidance for companion plugins. Read https://rollipop.dev/docs/features/rozenite.md.
 
 ## Watchpoints
 

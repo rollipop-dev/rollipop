@@ -12,15 +12,11 @@ Install the optional MCP dependency in your project:
 yarn add -D @devframes/agentic@1.0.0
 ```
 
-Without this package, the dev server runs with MCP disabled and does not print an MCP warning or server URL. Dashboard and other dev-server features remain available.
-
 Start or restart the dev server after installing the package:
 
 ```bash
 rollipop start
 ```
-
-When MCP is enabled, the console prints `MCP server listening at ...` with the endpoint URL.
 
 Then add the MCP server to your project's `.mcp.json`:
 
@@ -44,11 +40,21 @@ Devframe requires a loopback `Origin` header and a connection from the same mach
 
 Use the MCP `tools/list` request for the current tool names, descriptions, and parameter schemas. The endpoint is stateless: the initialization response does not return an `mcp-session-id`, and subsequent requests do not need that header. Raw HTTP requests must include `Content-Type: application/json`, `Accept: application/json, text/event-stream`, and the `Origin` header shown above.
 
-High-level tool groups:
+| Tool                                             | Arguments                                                 | Result                                                                           |
+| ------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `get_build_events`                               | `duration?` (1,000–60,000 ms; default 10,000)             | Events received during the listening period.                                     |
+| `get_bundler_status`                             | `bundlerId`                                               | Current build status.                                                            |
+| `build_logs`, `build_errors`, `get_console_logs` | `limit?` (1–500; default 100), `bundlerId?`               | Buffered diagnostics or app logs.                                                |
+| `clear_build_logs`, `clear_build_errors`         | `bundlerId?`                                              | Clear one diagnostic buffer.                                                     |
+| `clear_build_diagnostics`                        | `bundlerId?`                                              | Clear both build log and error buffers.                                          |
+| `clear_console_logs`                             | `bundlerId?`                                              | Clear app logs.                                                                  |
+| `reset_cache`                                    | None                                                      | Clear the build cache.                                                           |
+| `list_clients`                                   | None                                                      | Known HMR clients, including disconnected clients.                               |
+| `reload`                                         | None                                                      | Reload connected apps and return the client list.                                |
+| `get_build_info`                                 | `bundlerId?`                                              | Resolved configuration, exposed environment values, and optional bundler status. |
+| `symbolicate_stack`                              | `stack`, `bundleUrl?`, `bundleName?`, `platform?`, `dev?` | Symbolicated stack frames.                                                       |
 
-- Build events and cache: `get_build_events`, `get_bundler_status`, `build_logs`, `build_errors`, `clear_build_diagnostics`, `reset_cache`
-- App execution and logs: `list_clients`, `reload`, `get_console_logs`, `clear_console_logs`
-- Source mapping and build info: `symbolicate_stack`, `get_build_info`
+`symbolicate_stack` uses `bundleUrl` or an HTTP URL in a stack frame; that URL must include `platform` and `dev` query parameters. Otherwise, provide `bundleName`, `platform`, and `dev` explicitly.
 
 ## Build Events
 
@@ -63,12 +69,13 @@ Returns an array of events collected during the listening period, or the message
 - `hmr_failed` — HMR update failure
 - `client_connected` / `client_disconnected` — HMR client lifecycle
 - `cache_reset` — cache cleared through MCP or the dashboard
+- `server_ready` — server setup completed
 
 Bundler-scoped events include `bundlerId` in their JSON payload. This includes build lifecycle events, `watch_change`, and `hmr_failed`. Client lifecycle, server, and cache events omit `bundlerId`.
 
 App console logs are not build events. Use `get_console_logs` for the buffered `client_log` entries captured by Rollipop.
 
-`bundle_build_done` also includes `bundleFilePath`, the file-system copy of the generated bundle. Rollipop normally keeps the latest bundle in memory, but if this file is edited after the build, the dev server serves the edited file content and stops using the now-stale source map. Agents can use this path for bundle-level debugging.
+`bundle_build_done.bundleFilePath` points to the generated bundle. Editing this file makes the dev server serve it instead of the in-memory bundle and disables the stale source map.
 
 ### `reset_cache`
 
@@ -76,11 +83,7 @@ Clears the build cache without triggering a rebuild or reloading connected apps.
 
 ## App Logs and External Debugging
 
-Rollipop MCP stays focused on bundler-facing diagnostics: build state, build logs, connected HMR clients, reload, sourcemap symbolication, and app logs forwarded through HMR `client_log`.
-
-Use `get_console_logs` for buffered app logs and `clear_console_logs` before a focused repro when older app logs may be noisy.
-
-Build diagnostics and app logs are intentionally separate. Use `build_errors` for Rolldown warnings, Rollipop build crashes, and HMR update failures. Use `get_console_logs` for app logs that the React Native HMR client forwards to Rollipop.
+Use `build_errors` for bundler warnings, crashes, and HMR failures. Use `get_console_logs` for app logs forwarded by the React Native HMR client.
 
 For CDP debugging, runtime evaluation, runtime exceptions, network inspection, or CPU/heap profiling, use [`agent-cdp`](https://github.com/callstackincubator/agent-cdp) against the Rollipop dev server target. For React component tree inspection and React DevTools profiling, use [`agent-react-devtools`](https://github.com/callstackincubator/agent-react-devtools).
 
@@ -105,16 +108,12 @@ The response is a point-in-time snapshot:
 
 Unknown ids return `{ "error": "not found" }`.
 
-Agents can use this as a cheap pull-based alternative to `get_build_events` when they only need the latest build state of a known bundler rather than the full event stream. HMR update failures are emitted as `hmr_failed` events instead of changing the build status.
+HMR update failures emit `hmr_failed` without changing the build status.
 
 ## LLM Workflow
-
-An LLM agent can use MCP tools to interact with the bundler:
 
 1. Clear build/app log buffers before focused checks when older diagnostics may be noisy
 2. Start `get_build_events` with a listening period long enough to cover the change
 3. Make code changes while the call is listening, then inspect its returned events for `bundle_build_done`, `bundle_build_failed`, or `hmr_failed`
 4. Use buffered `build_logs` and `build_errors` for diagnostics when an event occurred before listening started
 5. Use `bundleFilePath` from `bundle_build_done` when bundle-level debugging is needed
-6. If failed, read the error and fix the code
-7. If needed, call `reset_cache` to clear stale cache

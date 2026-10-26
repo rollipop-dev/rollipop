@@ -18,7 +18,7 @@ Use https://rollipop.dev/docs/features/env.md when changing env file loading, pr
 
 ## Experimental Features
 
-Use https://rollipop.dev/docs/experimental/overview.md before enabling experimental options. Keep the change explicit and mention stability/version risk. For worklets specifically, read https://rollipop.dev/docs/experimental/reanimated-worklets.md.
+Use https://rollipop.dev/docs/get-started/configuration.md#experimental before enabling experimental options. Keep the change explicit and mention stability/version risk. For worklets specifically, read https://rollipop.dev/docs/experimental/reanimated-worklets.md.
 
 ## Resolve Changes
 

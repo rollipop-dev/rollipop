@@ -4,16 +4,7 @@ Module Federation for Rollipop. Wires `@module-federation/runtime` into the host
 
 ## Status
 
-> **Initial implementation.** This plugin is an early-stage feature. The public
-> API and the bundle layout may change, and the role model is intentionally
-> narrower than standard Module Federation — see [Roles](#roles) and
-> [Constraints](#constraints).
->
-> Notably, a single config takes exactly one role (host **or** remote). Standard
-> (web) Module Federation lets one build both `expose` modules and `consume`
-> remotes; that bidirectional / chained-federation model is **not supported
-> yet**. Lifting it requires emitting the federation container as a separate
-> artifact from the app bundle, which is not implemented at this stage.
+> Experimental: the API and bundle layout may change. A config cannot both consume and expose remotes.
 
 ## Roles
 
@@ -36,7 +27,7 @@ import { federation } from '@rollipop/plugin-module-federation';
 import { defineConfig } from 'rollipop';
 
 export default defineConfig({
-  entry: 'src/host/index.js',
+  entry: 'src/host/index.ts',
   plugins: [
     federation({
       name: 'host_app',
@@ -99,7 +90,7 @@ import { federation } from '@rollipop/plugin-module-federation';
 import { defineConfig } from 'rollipop';
 
 export default defineConfig({
-  entry: 'src/remote/index.js',
+  entry: 'src/remote/index.ts',
   plugins: [
     federation({
       name: 'remote_app',
@@ -149,8 +140,9 @@ Use `retryRemote` from `@rollipop/plugin-module-federation/runtime` to retry a f
   current-implementation limitation, not an inherent Module Federation rule.
   Split a host and a remote into two configs and run them as separate Rollipop
   processes. See [Status](#status).
-- Remote imports expose a default React component proxy. Dynamic `import('<remote>/<expose>')`
-  returns that proxy, rather than the remote module's namespace directly.
+- Remote imports resolve to a local module whose default export is a React component proxy.
 - Subpath imports of shared deps (`react/jsx-dev-runtime`, etc.) are bundled into the remote and consume the parent shared instance through `__rollipop_shared__`.
 
-See `examples/module-federation` for a working RN 0.84 host + remote setup with a Pure C++/Obj-C++ TurboModule script loader.
+See `examples/module-federation` for a working RN 0.84 host + remote setup with a Kotlin/JNI and Obj-C++ script loader.
+
+See [Configuration](https://rollipop.dev/docs/features/module-federation#configuration) for remote syntax, shared dependencies, and `shareStrategy`.

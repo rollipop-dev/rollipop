@@ -6,7 +6,7 @@ SVG support is provided by the [`@rollipop/plugin-svg`](https://github.com/rolli
 
 ## Pre-requisites
 
-To render SVGs in your application, first install the [react-native-svg](https://github.com/software-mansion/react-native-svg#installation) native module.
+Install the [react-native-svg](https://github.com/software-mansion/react-native-svg#installation) native module.
 
 ## Installation
 
@@ -25,6 +25,20 @@ export default defineConfig({
 });
 ```
 
-The plugin's `config` hook adds `svg` to `resolve.sourceExtensions` and removes it from `resolve.assetExtensions`, so `.svg` imports are routed through the plugin's `load` hook instead of being bundled as static assets.
+`svg()` takes no options.
 
-When the plugin is **not** added, `.svg` files are treated as regular assets (the default `resolve.assetExtensions` includes `svg`).
+With the plugin enabled, `.svg` imports resolve to React components. Otherwise, they resolve to static assets.
+
+## TypeScript
+
+Declare SVG modules in a file included by your `tsconfig.json`:
+
+```ts title="svg.d.ts"
+declare module '*.svg' {
+  import type { ComponentType } from 'react';
+  import type { SvgProps } from 'react-native-svg';
+
+  const component: ComponentType<SvgProps>;
+  export default component;
+}
+```

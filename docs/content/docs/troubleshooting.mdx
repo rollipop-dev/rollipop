@@ -2,13 +2,7 @@
 title: Troubleshooting
 ---
 
-This guide helps you diagnose and resolve common issues with Rollipop.
-
 ## Enable Debug Logging
-
-Rollipop provides detailed debug and trace logs to help diagnose issues. These logs are disabled by default for performance reasons.
-
-### Enable Debug Mode
 
 Set the `DEBUG_ROLLIPOP` environment variable to enable debug and trace logging:
 
@@ -23,11 +17,9 @@ DEBUG_ROLLIPOP=true rollipop start
 DEBUG_ROLLIPOP=1 rollipop bundle --entry-file ./index.js --bundle-output ./dist/main.bundle.js
 ```
 
-When debug mode is enabled, Rollipop prints additional debug logs for the running command or dev server process.
-
 ## Programmatic Usage
 
-When using Rollipop programmatically, you can also enable debug logging:
+Set the variable before importing Rollipop:
 
 ```ts
 // Set the environment variable before importing
@@ -39,9 +31,6 @@ const config = await Rollipop.loadConfig();
 const server = await Rollipop.runServer(config, { port: 8081 });
 ```
 
-Use a dynamic import so the environment variable is set before Rollipop initializes its loggers.
-Static imports run before the module body, even when written below the assignment.
-
 ## Inspect Generated Bundles
 
 After a dev server build completes, Rollipop writes the generated bundle to:
@@ -50,23 +39,16 @@ After a dev server build completes, Rollipop writes the generated bundle to:
 .rollipop/bundles/<id>.bundle
 ```
 
-You can inspect this file to debug the generated bundle code. If you edit the file after the build, the dev server serves the edited bundle content instead of the in-memory copy. This is intended for bundle-level debugging and for quickly testing a bundle edit before moving the real fix back to source, config, or plugin code.
+Edit this file to test bundle-level changes. The dev server serves the edited file instead of the in-memory bundle and disables its stale source map.
 
 ## Reporting Issues
 
-If you encounter an issue that isn't covered in this guide:
+[Search existing issues](https://github.com/rollipop-dev/rollipop/issues) before [opening a new one](https://github.com/rollipop-dev/rollipop/issues/new). Include:
 
-1. **Search existing issues**: Check if someone has already reported the issue at [github.com/rollipop-dev/rollipop/issues](https://github.com/rollipop-dev/rollipop/issues)
-
-2. **Gather information**:
-
-- Rollipop version (`rollipop --version`)
-- Node.js version (`node --version`)
+- Rollipop and Node.js versions
 - Operating system
-- Debug logs (run with `DEBUG_ROLLIPOP=1`)
-- Minimal reproduction steps
-
-3. **Create a new issue**: If the issue hasn't been reported, create a new issue at [github.com/rollipop-dev/rollipop/issues/new](https://github.com/rollipop-dev/rollipop/issues/new)
+- Logs from `DEBUG_ROLLIPOP=1`
+- Minimal reproduction
 
 ## Getting Help
 

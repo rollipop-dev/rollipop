@@ -2,60 +2,27 @@
 title: Quick Start
 ---
 
-This guide will walk you through setting up Rollipop in your React Native project.
-
 <Callout>
-  Rollipop is actively developed and tested with the latest versions of React Native, targeting the
-  **Hermes JavaScript engine** for optimal performance and compatibility.
+  Rollipop targets the **Hermes JavaScript engine** and is tested with the latest React Native
+  versions.
 </Callout>
 
 ## For Agents
 
-If you are an agent working with Rollipop, expand the guide below before changing a project.
-
 <details>
   <summary>Agent quick reference</summary>
 
-Rollipop documentation is available as plain Markdown for agent workflows. Append `.md` to any
-documentation URL to read the Markdown version directly:
+Append `.md` to any documentation URL for plain Markdown. [`/llms.txt`](/llms.txt) lists all pages.
 
-```txt
-/docs/get-started/quick-start
-/docs/get-started/quick-start.md
-```
-
-Use [`/llms.txt`](/llms.txt) as the documentation index. It lists official Rollipop docs as
-Markdown links, so an agent can discover the relevant page before reading task-specific details.
-
-For local project work, start with the bundled agent guidance:
+Print the agent guide and bundled task skills:
 
 ```bash
 rollipop agent
-```
-
-`rollipop agent` prints the recommended Devframe MCP workflow, external debugging integrations,
-and guidance for inspecting build events.
-
-Rollipop also ships bundled Markdown skills for common agent tasks:
-
-```bash
-rollipop skills
 rollipop skills list
-rollipop skills get <name>
+rollipop skills get core
 ```
 
-Start with `rollipop skills get core`, then switch to a narrower skill such as `dev-server`,
-`debugging`, `configuration`, `build`, `migration`, or `plugins` when the task calls for it.
-
-For structured diagnostics, install the optional `@devframes/agentic` dependency using the
-[MCP setup guide](/docs/features/mcp#setup), then start the dev server:
-
-```bash
-rollipop start --reset-cache
-```
-
-The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Keep the URL and
-`Origin` header on a loopback host, and adjust the port to match the server.
+For structured build diagnostics and app logs, see [MCP Server](/docs/features/mcp).
 
 </details>
 
@@ -65,11 +32,9 @@ The default MCP endpoint is `http://localhost:8081/__rollipop/__mcp`. Keep the U
 
 ## Installation
 
-You have two options for getting started with Rollipop: using the automated setup command or manual installation.
+Install Rollipop and its official plugins with the `@beta` tag during the beta period.
 
-Beta releases of Rollipop and its official plugins are published under the `beta` tag. Use `@beta` in installation commands during the beta period; the `latest` tag is reserved for stable releases. The initializer adds its matching Rollipop version to your project.
-
-### Option 1: Automated Setup (Recommended)
+### Automated Setup
 
 Run `@rollipop/init` from your React Native project root:
 
@@ -79,10 +44,7 @@ Run `@rollipop/init` from your React Native project root:
   <Tab value="yarn">```yarn dlx @rollipop/init@beta```</Tab>
 </Tabs>
 
-This command will:
-
-- Add the matching Rollipop version to `devDependencies` in `package.json`
-- Create or update `react-native.config.js` to register Rollipop's CLI commands
+The initializer adds its matching Rollipop version to `devDependencies` and registers the CLI commands in `react-native.config.js`.
 
 Then install the updated dependencies:
 
@@ -96,9 +58,7 @@ If the initializer reports an existing `commands` property or a configuration it
 complete the [React Native CLI configuration](#2-configure-react-native-cli) manually.
 To customize Rollipop, create a configuration file following the [Configuration guide](/docs/get-started/configuration).
 
-### Option 2: Manual Installation
-
-If you prefer to set up Rollipop manually:
+### Manual Installation
 
 #### 1. Install the package
 
@@ -119,18 +79,6 @@ module.exports = {
 };
 ```
 
-This configuration makes Rollipop's commands available to React Native CLI, allowing you to use Rollipop seamlessly with your existing React Native build process.
-
-<Callout type="info">
-  If you don't have a `react-native.config.js` file in your project, create one in the root
-  directory with the configuration above.
-</Callout>
-
 ## Next Steps
 
-Now that you have Rollipop set up, you can:
-
-- Learn about [Configuration](/docs/get-started/configuration) options
-- Explore [CLI Commands](/docs/get-started/cli-commands)
-- Check out [Features](/docs/features/dev-server) available in Rollipop
-- Read about the [Plugin API](/docs/apis/plugin) to extend functionality
+Start the [development server](/docs/features/dev-server), or see [CLI Commands](/docs/get-started/cli-commands) for bundle builds.

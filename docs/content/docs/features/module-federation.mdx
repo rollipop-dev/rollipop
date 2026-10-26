@@ -3,13 +3,11 @@ title: Module Federation
 ---
 
 <Callout type="warn">
-  **Initial implementation.** Module Federation support is an early-stage feature. The public API
-  and the bundle layout may change between releases, and the role model is intentionally narrower
-  than standard Module Federation — see [Roles](#roles) and [Limitations](#limitations). Pin to an
-  exact Rollipop version for reproducible results.
+  Module Federation is an early implementation. Its API and bundle layout may change between
+  releases. See [Limitations](#limitations) for supported roles and imports.
 </Callout>
 
-Module Federation is provided by the [`@rollipop/plugin-module-federation`](https://github.com/rollipop-dev/rollipop/tree/main/packages/plugin-module-federation) plugin. It wires [`@module-federation/runtime`](https://module-federation.io/) into the host bundle and registers each remote's container on `globalThis`, with shared dependencies resolved through a host-owned global registry.
+[`@rollipop/plugin-module-federation`](https://github.com/rollipop-dev/rollipop/tree/main/packages/plugin-module-federation) loads remote bundles through `@module-federation/runtime` and shares dependencies from the host.
 
 ## Installation
 
@@ -97,9 +95,7 @@ await retryRemote('remote_app/RemoteNavigator');
 resetErrorBoundary();
 ```
 
-Concurrent loads share one request. A failed retry rejects, allowing the boundary to keep
-showing its fallback until the user retries again. Pass the same alias and exposed path used by
-the import to `retryRemote`.
+Concurrent loads share one request; failed retries reject. Pass the import alias and exposed path to `retryRemote`.
 
 ## Remote
 
@@ -131,6 +127,30 @@ runtime. Each shared dependency import is replaced with a stub that reads from t
 `globalThis.__rollipop_shared__` registry. Rollipop's prelude and polyfills are skipped because the
 host has already initialized the React Native runtime.
 
+## Configuration
+
+| Option              | Type                                                                           | Default / requirement                                                                        |
+| ------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `name`              | `string`                                                                       | Required, non-empty container name.                                                          |
+| `remotes`           | `Record<string, string \| ModuleFederationRemoteConfig>`                       | `{}`; host remote aliases.                                                                   |
+| `exposes`           | `Record<string, string>`                                                       | `{}`; keys must start with `./`, values resolve from the project root.                       |
+| `shared`            | `string[] \| Record<string, string \| ModuleFederationSharedDependencyConfig>` | `[]`; installed package versions are detected. A string object value sets `requiredVersion`. |
+| `shareStrategy`     | `'version-first' \| 'loaded-first'`                                            | `'version-first'`                                                                            |
+| `runtime.implement` | `string`                                                                       | Host loader source, injected before modules run.                                             |
+
+Remote strings accept `name@url` or a plain URL, which uses the alias as the container name. The object form is `{ name, entry, type?: 'var' }`; `type` defaults to `'var'`.
+
+Shared dependency objects accept `requiredVersion?: string`, `singleton?: boolean`, and `eager?: boolean`. Both booleans default to `false`.
+
+```ts
+federation({
+  name: 'host_app',
+  remotes: { catalog: { name: 'catalog_app', entry: 'https://example.com/catalog.bundle' } },
+  shared: ['react', 'react-native'],
+  shareStrategy: 'loaded-first',
+});
+```
+
 ## Script loader contract
 
 React Native cannot fetch and evaluate a remote bundle on its own. The host registers a loader implementation on `globalThis.__rollipop_script_loader__`, typically delegating to a native TurboModule:
@@ -155,14 +175,10 @@ Use `retryRemote` from `@rollipop/plugin-module-federation/runtime` to retry a f
 
 ## Limitations
 
-- A single config cannot define both `remotes` and `exposes`. This is a **current-implementation
-  limitation**, not an inherent Module Federation rule. Standard (web) Module Federation lets one
-  build both `expose` modules and `consume` remotes; that bidirectional / chained-federation model
-  is **not supported yet** — lifting it requires emitting the federation container as a separate
-  artifact from the app bundle, which is not implemented at this stage.
+- A config cannot define both `remotes` and `exposes`; bidirectional and chained federation are not supported.
 - Remote imports expose a default React component proxy. Dynamic `import('<remote>/<expose>')`
   resolves to a local module with this proxy as its default export.
 - Subpath imports of shared deps (`react/jsx-dev-runtime`, etc.) are bundled into the remote and
   consume the parent shared instance through `__rollipop_shared__`.
 
-See [`examples/module-federation`](https://github.com/rollipop-dev/rollipop/tree/main/examples/module-federation) for a working RN 0.84 host + remote setup with a Pure C++/Obj-C++ TurboModule script loader.
+See [`examples/module-federation`](https://github.com/rollipop-dev/rollipop/tree/main/examples/module-federation) for a working RN 0.84 host + remote setup with a Kotlin/JNI and Obj-C++ script loader.

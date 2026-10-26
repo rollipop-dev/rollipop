@@ -4,33 +4,13 @@ title: Introduction
 
 <img alt="logo" src="/logo.svg" width="240" style={{ margin: '0 auto', padding: '8px' }} />
 
-## What is Rollipop?
+Rollipop is a React Native build toolkit powered by [Rolldown](https://rolldown.rs/).
 
-Rollipop is a modern build toolkit for React Native, powered by [Rolldown](https://rolldown.rs/). Designed to seamlessly integrate with your React Native workflow while bringing the best of frontend tooling standards to mobile development.
+- **Module resolution**: Standard Node package resolution and Yarn PnP support, without Haste.
+- **Development server**: HMR, Fast Refresh, error symbolication, source maps, and React Native DevTools.
+- **Bundling**: Tree-shaking, file-system caching, and in-memory caching.
+- **Plugins**: Rolldown's Rollup-compatible plugin API with React Native hooks.
+- **CLI integration**: `start` and `bundle` commands registered through `react-native.config.js`.
+- **TypeScript**: Typed configuration, plugins, and programmatic APIs.
 
-- **Ready for React Native**: Pre-configured resolver, plugins, and transformers designed specifically for React Native environments.
-- **Development Server**: Native HMR (Hot Module Replacement), React Refresh, and React Native DevTools integration.
-- **CLI Compatibility**: `start` and `bundle` commands that can be registered with React Native CLI.
-- **Typed APIs**: TypeScript configuration and programmatic APIs backed by native bundling and transformation.
-
-## Motivation
-
-React Native uses [Metro](https://metrobundler.dev/) as its default bundler. Metro is designed specifically for React Native environments and provides stable compatibility within the React Native ecosystem.
-
-Rollipop takes a different approach to bundling: it uses standard package resolution, supports Yarn PnP, and exposes Rolldown's plugin APIs for projects that want to integrate frontend tooling with React Native.
-
-`Rollipop` was created to bring frontend ecosystem standards to React Native bundling. Built on Rolldown, it prioritizes compatibility with modern frontend ecosystem conventions.
-
-## Key Features
-
-- **Powered by Rolldown**: Uses Rolldown's Rollup-compatible plugin API for extensibility.
-- **Frontend Ecosystem First**: Adopts standard Node module resolution—no Haste. Includes Yarn PnP support for seamless integration with modern tooling.
-- **Full-Featured Dev Server**: Native HMR, Fast Refresh, error symbolication, and source maps—everything you need out of the box.
-- **Optimized Bundles**: Tree-shaking reduces bundle size for faster app startup and improved initial load times.
-- **Built-in Caching System**: File system and in-memory caching for faster iteration cycles without compromising accuracy.
-- **React Native CLI Integration**: Register Rollipop's build and dev server commands in `react-native.config.js`. See [CLI Commands](/docs/get-started/cli-commands) for supported options.
-- **TypeScript Support**: Typed configuration, plugins, and programmatic APIs.
-
-## Next Steps
-
-Ready to start? Visit the [Quick Start](/docs/get-started/quick-start) guide!
+See [Quick Start](/docs/get-started/quick-start) for installation.

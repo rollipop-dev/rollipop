@@ -1,0 +1,35 @@
+---
+title: Rozenite
+---
+
+`@rollipop/plugin-rozenite` adds Rozenite middleware to the development server.
+
+## Setup
+
+```bash
+yarn add -D @rollipop/plugin-rozenite@beta
+```
+
+```ts title="rollipop.config.ts"
+import { rozenite } from '@rollipop/plugin-rozenite';
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  plugins: [rozenite({ enabled: true })],
+});
+```
+
+`enabled` defaults to `false`. Other options are forwarded to `@rozenite/middleware`, except `projectRoot` and `projectType`, which Rollipop supplies. The plugin runs only during dev-server setup.
+
+## Options
+
+| Option                   | Type                                               | Default / behavior                                                    |
+| ------------------------ | -------------------------------------------------- | --------------------------------------------------------------------- |
+| `enabled`                | `boolean`                                          | `false`                                                               |
+| `include`, `exclude`     | `string[]`                                         | Filter Rozenite plugins.                                              |
+| `destroyOnDetachPlugins` | `string[]`                                         | Plugin panels to destroy when inactive; otherwise state is preserved. |
+| `logLevel`               | `'none' \| 'error' \| 'warn' \| 'info' \| 'debug'` | `'info'`                                                              |
+| `pluginDisplay`          | `'tabs' \| 'sidebar'`                              | `'sidebar'`                                                           |
+| `integration`            | `'react-native' \| 'lynx'`                         | `'react-native'`; use the React Native integration with Rollipop.     |
+
+Companion Rozenite plugins may also require app-side setup. See the [Rozenite documentation](https://www.rozenite.dev).

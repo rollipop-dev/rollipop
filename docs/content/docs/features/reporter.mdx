@@ -2,7 +2,7 @@
 title: Reporter
 ---
 
-Reporters allow you to receive and handle build events, HMR failures, progress updates, and client logs from your Rollipop application. This is useful for custom logging, monitoring, or integrating with external tools.
+Reporters receive build events, HMR failures, transform progress, and client logs.
 
 ## Reporter Interface
 
@@ -60,6 +60,15 @@ Emitted when a bundle build fails with an error. HMR update failures are reporte
   error: Error;
 }
 ```
+
+### Diagnostic Events
+
+| Event         | Fields                                                                      | Description                                                                      |
+| ------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `build_log`   | `level: 'debug' \| 'info'`, `log: BuildDiagnosticLog`, `bundlerId?: string` | Captured Rolldown plugin logs.                                                   |
+| `build_error` | `level: 'warn' \| 'error'`, `log: BuildDiagnosticLog`, `bundlerId?: string` | Captured bundler diagnostics. Build and HMR failures also have their own events. |
+
+`BuildDiagnosticLog` contains `message` and optional `code`, `plugin`, `stack`, `id`, `hook`, `frame`, `loc` (`file`, `line`, `column`), and `meta`.
 
 ### HMR Events
 
@@ -135,73 +144,36 @@ Emitted when the client application logs to the console. This is compatible with
 
 ### Dev Server Events
 
-When running a dev server, reporters also receive client lifecycle events (`client_connected`, `client_message`, `client_error`, and `client_disconnected`) and server events (`server_ready` and `cache_reset`).
+| Event                                     | Fields                                        |
+| ----------------------------------------- | --------------------------------------------- |
+| `client_connected`, `client_disconnected` | `client: WebSocketClient`                     |
+| `client_message`                          | `client: WebSocketClient`, `data: ws.RawData` |
+| `client_error`                            | `client: WebSocketClient`, `error: Error`     |
+| `server_ready`                            | `host: string`, `port: number`                |
+| `cache_reset`                             | No additional fields.                         |
+
+`server_ready` marks completion of server setup, before the HTTP listener starts. `cache_reset` is emitted by MCP and dashboard reset actions.
+
+The CLI filters `client_log` events out of configured reporters unless `--client-logs` is enabled. MCP app-log capture is independent of this flag.
 
 ## Custom Reporter Example
 
-Here's an example of a custom reporter that sends build events to a monitoring service:
+Handle the events your integration needs:
 
 ```ts title="my-reporter.ts"
 import type { Reporter, ReportableEvent } from 'rollipop';
 
-export class MonitoringReporter implements Reporter {
+export class BuildReporter implements Reporter {
   update(event: ReportableEvent): void {
     switch (event.type) {
-      case 'bundle_build_started':
-        this.sendMetric('build.started');
-        break;
-
       case 'bundle_build_done':
-        this.sendMetric('build.completed', {
-          transformedModules: event.transformedModules,
-          cacheHitModules: event.cacheHitModules,
-        });
+        console.log(`Built ${event.transformedModules} modules in ${event.duration}ms`);
         break;
-
       case 'bundle_build_failed':
-        this.sendMetric('build.failed', {
-          error: event.error.message,
-        });
-        break;
-
       case 'hmr_failed':
-        this.sendMetric('hmr.failed', {
-          error: event.error.message,
-        });
-        break;
-
-      case 'hmr_updates':
-        this.sendMetric('hmr.updates', {
-          updates: event.updates.length,
-          changedFiles: event.changedFiles,
-        });
-        break;
-
-      case 'transform':
-        if (event.totalModules) {
-          const progress = (event.transformedModules / event.totalModules) * 100;
-          this.sendMetric('build.progress', { progress });
-        }
-        break;
-
-      case 'watch_change':
-        console.log(`File changed: ${event.id}`);
-        break;
-
-      case 'client_log':
-        this.sendLog(event.level, event.data);
+        console.error(event.error);
         break;
     }
-  }
-
-  private sendMetric(name: string, data?: any) {
-    // Send to your monitoring service
-    console.log(`[Metric] ${name}`, data);
-  }
-
-  private sendLog(level: string, data: any[]) {
-    // Send client logs to your logging service
-    console.log(`[Client ${level}]`, ...data);
   }
 }
 ```
@@ -210,9 +182,9 @@ Use your custom reporter in the config:
 
 ```ts title="rollipop.config.ts"
 import { defineConfig } from 'rollipop';
-import { MonitoringReporter } from './my-reporter';
+import { BuildReporter } from './my-reporter';
 
 export default defineConfig({
-  reporter: new MonitoringReporter(),
+  reporter: new BuildReporter(),
 });
 ```

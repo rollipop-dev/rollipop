@@ -2,7 +2,7 @@
 title: Bundler API
 ---
 
-The Bundler API provides programmatic access to Rollipop's bundling and development server functionality. This is useful for integrating Rollipop into custom build tools or workflows.
+Load configuration, start a dev server, or build a bundle programmatically.
 
 ## `loadConfig`
 
@@ -21,10 +21,6 @@ function loadConfig(options?: LoadConfigOptions): Promise<ResolvedConfig>;
 | `options.mode`       | `'development' \| 'production'` | Mode to run the bundler in                           |
 | `options.context`    | `{ command?: string }`          | Additional context to pass to a config function      |
 
-### Returns
-
-Returns a `Promise<ResolvedConfig>` containing the fully resolved configuration.
-
 ### Example
 
 ```ts
@@ -34,6 +30,8 @@ const config = await Rollipop.loadConfig();
 
 console.log('Resolved config:', config);
 ```
+
+`loadConfig()` defaults to development mode. For production builds, pass `mode: 'production'`; an explicit `mode` in the config file takes precedence. `context.command` is passed to dynamic config functions and does not select the mode by itself.
 
 ## `runServer`
 
@@ -62,14 +60,7 @@ The resolved Rollipop configuration (obtained from `loadConfig`).
 
 Server build options currently expose only `cache`, a boolean that defaults to `true`.
 
-### Returns
-
-Returns a `Promise<DevServer>` containing the running development server instance.
-
 ### DevServer Interface
-
-The `DevServer` combines `DevServerContext` with `Emitter<DevServerEvents>` and provides access
-to server instances and APIs:
 
 ```ts
 type DevServer = DevServerContext &
@@ -137,6 +128,24 @@ server.on('client.error', ({ client, error }) => {
 console.log('Dev server running at:', server.instance.listeningOrigin);
 ```
 
+Close the server with `await server.instance.close()` to release HTTP/WebSocket connections and bundler engines. `runServer` does not install CLI keyboard shortcuts.
+
+## `createDevServer`
+
+Create the server without starting its HTTP listener. Accepts the same `ServerOptions` as `runServer`, with the options argument optional.
+
+```ts
+import { createDevServer, loadConfig } from 'rollipop';
+
+const config = await loadConfig({ mode: 'development' });
+const server = await createDevServer(config, { host: 'localhost', port: 8081 });
+
+server.instance.get('/health', async () => ({ ok: true }));
+await server.instance.listen({ host: 'localhost', port: 8081 });
+```
+
+Use the same host and port for creation and listening so generated bundle and debugger URLs match.
+
 ## `runBuild`
 
 Build a JavaScript bundle for production or development.
@@ -164,16 +173,12 @@ The resolved Rollipop configuration (obtained from `loadConfig`).
 | `sourcemapOutfile` | `string`                           | Custom source map path when `sourcemap` is `true` or `'hidden'` | -                               |
 | `assetsDir`        | `string`                           | Assets directory path                                           | -                               |
 
-### Returns
-
-Returns a `Promise<OutputChunk>` containing the build result.
-
 ### Example
 
 ```ts
 import * as Rollipop from 'rollipop';
 
-const config = await Rollipop.loadConfig();
+const config = await Rollipop.loadConfig({ mode: 'production', context: { command: 'bundle' } });
 
 const result = await Rollipop.runBuild(config, {
   platform: 'ios',
@@ -187,3 +192,42 @@ const result = await Rollipop.runBuild(config, {
 
 console.log('Bundle built:', result.fileName);
 ```
+
+`outfile` and `sourcemapOutfile` resolve from `config.root`. Without `outfile`, the bundle is returned in memory. `assetsDir` is optional; referenced assets are copied only when it is supplied.
+
+## `resetCache`
+
+Clear the native build cache. This does not rebuild or reload connected apps.
+
+```ts
+import { resetCache } from 'rollipop';
+
+await resetCache();
+```
+
+## `loadEnv`
+
+Load and expand environment files without modifying `process.env`:
+
+```ts
+import { loadEnv } from 'rollipop';
+
+const env = loadEnv({
+  envDir: process.cwd(),
+  envFile: '.env',
+  envPrefix: 'ROLLIPOP_',
+  mode: 'production',
+});
+```
+
+`envDir`, `envFile`, and `envPrefix` are required. `mode` is optional; omitting it loads only the base and local files. Returns `Record<string, string>` with exposed variables; built-in `MODE` and `BASE_URL` are added during bundling, not by this function.
+
+## Configuration Helpers
+
+| API                                    | Behavior                                                                                                                      |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `defineConfig(config)`                 | Type helper for a config object or sync/async config function.                                                                |
+| `getDefaultConfig(projectRoot, mode?)` | Returns default configuration; requires React Native to resolve from the project. Defaults to development mode.               |
+| `mergeConfig(base, ...overrides)`      | Merges config objects using Rollipop's array, reporter, and final-override rules. Does not load files or invoke plugin hooks. |
+
+See [Configuration Merging](/docs/get-started/configuration#configuration-merging).

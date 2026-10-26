@@ -2,15 +2,11 @@
 title: Glob Import
 ---
 
-Rollipop supports `import.meta.glob` for importing multiple modules that match file-system glob patterns. This is useful for file-based registries such as screens, routes, fixtures, or feature modules.
-
-<Callout>
-  `import.meta.glob` is built in. You do not need to add a plugin to `rollipop.config.ts`.
-</Callout>
+`import.meta.glob` imports modules matching file-system patterns. No plugin is required.
 
 ## Basic Usage
 
-Pass a glob pattern to get an object keyed by matched module path:
+Returns an object keyed by module path, with loader functions as values:
 
 ```ts title="src/pages.ts"
 const pages = import.meta.glob('./pages/*.tsx');
@@ -21,11 +17,9 @@ for (const path in pages) {
 }
 ```
 
-By default, each value is a loader function.
-
 ## Eager Imports
 
-Use `eager: true` when the matched modules must be available synchronously, such as when building a React Navigation screen registry:
+Use `eager: true` to import modules synchronously during bundle evaluation:
 
 ```tsx title="src/navigation/AppNavigator.tsx"
 const pages = import.meta.glob<React.ComponentType>('../pages/*', {
@@ -38,8 +32,6 @@ const screens = Object.entries(pages).map(([path, component]) => ({
   component,
 }));
 ```
-
-With `eager: true`, the matched modules are imported during bundle evaluation instead of being returned as loader functions.
 
 ## Multiple Patterns
 
@@ -90,7 +82,7 @@ const screens = import.meta.glob<React.ComponentType>('./screens/*.tsx', {
 
 ## Custom Queries
 
-Use `query` to append a query string or query object to every generated import. This is mainly useful when another Rollipop or Rolldown plugin consumes the query:
+Use `query` to append parameters consumed by another plugin:
 
 ```ts
 const modules = import.meta.glob('./features/*.ts', {
@@ -116,7 +108,7 @@ For this example, a file at `src/pages/settings/index.tsx` is exposed under a ke
 
 ## Case Sensitivity
 
-Glob matching is case-sensitive by default. Pass `caseSensitive: false` when a pattern should match files regardless of case:
+Set `caseSensitive: false` for case-insensitive matching:
 
 ```ts
 const modules = import.meta.glob('./modules/module*.ts', {
@@ -140,11 +132,11 @@ const modules = import.meta.glob('./modules/module*.ts', {
 
 See the [TypeScript guide](/docs/get-started/typescript#glob-imports) to register client types and type lazy or eager glob imports.
 
+See [Jest](/docs/features/jest#glob-imports) to mock glob imports in tests.
+
 ## Caveats
 
-- `import.meta.glob` is a bundler feature, not a JavaScript or React Native runtime API.
 - Glob patterns and options must be literals. Variables and computed expressions are not supported.
 - Relative patterns should start with `./` or `../`; absolute patterns resolve from the project root.
 - Alias paths are resolved through Rollipop's resolve aliases.
 - Matching follows [`tinyglobby`](https://github.com/SuperchupuDev/tinyglobby) pattern semantics.
-- Prefer `eager: true` for registries that must be available synchronously during app startup.

@@ -2,7 +2,7 @@
 title: Bundle Analysis
 ---
 
-Rollipop can generate an interactive bundle analysis report, helping you identify large modules and optimize bundle size.
+Generate an interactive report of bundle contents and module sizes.
 
 ## Usage
 
@@ -16,22 +16,8 @@ export default defineConfig({
 });
 ```
 
-When enabled, Rollipop generates two outputs:
-
-- **JSON data file**: Raw analysis data of the bundle
-- **HTML report**: Interactive visualization generated from the data
-
-In build mode, files are written to the bundle output directory:
-
-- `analyze-data.json`
-- `report.html`
-
-In development mode, there is no bundle output directory, so Rollipop writes id-scoped files under the project shared data directory:
-
-- `.rollipop/analyze/<bundler-id>.json`
-- `.rollipop/analyze/<bundler-id>.html`
-
-Builds without an output directory also use this shared directory.
+Standalone builds write `analyze-data.json` and `report.html` to the bundle output directory.
+The dev server and builds without an output directory write `.rollipop/analyze/<bundler-id>.json` and `.rollipop/analyze/<bundler-id>.html`.
 
 You can also upload the JSON data file to the [Analyzer](https://leegeunhyeok.github.io/rolldown-analyzer) web app.
 

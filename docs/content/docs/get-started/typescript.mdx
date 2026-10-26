@@ -2,54 +2,44 @@
 title: TypeScript
 ---
 
-Rollipop transforms `.ts` and `.tsx` files without a separate plugin. Bundling strips types; run TypeScript separately to check your application:
-
-```bash
-yarn tsc --noEmit
-```
-
-Keep your existing React Native `tsconfig.json`. The [`tsconfig`](/docs/get-started/configuration#tsconfig) option controls which TypeScript configuration Rollipop reads during bundling; it does not enable type checking.
-
 ## Client Types
 
-Create a declaration file in your project root to register Rollipop's client types:
+Add `rollipop/client` to `compilerOptions.types` in your existing `tsconfig.json`:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "types": ["rollipop/client"]
+  }
+}
+```
+
+Keep any existing `types` entries. This registers types for `import.meta.env`, `import.meta.glob`, and `import.meta.hot`.
+
+Alternatively, add a triple-slash reference to a declaration file included by your `tsconfig.json`:
 
 ```ts title="rollipop-env.d.ts"
 /// <reference types="rollipop/client" />
 ```
-
-Make sure your `tsconfig.json` includes this file. For example, an existing `include` pattern of `**/*.ts` already includes it; if you only include `src`, add `rollipop-env.d.ts` to that list.
-
-These types describe `import.meta.env`, `import.meta.glob`, and the optional development-only `import.meta.hot` API. Use an ES module setting such as `"module": "esnext"` with `"moduleResolution": "bundler"`, as provided by the React Native TypeScript configuration, to use `import.meta`.
 
 ## Environment Variables
 
-Rollipop includes types for the built-in `MODE` and `BASE_URL` values. Extend the global `ImportMetaEnv` interface with your app's exposed environment variables:
+Declare your environment variables in `ImportMetaEnv`. `MODE` and `BASE_URL` are already typed:
 
 ```ts title="rollipop-env.d.ts"
-/// <reference types="rollipop/client" />
-
 interface ImportMetaEnv {
-  readonly ROLLIPOP_API_BASE: string;
   readonly ROLLIPOP_API_URL: string;
   readonly ROLLIPOP_FEATURE_FLAG: string;
 }
 ```
 
-Keep this declaration file free of top-level `import` or `export` statements so that the interface extends the global client types. You do not need to redeclare `ImportMeta`.
-
-```ts
-const apiUrl = import.meta.env.ROLLIPOP_API_URL;
-const featureEnabled = import.meta.env.ROLLIPOP_FEATURE_FLAG === 'true';
-```
-
-Environment file values are strings, including values such as `true` and `123`. Declaring them provides completion and catches undeclared property names, but does not load variables or validate their presence at build time. Define each variable in the appropriate environment file and use your configured prefix.
+Include this file in `tsconfig.json` and keep it free of top-level `import` or `export` statements. Environment file values are strings; declarations do not validate their presence at build time.
 
 See [Environment Variables](/docs/features/env) for file loading, prefixes, and precedence.
 
 ## Glob Imports
 
-Once the client types are registered, pass a generic to describe each value returned by `import.meta.glob`:
+Pass a generic for the module namespace or selected export:
 
 ```ts
 const files = import.meta.glob<{ default: string }>('./messages/*.ts');
@@ -62,6 +52,16 @@ const eagerFiles = import.meta.glob<string>('./messages/*.ts', {
 // Record<string, string>
 ```
 
-The generic describes the module namespace by default, or the selected export when using `import`. It does not check the exports of matching files, so keep it consistent with those modules. Without a generic, ordinary glob imports return values typed as `unknown`.
+Without a generic, ordinary glob imports return `unknown`; known query strings such as `?raw` and `?url` infer `string`. Query handling still requires a matching plugin. The generic does not validate matching files' exports.
 
 See [Glob Import](/docs/features/glob-import) for patterns and options.
+
+## Type Checking
+
+Rollipop transforms `.ts` and `.tsx` files without a plugin. Run type checking separately:
+
+```bash
+yarn tsc --noEmit
+```
+
+The [`tsconfig`](/docs/get-started/configuration#tsconfig) option selects the configuration used during bundling.

@@ -2,7 +2,7 @@
 title: CLI Commands
 ---
 
-Rollipop CLI is partially compatible with the React Native CLI, allowing for seamless integration with existing React Native projects.
+Rollipop provides `start` and `bundle` commands with partial React Native CLI compatibility.
 
 ## start
 
@@ -24,11 +24,15 @@ rollipop start [options]
 | `--client-logs`    | Enable client log streaming (deprecated)               | `boolean` | `false`     |
 | `--cache`          | If false, the bundler will not load or store any cache | `boolean` | `true`      |
 
-Use `--cache false` to disable caching. Options marked as unsupported in `rollipop start --help`
+Use `--cache false` to disable caching. `--resetCache` is an alias for `--reset-cache`. Options marked as unsupported in `rollipop start --help`
 are accepted for React Native CLI compatibility but have no effect.
 
 HTTPS is not implemented. `--https` causes startup to fail with `HTTPS is not supported yet`;
 `--key` and `--cert` are accepted but unused.
+
+`--client-logs` forwards HMR client logs to the configured reporter. Without it, CLI reporters do not receive `client_log`; MCP can still capture those logs.
+
+Compatibility placeholders with no effect: `--projectRoot`, `--watchFolders`, `--assetPlugins`, `--sourceExts`, `--max-workers`, `--transformer`, `--custom-log-reporter-path` (alias `--customLogReporterPath`).
 
 ### Examples
 
@@ -53,27 +57,26 @@ rollipop bundle [options]
 
 ### Options
 
-| Option               | Description                                   | Type      | Default                     |
-| -------------------- | --------------------------------------------- | --------- | --------------------------- |
-| `--config`           | Path to the Rollipop configuration file       | `string`  | -                           |
-| `--entry-file`       | Override the configured entry file            | `string`  | `config.entry` (`index.js`) |
-| `--bundle-output` \* | File path where to store the resulting bundle | `string`  | -                           |
-| `--platform`         | Target platform (`ios` \| `android`)          | `string`  | `ios`                       |
-| `--dev`              | Build in development mode                     | `boolean` | `false`                     |
-| `--minify`           | Override bundle minification                  | `boolean` | `false`                     |
-| `--sourcemap-output` | File path where to store the sourcemap        | `string`  | -                           |
-| `--assets-dest`      | Directory path where to store assets          | `string`  | -                           |
-| `--cache`            | Enable or disable bundler caching             | `boolean` | `true`                      |
-| `--reset-cache`      | Removes cached files before building          | `boolean` | -                           |
+| Option               | Description                                   | Type      | Default                         |
+| -------------------- | --------------------------------------------- | --------- | ------------------------------- |
+| `--config`           | Path to the Rollipop configuration file       | `string`  | -                               |
+| `--entry-file`       | Override the configured entry file            | `string`  | `config.entry` (`index.js`)     |
+| `--bundle-output` \* | File path where to store the resulting bundle | `string`  | -                               |
+| `--platform`         | Target platform (`ios` \| `android`)          | `string`  | `ios`                           |
+| `--dev`              | Build in development mode                     | `boolean` | `config.mode === 'development'` |
+| `--minify`           | Override bundle minification                  | `boolean` | `config.output.minify ?? false` |
+| `--sourcemap-output` | File path where to store the sourcemap        | `string`  | -                               |
+| `--assets-dest`      | Directory path where to store assets          | `string`  | -                               |
+| `--cache`            | Enable or disable bundler caching             | `boolean` | `true`                          |
+| `--reset-cache`      | Removes cached files before building          | `boolean` | -                               |
 
 <small>* Required option</small>
 
-`--dev` defaults to whether `config.mode` is `development`; `rollipop bundle` uses `production` unless overridden in the configuration.
+`--dev` defaults to whether `config.mode` is `development`; `rollipop bundle` uses `production` unless overridden in the configuration. Passing `--dev true` does not change `config.mode`, `.env` selection, or `import.meta.env.MODE`.
 
 `--minify` overrides `output.minify`, which defaults to `false` independently of `--dev`. Pass `--minify true` to explicitly enable minification.
 
-Options marked as unsupported in `rollipop bundle --help` have no effect. The accepted
-`--sourcemap-sources-root` and `--sourcemap-use-absolute-path` options are also currently ignored.
+Compatibility placeholders with no effect: `--transformer`, `--bundle-encoding`, `--max-workers`, `--unstable-transform-profile`, `--asset-catalog-dest`, `--read-global-cache`, and `--resolver-option`. `--sourcemap-sources-root` and `--sourcemap-use-absolute-path` are also ignored.
 
 ### Examples
 
@@ -103,23 +106,12 @@ Print guidance for LLM agents working on Rollipop projects.
 rollipop agent
 ```
 
-The command prints a compact agent guide, including:
-
-- bundled skill discovery commands
-- default Devframe MCP endpoint
-- MCP client setup and tool discovery guidance
-- external debugging integrations
-- the recommended build-event workflow for agents
-
-It does not start the dev server or perform any actions by itself. The Devframe MCP endpoint is
-available while the dev server is running when the optional `@devframes/agentic` dependency is
-installed. Follow the [MCP setup guide](/docs/features/mcp#setup) to enable it.
-
-Use `rollipop agent` as the first reference when wiring an agent into a local Rollipop dev server. For task-specific guidance, list the bundled skills and print the one that matches the current task.
+Includes bundled skills, Devframe MCP setup, debugging integrations, and build-event workflows.
+MCP requires a running dev server with `@devframes/agentic` installed; see [MCP Server](/docs/features/mcp#setup).
 
 ## skills
 
-List or print the Rollipop skills bundled with the package. Skills are Markdown task guides intended for coding agents.
+List or print bundled Markdown task guides for coding agents.
 
 ```bash
 rollipop skills

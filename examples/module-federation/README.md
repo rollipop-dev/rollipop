@@ -1,72 +1,59 @@
 # Module Federation example
 
-A React Native 0.84 app that consumes a federated remote bundle through `@rollipop/plugin-module-federation`. One native project (`MFExample`) hosts two JavaScript bundles served by separate Rollipop dev servers — `host` (this app's UI) and `remote` (which exposes `./RemoteNavigator`).
+A React Native 0.84 host loads `remote_app/Counter` from a separate Rollipop dev server.
 
 ## Layout
 
-```
-src/
-├── host/                       # host bundle (entry: src/host/index.js)
-│   ├── index.js                # AppRegistry.registerComponent('MFExample', App) + script loader registration
-│   ├── App.tsx                 # consumes the remote via React.lazy(() => import('remote_app/RemoteNavigator'))
-│   └── script-loader.ts        # ModuleFederationScriptLoader → NativeScriptManager
-└── remote/                     # remote bundle (entry: src/remote/index.js, no UI of its own)
-    ├── index.js                # empty entry — the bundle exists only to expose
-    └── exposed/
-        └── RemoteNavigator.tsx   # the federated component
-
-native/
-└── NativeScriptManager.ts      # codegen TurboModule spec
-
-android/app/src/main/
-├── java/com/mfexample/scriptmanager/
-│   ├── ScriptManagerModule.kt  # OkHttp fetch + JNI evaluateJavascriptAsync
-│   └── ScriptManagerPackage.kt # registered in MainApplication
-└── jni/
-    ├── CMakeLists.txt          # builds libscript_manager.so
-    └── ScriptManagerJni.cpp    # JSI evaluateJavaScript on the JS thread
-
-ios/MFExample/
-├── ScriptManager.h
-└── ScriptManager.mm            # NSURLSession fetch + JSI evaluateJavaScript
-
-rollipop.host.config.ts
-rollipop.remote.config.ts
-```
+| Path                                                     | Purpose                                                                 |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/host/index.ts`                                      | Registers the host app.                                                 |
+| `src/host/App.tsx`                                       | Loads the remote Counter with React Suspense.                           |
+| `src/remote/index.ts`                                    | Remote entry.                                                           |
+| `src/remote/exposed/Counter.tsx`                         | Exposed component.                                                      |
+| `mf-script-loader.ts`                                    | Registers the native script loader through `runtime.implement`.         |
+| `native/NativeScriptManager.ts`                          | Codegen TurboModule specification.                                      |
+| `android/app/src/main/java/com/mfexample/scriptmanager/` | Kotlin module and package registration.                                 |
+| `android/app/src/main/jni/`                              | JNI evaluation on the JavaScript thread.                                |
+| `ios/MFExample/ScriptManager.h`, `ScriptManager.mm`      | iOS download and JSI evaluation; already included in the Xcode project. |
+| `rollipop.host.config.ts`, `rollipop.remote.config.ts`   | Host and remote bundler configurations.                                 |
 
 ## Run
 
-Two dev servers — one per bundle:
+Install dependencies and build packages from the repository root with `yarn install` and `yarn build:all`, then run these commands from this directory in separate terminals:
 
-```sh
-# Terminal 1 — remote bundle (serves remoteEntry.js + chunks at http://localhost:8082)
+```bash
+# Remote: http://localhost:8082/index.bundle?platform=ios
 yarn start:remote
-
-# Terminal 2 — host bundle (the one the device connects to)
-yarn start:host
-
-# Terminal 3 — build + run the app
-yarn pod:install   # iOS only, first time
-yarn ios           # or: yarn android
 ```
 
-The host's plugin config points at `http://localhost:8082/index.bundle?platform=ios` for `remote_app` — the remote dev server's main bundle URL is the federation container itself (the plugin overrides the entry to a virtual remote-entry module). Change the URL for your network/platform.
+```bash
+# Host: port 8081
+yarn start:host
+```
 
-## Native module setup notes
+```bash
+# iOS dependencies, then the app
+bundle install
+yarn pod:install
+yarn ios
+# Or: yarn android
+```
 
-This example uses a platform-specific TurboModule (Kotlin + Obj-C++). The native pieces live alongside the app code:
+The host config uses the iOS remote URL above. Update its host and platform for the target environment. The remote container is appended to the remote entry bundle; there is no separate `remoteEntry.js` or chunk server.
 
-**Android.** `MainApplication.kt` registers `ScriptManagerPackage`. C++ JNI bindings are built via `externalNativeBuild` (`android/app/src/main/jni/CMakeLists.txt`). OkHttp is added as a direct dependency in `android/app/build.gradle`.
+## Static Bundles
 
-**iOS.** `ios/MFExample/ScriptManager.{h,mm}` must be added to the `MFExample` target in Xcode (drag the files into the project navigator and check the `MFExample` target in the file inspector). Codegen produces the `MFExampleSpec` framework headers at pod install time.
+The bundle scripts require an output path:
 
-**Codegen.** `package.json` declares `codegenConfig` with `name: "MFExampleSpec"` and `jsSrcsDir: "./native"`. Codegen runs as part of `yarn pod:install` (iOS) and the gradle build (Android), generating:
+```bash
+yarn bundle:host --platform ios --bundle-output dist/host.bundle
+yarn bundle:remote --platform ios --bundle-output dist/remote.bundle
+```
 
-- iOS: `ios/build/generated/ios/MFExampleSpec/MFExampleSpec.h`
-- Android: abstract `NativeScriptManagerSpec` Kotlin class under the configured `javaPackageName`
+Static remotes use IIFE output; dev-server remotes use Rollipop output with their own HMR graph. See [Module Federation](https://rollipop.dev/docs/features/module-federation) for loader and sharing options.
 
-## Known limitations
+## Native Integration
 
-- The bundled `ios/MFExample.xcodeproj/project.pbxproj` does **not** yet reference `ScriptManager.{h,mm}` — they need to be added to the target manually. Same for any future native source files.
-- The C++ JNI side and the Obj-C++ side reference framework headers (`fbjni`, `ReactCommon/CallInvoker.h`, `MFExampleSpec/MFExampleSpec.h`) that are only available during a real build. IDE diagnostics will flag them as missing until the first successful build.
-- Code-signing, retry, caching, and sub-chunk URL rebasing are not implemented — `loadScript` simply downloads the URL it is given and runs it. Add those in `script-loader.ts` or in the native module if you need them.
+Android registers `ScriptManagerPackage` in `MainApplication.kt` and builds the JNI library through CMake. iOS compiles `ScriptManager.mm` in the app target. Codegen uses `MFExampleSpec` and the `native` directory from `package.json`.
+
+The native loader downloads and evaluates the supplied URL. It does not implement signature verification, retry policies, or relative sub-chunk URL resolution. Runtime module caching and `retryRemote` are provided separately by the federation plugin.

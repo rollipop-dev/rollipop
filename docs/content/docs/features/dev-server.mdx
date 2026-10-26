@@ -2,24 +2,17 @@
 title: Dev Server
 ---
 
-- Hot Module Replacement: Reflects code changes in the app with Fast Refresh
-- Source Maps: Enables proper debugging with source code mapping
-- Multiple Platforms: Supports both iOS and Android development
-- Development Tools: Integrated with React Native DevTools and the Rollipop dashboard
+The dev server supports iOS and Android with HMR, Fast Refresh, source maps, React Native DevTools, and the Rollipop dashboard.
 
 ## Usage
 
 ### Using Commands
-
-To start the dev server, you can use the `start` command:
 
 <Tabs items={['npm', 'pnpm', 'yarn']}>
   <Tab value="npm">```npx rollipop start```</Tab>
   <Tab value="pnpm">```pnpm rollipop start```</Tab>
   <Tab value="yarn">```yarn rollipop start```</Tab>
 </Tabs>
-
-You can customize the dev server with various options:
 
 ```bash
 # Start on a custom port
@@ -31,11 +24,9 @@ rollipop start --reset-cache
 
 HTTPS is not supported yet. Although the CLI accepts `--https`, `--key`, and `--cert`, starting with `--https` fails.
 
-See [CLI Commands](/docs/get-started/cli-commands) for more available options.
+See [CLI Commands](/docs/get-started/cli-commands) for all options.
 
 ### Using Bundler API
-
-You can also start the dev server programmatically using the Bundler API:
 
 ```ts
 import * as Rollipop from 'rollipop';
@@ -64,8 +55,40 @@ console.log('Dev server running at:', server.instance.listeningOrigin);
 
 See [Bundler API](/docs/apis/bundler) for more details.
 
+## Fast Refresh
+
+Use `transform.jsx.refresh.include` and `exclude` to select modules for Fast Refresh. Both accept a string, `RegExp`, or an array of either.
+
+Defaults are `[/\.[tj]sx?(?:$|\?)/]` for `include` and `[/node_modules/]` for `exclude`. Custom values replace those defaults; empty arrays remove the corresponding filter.
+
+```ts title="rollipop.config.ts"
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  transform: {
+    jsx: {
+      refresh: {
+        include: [/\.[tj]sx?(?:$|\?)/],
+        exclude: [/node_modules/, /generated/],
+      },
+    },
+  },
+});
+```
+
+The dev server manages Refresh activation. Set `dev.hmr: false` to disable HMR and Fast Refresh; `transform.jsx.refresh: false` does not disable the server's Refresh integration.
+
+## Keyboard Shortcuts
+
+| Key         | Action                            |
+| ----------- | --------------------------------- |
+| `r`         | Reload connected apps.            |
+| `j`         | Open React Native DevTools.       |
+| `d`         | Open the developer menu.          |
+| `Shift + d` | Toggle automatic DevTools launch. |
+
+Shortcuts require an interactive terminal. Use `--no-interactive` to disable them or [`commands`](/docs/features/custom-command) to add your own.
+
 ## Plugin Integration
 
-Rollipop plugins can interact with the dev server through WebSocket connections. This enables features like custom HMR (Hot Module Replacement), client-server communication, and real-time updates.
-
-For detailed information on how to communicate between plugins and clients, see the [Plugin API - Client-Server Communication](/docs/apis/plugin#client-server-communication) section.
+Plugins can send and receive WebSocket events through the dev server. See [Client-Server Communication](/docs/apis/plugin#client-server-communication).

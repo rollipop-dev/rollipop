@@ -2,13 +2,11 @@
 title: Plugin API
 ---
 
-Rollipop plugins extends Rolldown's well-designed plugin interface with a few extra Rollipop-specific options. As a result, you can write a Rollipop plugin once and have it work for both dev and build.
-
-It is recommended to go through [Rolldown's plugin documentation](https://rolldown.rs/apis/plugin-api/) first before reading the sections below.
+Rollipop extends [Rolldown's plugin API](https://rolldown.rs/apis/plugin-api/) with configuration, dev-server, and DevTools hooks.
 
 ## Plugins Config
 
-Users will add plugins to the project `devDependencies` and configure them using the `plugins` array option.
+Install plugins as `devDependencies` and add them to `plugins`:
 
 ```ts title="rollipop.config.ts"
 import foo from 'rollipop-plugin-foo';
@@ -20,9 +18,7 @@ export default defineConfig({
 });
 ```
 
-Falsy plugins will be ignored, which can be used to easily activate or deactivate plugins.
-
-`plugins` also accepts presets including several plugins as a single element. This is useful for complex features (like framework integration) that are implemented using several plugins. The array will be flattened internally.
+`false`, `null`, and `undefined` entries are ignored. Promises are awaited and nested plugin arrays are flattened, so presets can return arrays:
 
 ```ts title="framework-plugin.ts"
 import foo from 'rollipop-plugin-foo';
@@ -47,21 +43,13 @@ export default defineConfig({
 Rollipop supports Rolldown's public plugin hooks. The `transformCacheHit` hook is internal and is
 removed from user plugins.
 
-For more details, refer to the [Rolldown Plugin API documentation](https://rolldown.rs/apis/plugin-api/).
-
 ## Rollipop Specific Hooks
 
 ### `config`
 
 - **Kind:** `async`, `sequential`
 
-Modify Rollipop config before it's resolved. The hook receives the merged config accumulated from all previous plugins. If the hook returns a config object, it will be deeply merged with the existing config.
-
-This is useful when you need to:
-
-- Set default configuration values
-- Conditionally modify config based on other settings
-- Add or override specific configuration options
+Receives defaults merged with user config and preceding plugins' changes. Return partial config to merge, or mutate the received object. The `plugins` field is excluded from this hook; use a preset array to add plugins.
 
 ```ts
 export default function myPlugin() {
@@ -78,7 +66,7 @@ export default function myPlugin() {
 }
 ```
 
-You can also provide config as a function:
+Return partial config from a function:
 
 ```ts
 export default function myPlugin() {
@@ -98,7 +86,7 @@ export default function myPlugin() {
 }
 ```
 
-You can also directly modify the config object passed to the hook:
+Or mutate the config directly:
 
 ```ts
 export default function myPlugin() {
@@ -115,19 +103,11 @@ export default function myPlugin() {
 }
 ```
 
-**Note:** The `config` hook runs sequentially for each plugin. The order matters as each plugin receives the config modified by previous plugins.
-
 ### `configResolved`
 
 - **Kind:** `async`, `parallel`
 
 Called after the Rollipop config is resolved. Use this hook to read and store the final resolved config. Do not mutate the config inside this hook.
-
-This is useful when you need to:
-
-- Read the final resolved config to understand what settings are actually being used
-- Store config values for use in other hooks
-- Perform validation on the final config
 
 ```ts
 export default function myPlugin() {
@@ -143,25 +123,17 @@ export default function myPlugin() {
 }
 ```
 
-**Note:** The `configResolved` hook runs in parallel for all plugins using `Promise.all`.
-
 ### `configureServer`
 
 - **Kind:** `async`, `sequential`
 
-Hook for configuring the dev server. The hook receives the DevServer instance and can be used to:
-
-- Access server instances (Fastify, WebSocket servers)
-- Add custom middleware
-- Set up custom routes or handlers
-
-The most common use case is adding custom middleware. Middlewares are added via `server.middlewares.use`, which is compatible with Express/Connect-style middleware.
+Receives the `DevServer` instance. Use `server.middlewares.use` for Express/Connect-style middleware, or access the Fastify and WebSocket servers directly.
 
 ---
 
 **Adding Middleware**
 
-If you return a function from `configureServer`, it will be called after all built-in middlewares are installed. This allows you to add middleware that runs after the default middleware stack.
+Return a function to register middleware after the built-in stack:
 
 ```ts
 export default function myPlugin() {
@@ -189,8 +161,6 @@ export default function myPlugin() {
 ---
 
 **Accessing Server Instances**
-
-The `DevServer` object provides access to:
 
 ```ts
 export default function myPlugin() {
@@ -225,7 +195,7 @@ export default function myPlugin() {
 
 Add development UI and tooling to the Rollipop dashboard with the `devtools` option. It follows the [`devtools.setup(context)` pattern from Vite DevTools Kit](https://devtools.vite.dev/kit/devtools-plugin.html): the setup context exposes the shared Devframe Hub surfaces for docks, RPC, commands, messages, and terminals, along with `rollipopConfig` and `rollipopServer`.
 
-The following example registers a dock for an iframe UI that the plugin serves at `/__rollipop/inspector/`:
+Register an iframe dock for a UI served by the plugin:
 
 ```ts title="plugin.ts"
 import type { Plugin } from 'rollipop';
@@ -248,11 +218,11 @@ export default function inspectorPlugin(): Plugin {
 }
 ```
 
-Use `capabilities.dev: false` to skip setup for the development server. Build-mode capabilities are reserved for hosts that support a build-time DevTools surface.
+`devtools.setup` runs sequentially in plugin order during server creation. Set `capabilities.dev: false` to skip it; a capability object containing any `false` value also skips setup. `capabilities.build` is not used by standalone Rollipop builds.
 
 #### Adapting a Devframe
 
-A portable [Devframe](https://devfra.me/) definition can be mounted without rewriting it as a Rollipop-specific plugin. Wrap it with `createPluginFromDevframe` from `@rollipop/devtools-kit/node`:
+Wrap a [Devframe](https://devfra.me/) definition with `createPluginFromDevframe`:
 
 ```ts title="plugin.ts"
 import { createPluginFromDevframe } from '@rollipop/devtools-kit/node';
@@ -289,7 +259,15 @@ export default function inspectorPlugin(): Plugin {
 
 The adapter mounts `clientAssets`, installs the Devframe definition into Rollipop's shared Hub, and derives an iframe dock entry from the definition's `id`, `name`, `icon`, and mount path. Use the adapter's `dock` option to override dock metadata, or its `setup` option for Rollipop-only Hub setup.
 
-This keeps the definition portable across hosts while letting Rollipop own the dashboard integration. See [Using Devframe in Vite DevTools Kit](https://devtools.vite.dev/kit/devtools-plugin.html#use-devframe) for the equivalent Vite integration pattern.
+Adapter options:
+
+| Option         | Type                                    | Default                                                              |
+| -------------- | --------------------------------------- | -------------------------------------------------------------------- |
+| `name`         | `string`                                | `devframe:<id>`                                                      |
+| `base`         | `string`                                | The definition's `basePath`, or `/__<id>/`.                          |
+| `dock`         | iframe dock metadata overrides          | Derived from the definition; cannot override `id`, `type`, or `url`. |
+| `capabilities` | `DevToolsPluginOptions['capabilities']` | The definition's capabilities.                                       |
+| `setup`        | `(context) => void \| Promise<void>`    | —; runs after the Devframe is installed.                             |
 
 ## Plugin Ordering
 
@@ -338,7 +316,7 @@ export default defineConfig({
 
 ## Hook Filters
 
-Rolldown introduced a [hook filter feature](https://rolldown.rs/apis/plugin-hook-filters) to reduce the communication overhead between the Rust and JavaScript runtimes. This feature allows plugins to specify patterns that determine when hooks should be called, improving performance by avoiding unnecessary hook invocations.
+Use [hook filters](https://rolldown.rs/apis/plugin-hook-filters) to skip JavaScript hook calls for unmatched modules:
 
 ```ts title="my-plugin.ts"
 export default function myPlugin() {
@@ -364,11 +342,9 @@ export default function myPlugin() {
 
 ## Client-Server Communication
 
-Rollipop provide some utilities for plugins to help handle the communication with clients.
-
 ### Server to Client
 
-On the plugin side, we could use `server.hot.sendAll` to broadcast events to the client:
+Broadcast events with `server.hot.sendAll`:
 
 ```ts
 {
@@ -388,7 +364,7 @@ On the plugin side, we could use `server.hot.sendAll` to broadcast events to the
 }
 ```
 
-On the client side, use `hot.on` to listen to the events:
+Listen with `import.meta.hot.on`:
 
 ```ts
 if (import.meta.hot) {
@@ -400,7 +376,7 @@ if (import.meta.hot) {
 
 ### Client to Server
 
-To send events from the client to the server, we can use `hot.send`:
+Send events with `import.meta.hot.send`:
 
 ```ts
 if (import.meta.hot) {
@@ -408,7 +384,7 @@ if (import.meta.hot) {
 }
 ```
 
-Then use `server.hot.on` and listen to the events on the server side:
+Listen with `server.hot.on`:
 
 Client event names must not use the reserved WebSocket and EventEmitter names `close`,
 `connection`, `error`, `headers`, `listening`, `wsClientError`, `newListener`, or `removeListener`.
@@ -426,7 +402,7 @@ Client event names must not use the reserved WebSocket and EventEmitter names `c
 
 ### Global Message Handler
 
-You can also register a custom HMR handler globally via `setCustomHMRHandler`.
+Register a global handler with `setCustomHMRHandler`. It replaces any previous handler and runs only when the development runtime is initialized:
 
 ```ts
 import type { HMRCustomMessage } from 'rollipop';
@@ -446,12 +422,6 @@ setCustomHMRHandler((socket: WebSocket, message: HMRCustomMessage) => {
 **Signature**
 
 `setCustomHMRHandler(handler: HMRCustomHandler)`
-
-Registers a handler function to receive custom HMR messages from the server.
-
-**Parameters:**
-
-- `handler`: A callback function that receives `HMRCustomMessage` objects
 
 **Types:**
 

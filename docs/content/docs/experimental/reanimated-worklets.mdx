@@ -2,33 +2,29 @@
 title: Reanimated & Worklets
 ---
 
-Rollipop ships with a built-in worklet transformation that enables the native worklet syntax used by [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) (v4+). It runs as part of the SWC-based transform pass inside rolldown.
+Rollipop transforms [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) v4+ worklets through its native SWC pipeline. Requires `react-native-worklets` in your project.
 
 <Callout type="warn">
-  Worklet transformation is an experimental feature. See [Experimental
-  Features](/docs/experimental/overview) for stability notes.
+  Worklet transformation is experimental and may change without a major version bump.
 </Callout>
 
 ## Setup
 
-Turn worklets on under `experimental`:
+Set `experimental.worklets` to `{}` to enable the transform with defaults:
 
 ```ts title="rollipop.config.ts"
 import { defineConfig } from 'rollipop';
 
 export default defineConfig({
   experimental: {
-    // Pass an empty object to opt in with defaults.
     worklets: {},
   },
 });
 ```
 
-The transformer automatically detects the installed `react-native-worklets` version (used as `__pluginVersion` in the output) and adjusts behavior based on the current `mode` (release builds skip debug info such as stack details, version, and source location).
-
 ## Configuration
 
-`experimental.worklets` accepts the following fields. Pass `worklets: {}` to opt in with defaults; omit the field entirely to skip the transform.
+Omit `experimental.worklets` to disable the transform.
 
 | Property                     | Type       | Description                                                                                                       |
 | ---------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -42,16 +38,3 @@ The transformer automatically detects the installed `react-native-worklets` vers
 | `bundleMode`                 | `boolean`  | Enable Bundle Mode.                                                                                               |
 | `isRelease`                  | `boolean`  | Release builds skip debug info such as stack details, version, and location. Defaults to `mode === 'production'`. |
 | `pluginVersion`              | `string`   | Version string emitted as `__pluginVersion`. Defaults to the installed `react-native-worklets` version.           |
-
-## How It Works
-
-The worklet transform converts functions marked with the `'worklet'` directive into a form that can be executed on the UI thread. Unlike Babel-based alternatives, the transform runs as a native SWC visitor inside rolldown's Rust core — avoiding the JS-side Babel round trip.
-
-- **SWC-based**: Native performance without Babel overhead
-- **Auto-detection**: Reads the `react-native-worklets` version from your project
-- **Mode-aware**: Adjusts behavior based on `development` or `production` mode
-
-## Requirements
-
-- `react-native-worklets` must be installed in your project
-- Compatible with React Native Reanimated 4+
