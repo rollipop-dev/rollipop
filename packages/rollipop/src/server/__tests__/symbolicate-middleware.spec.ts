@@ -44,6 +44,43 @@ async function createServer(mode = 'development', hotUpdateStore?: HotUpdateStor
 }
 
 describe.each(['middleware', 'dashboard'] as const)('%s bundle symbolication', (target) => {
+  it('uses next-token fallback only for dashboard bundle inspection', async () => {
+    const { app, getBundle, context } = await createServer();
+    const file = 'http://localhost:8081/index.bundle?platform=ios&dev=true';
+    const map = new SourceMapGenerator({ file: 'index.bundle' });
+    map.addMapping({
+      generated: { line: 1, column: 2 },
+      original: { line: 3, column: 0 },
+      source: 'App.tsx',
+    });
+    map.setSourceContent('App.tsx', '\n\nthrow new Error("boom");');
+    const consumer = await new SourceMapConsumer(map.toString());
+    getBundle.mockResolvedValue({
+      ...createBundleStore(),
+      code: '  throw new Error("boom");',
+      sourceMapConsumer: Promise.resolve(consumer),
+    });
+
+    try {
+      if (target === 'middleware') {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/symbolicate',
+          payload: { stack: [{ file, lineNumber: 1, column: 0 }] },
+        });
+        expect(response.statusCode).toBe(200);
+        expect(response.json().stack[0]).toMatchObject({ file, lineNumber: 1, column: 0 });
+      } else {
+        const controller = new RollipopDevframeController(context, {} as AgentToolContext);
+        const result = await controller.symbolicateBundlePosition(file, 0, 0);
+        expect(result.stack[0]).toMatchObject({ file: 'App.tsx', lineNumber: 3, column: 0 });
+      }
+    } finally {
+      await app.close();
+      consumer.destroy();
+    }
+  });
+
   it.each([
     { minify: true, defaultMinify: false },
     { minify: false, defaultMinify: true },

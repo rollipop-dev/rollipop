@@ -11,7 +11,7 @@ import {
   LoaderCircle,
   SearchCode,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { CodeBlock } from '../../../components/dashboard/code-block';
@@ -29,8 +29,7 @@ import {
 } from '../../../components/ui/dialog';
 import { Input } from '../../../components/ui/input';
 import { getDevServerResourceUrl, symbolicateBundlePosition } from '../../../lib/api';
-import { shortId } from '../../../lib/builds';
-import type { BundlerInstance, SymbolicateResult, Theme } from '../../../types/dashboard';
+import type { SymbolicateResult, Theme } from '../../../types/dashboard';
 
 const CODE_LINE_HEIGHT = 24;
 const CODE_BLOCK_VERTICAL_PADDING = 32;
@@ -67,11 +66,40 @@ interface SymbolicateState {
   result: SymbolicateResult;
 }
 
-export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | null; theme: Theme }) {
+export interface BundleSource {
+  kind: 'bundle' | 'hmr';
+  cacheKey: string;
+  title: string;
+  filename: string;
+  bundleUrl: string;
+  sourceMapUrl: string | null;
+}
+
+interface CachedBundle {
+  cacheKey: string;
+  bundle: LoadedBundle;
+}
+
+export function BundlePanel({
+  source,
+  theme,
+  title,
+}: {
+  source: BundleSource | null;
+  theme: Theme;
+  title?: ReactNode;
+}) {
+  const sourceKey =
+    source == null ? '' : JSON.stringify([source.bundleUrl, source.sourceMapUrl, source.cacheKey]);
+  const bundleUrl = source?.bundleUrl;
+  const sourceKind = source?.kind;
+  const sourceLabel = source?.kind === 'hmr' ? 'HMR chunk' : 'Bundle';
   const viewerRef = useRef<HTMLDivElement>(null);
-  const bundleCacheRef = useRef<Map<string, LoadedBundle>>(new Map());
+  const bundleCacheRef = useRef<Map<string, CachedBundle>>(new Map());
+  const symbolicateRequestIdRef = useRef(0);
   const [viewerHeight, setViewerHeight] = useState<number | null>(null);
-  const [loadedBundle, setLoadedBundle] = useState<LoadedBundle | null>(null);
+  const [loadedSource, setLoadedSource] = useState<CachedBundle | null>(null);
+  const loadedBundle = loadedSource?.cacheKey === sourceKey ? loadedSource.bundle : null;
   const [downloading, setDownloading] = useState(false);
   const [renderRequestId, setRenderRequestId] = useState(0);
   const [renderedSlice, setRenderedSlice] = useState<RenderedBundleSlice | null>(null);
@@ -88,13 +116,14 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
   }, [viewerHeight]);
   const maxLine = loadedBundle == null ? 0 : Math.max(0, loadedBundle.lineCount - 1);
   const positionControlsDisabled =
-    bundler == null || loadedBundle == null || downloading || symbolicating;
+    source == null || loadedBundle == null || downloading || symbolicating;
   const parsedPositionInput = useMemo(
     () => parsePosition(positionInput, maxLine),
     [maxLine, positionInput],
   );
   const positionInputInvalid = loadedBundle != null && parsedPositionInput == null;
-  const symbolicateDisabled = positionControlsDisabled || positionInputInvalid;
+  const symbolicateDisabled =
+    positionControlsDisabled || positionInputInvalid || source?.sourceMapUrl == null;
   const currentPosition = useMemo(
     () => (loadedBundle == null ? null : normalizePosition(loadedBundle, position)),
     [loadedBundle, position],
@@ -124,26 +153,33 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [bundler?.id]);
+  }, [sourceKey]);
+
+  useLayoutEffect(() => {
+    symbolicateRequestIdRef.current += 1;
+    setSymbolicateState(null);
+    setSymbolicateDialogOpen(false);
+    setSymbolicating(false);
+
+    return () => {
+      symbolicateRequestIdRef.current += 1;
+    };
+  }, [sourceKey]);
 
   useEffect(() => {
     setPosition(INITIAL_POSITION);
     setPositionInput(INITIAL_POSITION_INPUT);
     setRenderedSlice(null);
     setErrorMessage(null);
-    setSymbolicateState(null);
-    setSymbolicateDialogOpen(false);
-    setSymbolicating(false);
-
-    if (bundler == null) {
-      setLoadedBundle(null);
+    if (bundleUrl == null) {
+      setLoadedSource(null);
       setDownloading(false);
       return;
     }
 
-    const cachedBundle = bundleCacheRef.current.get(bundler.id);
-    if (cachedBundle != null) {
-      setLoadedBundle(cachedBundle);
+    const cachedBundle = bundleCacheRef.current.get(bundleUrl);
+    if (cachedBundle?.cacheKey === sourceKey) {
+      setLoadedSource(cachedBundle);
       setDownloading(false);
       return;
     }
@@ -151,10 +187,10 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
     let cancelled = false;
     const controller = new AbortController();
 
-    setLoadedBundle(null);
+    setLoadedSource(null);
     setDownloading(true);
 
-    void downloadBundleText(bundler.bundleUrl, controller.signal)
+    void downloadBundleText(bundleUrl, controller.signal, sourceKind === 'hmr')
       .then((downloadedBundle) => {
         if (cancelled) return;
 
@@ -165,8 +201,9 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
           lineOffsets: createLineOffsets(downloadedBundle.text),
         };
 
-        bundleCacheRef.current.set(bundler.id, loaded);
-        setLoadedBundle(loaded);
+        const cached = { cacheKey: sourceKey, bundle: loaded };
+        bundleCacheRef.current.set(bundleUrl, cached);
+        setLoadedSource(cached);
       })
       .catch((error) => {
         if (cancelled || controller.signal.aborted) return;
@@ -183,7 +220,7 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
       cancelled = true;
       controller.abort();
     };
-  }, [bundler?.bundleUrl, bundler?.id]);
+  }, [bundleUrl, sourceKey, sourceKind]);
 
   useEffect(() => {
     if (loadedBundle == null || visibleLineCount == null) {
@@ -281,22 +318,23 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
     setRenderRequestId((current) => current + 1);
   };
   const copyBundleUrl = async () => {
-    if (bundler == null) return;
+    if (source == null) return;
 
     try {
-      await navigator.clipboard.writeText(bundler.bundleUrl);
-      toast.success('Bundle URL copied');
+      await navigator.clipboard.writeText(source.bundleUrl);
+      toast.success(`${sourceLabel} URL copied`);
     } catch {
-      toast.error('Failed to copy bundle URL');
+      toast.error(`Failed to copy ${sourceLabel.toLowerCase()} URL`);
     }
   };
   const symbolicateCurrentPosition = async () => {
-    if (bundler == null || loadedBundle == null) return;
+    if (source == null || loadedBundle == null || symbolicateDisabled) return;
 
     const nextPosition = parsedPositionInput;
     if (nextPosition == null) return;
 
     const normalizedPosition = normalizePosition(loadedBundle, nextPosition);
+    const requestId = ++symbolicateRequestIdRef.current;
 
     setErrorMessage(null);
     setSymbolicateState(null);
@@ -308,18 +346,28 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
 
     try {
       const result = await symbolicateBundlePosition({
-        bundleUrl: bundler.bundleUrl,
+        bundleUrl: source.bundleUrl,
         line: normalizedPosition.line,
         column: normalizedPosition.column,
       });
 
+      if (requestId !== symbolicateRequestIdRef.current) return;
+      if (!result.stack.some((frame) => frame.file != null && frame.file !== source.bundleUrl)) {
+        toast.info('No original source mapping at this position', {
+          description: 'Generated runtime code may not map back to a source file.',
+        });
+        return;
+      }
       setSymbolicateState({ position: normalizedPosition, result });
       setSymbolicateDialogOpen(true);
     } catch (error) {
+      if (requestId !== symbolicateRequestIdRef.current) return;
       const message = error instanceof Error ? error.message : 'Failed to symbolicate position';
       toast.error(message);
     } finally {
-      setSymbolicating(false);
+      if (requestId === symbolicateRequestIdRef.current) {
+        setSymbolicating(false);
+      }
     }
   };
 
@@ -329,7 +377,7 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
         <CardHeader className="gap-3 pb-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <CardTitle className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>Bundle ({bundler == null ? '-' : shortId(bundler.id)})</span>
+              {title ?? <span className="break-all">{source?.title ?? 'Bundle (-)'}</span>}
               {loadedBundle != null && (
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs">
                   <span className="inline-flex items-center gap-1">
@@ -343,35 +391,45 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
                 </span>
               )}
             </CardTitle>
-            {bundler != null && (
+            {source != null && (
               <div className="flex shrink-0 flex-wrap gap-2">
                 <DownloadFileButton
-                  href={bundler.bundleUrl}
-                  fileName={`${bundler.id}.bundle`}
-                  label="Bundle Download"
+                  href={source.bundleUrl}
+                  fileName={source.filename}
+                  label={`${sourceLabel} Download`}
                 />
-                <DownloadFileButton
-                  href={bundler.sourceMapUrl}
-                  fileName={`${bundler.id}.bundle.map`}
-                  label="Source Map Download"
-                />
+                {source.sourceMapUrl != null && (
+                  <DownloadFileButton
+                    href={source.sourceMapUrl}
+                    fileName={
+                      source.kind === 'hmr'
+                        ? decodeURIComponent(
+                            new URL(source.sourceMapUrl, 'http://localhost').pathname
+                              .split('/')
+                              .at(-1) || `${source.filename}.map`,
+                          )
+                        : `${source.filename}.map`
+                    }
+                    label="Source Map Download"
+                  />
+                )}
               </div>
             )}
           </div>
-          {bundler != null && (
+          {source != null && (
             <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
               <div className="min-w-0">
-                <p className="text-muted-foreground text-xs">Bundle URL</p>
+                <p className="text-muted-foreground text-xs">{sourceLabel} URL</p>
                 <div className="mt-1 flex min-w-0 items-center rounded-lg border bg-muted/40">
                   <p className="min-w-0 flex-1 truncate px-2 py-1.5 font-mono text-xs">
-                    {bundler.bundleUrl}
+                    {source.bundleUrl}
                   </p>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Copy bundle URL"
-                    title="Copy bundle URL"
+                    aria-label={`Copy ${sourceLabel.toLowerCase()} URL`}
+                    title={`Copy ${sourceLabel.toLowerCase()} URL`}
                     onClick={() => {
                       void copyBundleUrl();
                     }}
@@ -410,6 +468,11 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
                       type="button"
                       variant="outline"
                       disabled={symbolicateDisabled}
+                      title={
+                        source.sourceMapUrl == null
+                          ? 'No source map is available for this chunk'
+                          : undefined
+                      }
                       onClick={() => {
                         void symbolicateCurrentPosition();
                       }}
@@ -479,15 +542,15 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
           )}
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col">
-          {errorMessage != null && bundler != null && loadedBundle == null ? (
+          {errorMessage != null && source != null && loadedBundle == null ? (
             <div className="flex h-full items-center justify-center">
               <EmptyState
                 icon={FileCode}
-                title="Unable to load bundle"
+                title={`Unable to load ${sourceLabel.toLowerCase()}`}
                 description={errorMessage}
               />
             </div>
-          ) : bundler == null ? (
+          ) : source == null ? (
             <div className="flex h-full items-center justify-center">
               <EmptyState icon={FileCode} title="Select a bundle" />
             </div>
@@ -524,6 +587,7 @@ export function BundlePanel({ bundler, theme }: { bundler: BundlerInstance | nul
         onOpenChange={setSymbolicateDialogOpen}
         state={symbolicateState}
         theme={theme}
+        sourceLabel={sourceLabel}
       />
     </>
   );
@@ -534,11 +598,13 @@ function SymbolicateResultDialog({
   onOpenChange,
   state,
   theme,
+  sourceLabel,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   state: SymbolicateState | null;
   theme: Theme;
+  sourceLabel: string;
 }) {
   const result = state?.result ?? null;
   const codeFrame = result?.codeFrame ?? null;
@@ -549,7 +615,7 @@ function SymbolicateResultDialog({
         <DialogHeader>
           <DialogTitle>Symbolicate Result</DialogTitle>
           <DialogDescription>
-            {state == null ? null : `Bundle position ${formatPosition(state.position)}`}
+            {state == null ? null : `${sourceLabel} position ${formatPosition(state.position)}`}
           </DialogDescription>
         </DialogHeader>
         {result != null && (
@@ -597,8 +663,15 @@ function SymbolicateResultDialog({
   );
 }
 
-async function downloadBundleText(href: string, signal: AbortSignal): Promise<DownloadedBundle> {
-  const response = await fetch(getDevServerResourceUrl(href), { signal });
+async function downloadBundleText(
+  href: string,
+  signal: AbortSignal,
+  fresh: boolean,
+): Promise<DownloadedBundle> {
+  const response = await fetch(getDevServerResourceUrl(href), {
+    signal,
+    ...(fresh ? { cache: 'no-store' } : {}),
+  });
   if (!response.ok) {
     throw new Error(`Bundle download failed: ${response.status} ${response.statusText}`);
   }

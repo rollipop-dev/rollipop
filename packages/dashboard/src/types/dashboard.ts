@@ -57,6 +57,13 @@ export interface BundlerInstance {
   };
 }
 
+export interface HmrChunk {
+  filename: string;
+  bundleUrl: string;
+  sourceMapUrl: string | null;
+  updatedAt: number;
+}
+
 export interface ConnectedDevice {
   id: string;
   name: string;

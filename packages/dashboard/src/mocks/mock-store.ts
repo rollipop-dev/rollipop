@@ -7,6 +7,7 @@ import type {
   DashboardConfig,
   DashboardSnapshot,
   FeatureFlags,
+  HmrChunk,
   ProjectInfo,
 } from '../types/dashboard';
 
@@ -49,6 +50,22 @@ export class MockDashboardStore {
 
   getBundlers(): BundlerInstance[] {
     return clone(this.bundlers);
+  }
+
+  getHmrChunks(bundlerId: string): HmrChunk[] {
+    const bundler = this.getBundler(bundlerId);
+    if (bundler == null || !bundler.dev) return [];
+
+    return [2, 1, 0].map((index) => {
+      const filename = `hmr_patch_${index}.js`;
+      const bundleUrl = `http://localhost:8081/hot/${encodeURIComponent(bundlerId)}/${filename}`;
+      return {
+        filename,
+        bundleUrl,
+        sourceMapUrl: index === 0 ? null : `${bundleUrl}.map`,
+        updatedAt: this.startedAt - (2 - index) * 10_000,
+      };
+    });
   }
 
   getBundler(id: string): BundlerInstance | undefined {
@@ -495,6 +512,8 @@ export function invokeMockDashboardRpc(method: string, ...args: unknown[]): unkn
       return mockDashboardStore.getSnapshot();
     case 'get-builds':
       return mockDashboardStore.getBuilds();
+    case 'get-hmr-chunks':
+      return mockDashboardStore.getHmrChunks(requireString(first, 'bundlerId'));
     case 'get-build-logs': {
       const bundlerId = requireString(first, 'bundlerId');
       const logs = mockDashboardStore.getBuildLogs(bundlerId);
@@ -535,8 +554,20 @@ export function invokeMockDashboardRpc(method: string, ...args: unknown[]): unkn
     case 'reset-bundler-state':
       mockDashboardStore.resetBundlerState();
       return;
-    case 'symbolicate-bundle-position':
+    case 'symbolicate-bundle-position': {
+      const url = new URL(requireString(first, 'bundleUrl'));
+      if (url.pathname.startsWith('/hot/')) {
+        const [, , bundlerId, filename] = url.pathname.split('/').map(decodeURIComponent);
+        const chunk = mockDashboardStore
+          .getHmrChunks(bundlerId!)
+          .find((item) => item.filename === filename);
+        if (chunk == null || chunk.sourceMapUrl == null) {
+          throw new Error('HMR chunk source map not found');
+        }
+        return createMockSymbolicateResult(args[1], args[2], 'src/Counter.tsx');
+      }
       return createMockSymbolicateResult(args[1], args[2]);
+    }
     default:
       throw new Error('Unknown dashboard RPC: ' + method);
   }
@@ -547,7 +578,11 @@ function requireString(value: unknown, name: string): string {
   return value;
 }
 
-function createMockSymbolicateResult(lineValue: unknown, columnValue: unknown) {
+function createMockSymbolicateResult(
+  lineValue: unknown,
+  columnValue: unknown,
+  sourceFile = 'src/App.tsx',
+) {
   if (typeof lineValue !== 'number' || typeof columnValue !== 'number') {
     throw new Error('line and column must be numbers');
   }
@@ -558,7 +593,7 @@ function createMockSymbolicateResult(lineValue: unknown, columnValue: unknown) {
   return {
     stack: [
       {
-        file: 'src/App.tsx',
+        file: sourceFile,
         lineNumber: sourceLine,
         column: sourceColumn,
         methodName: 'render',
@@ -567,7 +602,7 @@ function createMockSymbolicateResult(lineValue: unknown, columnValue: unknown) {
     ],
     codeFrame: {
       content: 'export function App() { return <Root />; }',
-      fileName: 'src/App.tsx',
+      fileName: sourceFile,
       location: { row: sourceLine, column: sourceColumn },
     },
   };

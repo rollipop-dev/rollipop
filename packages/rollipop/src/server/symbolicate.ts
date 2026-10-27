@@ -31,6 +31,10 @@ export interface SymbolicateResult {
   codeFrame: CodeFrame | null;
 }
 
+interface SymbolicateOptions {
+  fallbackToNextMapping?: boolean;
+}
+
 type BundleStoreResolver = (
   frame: StackFrameInput,
 ) => BundleStore | undefined | Promise<BundleStore | undefined>;
@@ -68,15 +72,19 @@ const INTERNAL_CALLSITES_REGEX = new RegExp(
 export async function symbolicate(
   bundleStore: BundleStore,
   stack: StackFrameInput[],
+  options?: SymbolicateOptions,
 ): Promise<SymbolicateResult> {
-  return symbolicateWithBundleResolver(stack, (frame) =>
-    frame.file?.startsWith('http') ? bundleStore : undefined,
+  return symbolicateWithBundleResolver(
+    stack,
+    (frame) => (frame.file?.startsWith('http') ? bundleStore : undefined),
+    options,
   );
 }
 
 export async function symbolicateWithBundleResolver(
   stack: StackFrameInput[],
   resolveBundleStore: BundleStoreResolver,
+  options?: SymbolicateOptions,
 ): Promise<SymbolicateResult> {
   const symbolicatedStack = await Promise.all(
     stack.map(async (frame) => {
@@ -85,7 +93,7 @@ export async function symbolicateWithBundleResolver(
         : undefined;
       const sourceMapConsumer = await bundleStore?.sourceMapConsumer;
       const symbolicatedFrame = sourceMapConsumer
-        ? originalPositionFor(sourceMapConsumer, frame)
+        ? originalPositionFor(sourceMapConsumer, frame, options)
         : frame;
 
       return {
@@ -103,15 +111,27 @@ export async function symbolicateWithBundleResolver(
   };
 }
 
-function originalPositionFor(sourceMapConsumer: SourceMapConsumer, frame: StackFrameInput) {
+function originalPositionFor(
+  sourceMapConsumer: SourceMapConsumer,
+  frame: StackFrameInput,
+  options?: SymbolicateOptions,
+) {
   if (frame.column == null || frame.lineNumber == null) {
     return frame;
   }
 
-  const originalPosition = sourceMapConsumer.originalPositionFor({
+  let originalPosition = sourceMapConsumer.originalPositionFor({
     column: frame.column,
     line: frame.lineNumber,
   });
+  if (originalPosition.source == null && options?.fallbackToNextMapping) {
+    // Position inspection can start before a mapped token; LUB stays on the same generated line.
+    originalPosition = sourceMapConsumer.originalPositionFor({
+      column: frame.column,
+      line: frame.lineNumber,
+      bias: SourceMapConsumer.LEAST_UPPER_BOUND,
+    });
+  }
 
   return Object.entries(originalPosition).reduce((frame, [key, value]) => {
     const targetKey = convertFrameKey(key as keyof typeof originalPosition);

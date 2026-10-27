@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vite-plus/test';
+import { SourceMapConsumer, SourceMapGenerator } from 'source-map';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import type { BundleStore } from '../bundle';
 import { type StackFrameInput, symbolicate } from '../symbolicate';
@@ -203,5 +204,79 @@ describe('symbolicate', () => {
     const result = await symbolicate(bundleStore, stack);
 
     expect(result.stack[0].file).toBe('http://localhost:8081/index.bundle');
+  });
+});
+
+describe('dashboard position inspection', () => {
+  const file = 'http://localhost:8081/hot/ios-dev/hmr_patch_0.js';
+  let consumer: SourceMapConsumer;
+  let bundle: BundleStore;
+
+  beforeEach(async () => {
+    const generated = Array<string>(96).fill('');
+    generated[0] = '(function (__rolldown_runtime__) {';
+    generated[29] = '\t\tvar _s = $RefreshSig$();';
+    generated[30] = '\t\tvar breathe = { to: { transform: [{ scale: 1.06 }] } };';
+    generated[94] = '\t\t\t\t\t\tchildren: "Rollipop !"';
+    generated[95] = '})(runtime);';
+    const original = Array<string>(52).fill('');
+    original[12] = 'const breathe = { to: { transform: [{ scale: 1.06 }] } };';
+    original[51] = '          <Text style={styles.title}>Rollipop !</Text>';
+    const map = new SourceMapGenerator({ file: 'hmr_patch_0.js' });
+    for (const [line, column, sourceLine, sourceColumn] of [
+      [31, 2, 13, 0],
+      [31, 6, 13, 6],
+      [95, 16, 52, 37],
+    ]) {
+      map.addMapping({
+        generated: { line, column },
+        original: { line: sourceLine, column: sourceColumn },
+        source: 'src/screens/HomeScreen.tsx',
+      });
+    }
+    map.setSourceContent('src/screens/HomeScreen.tsx', original.join('\n'));
+    consumer = await new SourceMapConsumer(map.toString());
+    bundle = createMockBundleStore(consumer, generated.join('\n'));
+  });
+
+  afterEach(() => consumer.destroy());
+
+  it.each([
+    { name: 'indentation', line: 31, column: 0, sourceLine: 13, sourceColumn: 0 },
+    { name: 'generated property prefix', line: 95, column: 0, sourceLine: 52, sourceColumn: 37 },
+    { name: 'exact mapping', line: 31, column: 6, sourceLine: 13, sourceColumn: 6 },
+    { name: 'existing lower-bound mapping', line: 31, column: 4, sourceLine: 13, sourceColumn: 0 },
+  ])(
+    'resolves $name without changing existing mapped positions',
+    async ({ line, column, sourceLine, sourceColumn }) => {
+      const result = await symbolicate(bundle, [{ file, lineNumber: line, column }], {
+        fallbackToNextMapping: true,
+      });
+
+      expect(result.stack[0]).toMatchObject({
+        file: 'src/screens/HomeScreen.tsx',
+        lineNumber: sourceLine,
+        column: sourceColumn,
+      });
+      expect(result.codeFrame).toMatchObject({
+        fileName: 'src/screens/HomeScreen.tsx',
+        location: { row: sourceLine, column: sourceColumn },
+      });
+    },
+  );
+
+  it.each([1, 30, 94])('does not use a later line for unmapped generated line %s', async (line) => {
+    const frame = { file, lineNumber: line, column: 0 };
+    const result = await symbolicate(bundle, [frame], { fallbackToNextMapping: true });
+
+    expect(result.stack[0]).toMatchObject(frame);
+  });
+
+  it.each([31, 95])('preserves default runtime lookup on generated line %s', async (line) => {
+    const frame = { file, lineNumber: line, column: 0 };
+    const result = await symbolicate(bundle, [frame]);
+
+    expect(result.stack[0]).toMatchObject(frame);
+    expect(result.codeFrame?.fileName).toBe('/hot/ios-dev/hmr_patch_0.js');
   });
 });

@@ -16,6 +16,7 @@ const SNAPSHOT_EVENT_TYPES = [
   'devices_changed',
   'watch_change',
   'hmr_failed',
+  'hmr_updates',
 ] as const;
 
 export function useDashboardEvents({

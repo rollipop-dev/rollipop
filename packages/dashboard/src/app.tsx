@@ -162,6 +162,7 @@ export function App() {
     }: RefreshDashboardDataOptions = {}) => {
       try {
         const requests: Promise<unknown>[] = [
+          queryClient.invalidateQueries({ queryKey: queryKeys.hmrChunksRoot }),
           queryClient.fetchQuery({
             queryKey: queryKeys.snapshot,
             queryFn: getDashboardSnapshot,
@@ -302,9 +303,15 @@ export function App() {
   );
   const handleDataEvent = useCallback(
     (event: DashboardEvent) => {
+      if (event.type === 'hmr_updates') {
+        if (event.bundlerId != null) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.hmrChunks(event.bundlerId) });
+        }
+        return;
+      }
       void scheduleDashboardDataRefresh({ buildLogsBundlerId: event.bundlerId });
     },
-    [scheduleDashboardDataRefresh],
+    [queryClient, scheduleDashboardDataRefresh],
   );
   const handleConnectionChange = useCallback(
     (connected: boolean) => {

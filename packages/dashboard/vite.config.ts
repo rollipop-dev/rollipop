@@ -41,6 +41,11 @@ export default defineConfig({
             changeOrigin: true,
             secure: false,
           },
+          '/hot/': {
+            target: rollipopDevServerTarget,
+            changeOrigin: true,
+            secure: false,
+          },
           '^/dashboard/analyze-report/.*\\.html$': {
             target: rollipopDevServerTarget,
             changeOrigin: true,

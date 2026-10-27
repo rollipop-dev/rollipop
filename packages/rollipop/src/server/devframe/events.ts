@@ -15,6 +15,7 @@ export type DevframeEvent =
     }
   | { type: 'bundle_build_failed'; bundlerId: string; error: string }
   | { type: 'hmr_failed'; bundlerId: string; error: string }
+  | { type: 'hmr_updates'; bundlerId: string }
   | { type: 'watch_change'; bundlerId: string; file: string }
   | { type: 'client_connected'; clientId: number }
   | { type: 'client_disconnected'; clientId: number }
@@ -57,6 +58,8 @@ export function toDevframeEvent(event: ReportableEvent): DevframeEvent | null {
       return bundlerEventToDevframeEvent(event);
 
     case 'hmr_updates':
+      return { type: 'hmr_updates', bundlerId: event.bundlerId };
+
     case 'client_message':
     case 'client_error':
     case 'transform':

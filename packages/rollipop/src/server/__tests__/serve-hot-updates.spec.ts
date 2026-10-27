@@ -58,6 +58,14 @@ describe('serve hot updates middleware', () => {
       expect(mapResponse.headers['content-type']).toContain('application/json');
       expect(mapResponse.headers['content-length']).toBe(String(Buffer.byteLength(sourcemap)));
       expect(mapResponse.headers['cache-control']).toBe('no-store');
+
+      hotUpdateStore.write(id, { code: 'updated();', filename });
+      const updatedResponse = await app.inject({
+        method: 'GET',
+        url: getHotUpdatePath(id, filename),
+      });
+      expect(updatedResponse.body).toBe('updated();');
+      expect(updatedResponse.headers['cache-control']).toBe('no-store');
     } finally {
       await app.close();
     }

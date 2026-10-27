@@ -3,6 +3,42 @@ import { http, HttpResponse } from 'msw';
 import { mockDashboardStore } from './mock-store';
 
 export const handlers = [
+  http.get('*/hot/:bundlerId/:filename', ({ params }) => {
+    const filename = String(params.filename);
+    const isSourceMap = filename.endsWith('.map');
+    const chunk = mockDashboardStore
+      .getHmrChunks(String(params.bundlerId))
+      .find((item) => item.filename === (isSourceMap ? filename.slice(0, -4) : filename));
+    if (chunk == null || (isSourceMap && chunk.sourceMapUrl == null)) {
+      return notFound(`HMR chunk not found: ${filename}`);
+    }
+
+    if (isSourceMap) {
+      return HttpResponse.json({
+        version: 3,
+        file: chunk.filename,
+        sources: ['src/Counter.tsx'],
+        sourcesContent: ['export function Counter() { return 42; }'],
+        names: [],
+        mappings: 'AAAA',
+      });
+    }
+
+    const lines = [
+      `// Mock Rollipop HMR chunk: ${chunk.filename}`,
+      `'use strict';`,
+      ...Array.from(
+        { length: 60 },
+        (_, index) =>
+          `__hmr.update("module-${index}", function(module) { module.exports = ${index}; });`,
+      ),
+      ...(chunk.sourceMapUrl == null ? [] : [`//# sourceMappingURL=${chunk.sourceMapUrl}`]),
+    ];
+    return new HttpResponse(`${lines.join('\n')}\n`, {
+      headers: { 'content-type': 'application/javascript; charset=utf-8' },
+    });
+  }),
+
   http.get('*/index.bundle', ({ request }) => {
     const bundle = createMockBundle(new URL(request.url));
 

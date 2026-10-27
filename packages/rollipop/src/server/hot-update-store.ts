@@ -45,12 +45,14 @@ export function parseHotUpdatePath(pathname: string): { id: string; filename: st
 
 export class HotUpdateStore {
   private readonly hotPath: string;
+  private readonly patches = new Map<string, Map<string, string | null>>();
 
   constructor(projectRoot: string) {
     this.hotPath = path.join(FileStorage.getPath(projectRoot), 'hot');
   }
 
   clear() {
+    this.patches.clear();
     try {
       fs.rmSync(this.hotPath, { recursive: true, force: true });
     } catch {
@@ -78,6 +80,29 @@ export class HotUpdateStore {
       fs.writeFileSync(this.getFilePath(id, patch.sourcemapFilename), patch.sourcemap, 'utf-8');
     }
     fs.writeFileSync(this.getFilePath(id, patch.filename), patch.code, 'utf-8');
+
+    const patches = this.patches.get(id) ?? new Map<string, string | null>();
+    patches.set(patch.filename, patch.sourcemapFilename ?? null);
+    this.patches.set(id, patches);
+  }
+
+  list(id: string) {
+    assertPathSegment(id, 'id');
+
+    return Array.from(this.patches.get(id)?.keys() ?? [])
+      .flatMap((filename) => {
+        const stats = fs.statSync(this.getFilePath(id, filename), { throwIfNoEntry: false });
+        if (!stats?.isFile()) return [];
+
+        return [
+          {
+            filename,
+            sourcemapFilename: this.getSourcemapFilename(id, filename),
+            updatedAt: stats.mtimeMs,
+          },
+        ];
+      })
+      .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   resolve(id: string, filename: string): BundleStore | undefined {
@@ -89,11 +114,11 @@ export class HotUpdateStore {
       return undefined;
     }
 
-    const sourcemapFilePath = this.getFilePath(id, `${filename}.map`);
+    const sourcemapFilename = this.getSourcemapFilename(id, filename);
 
     return new HotUpdateBundleStore(
       bundleFilePath,
-      isFile(sourcemapFilePath) ? sourcemapFilePath : undefined,
+      sourcemapFilename == null ? undefined : this.getFilePath(id, sourcemapFilename),
     );
   }
 
@@ -103,6 +128,14 @@ export class HotUpdateStore {
 
     const filePath = this.getFilePath(id, filename);
     return isFile(filePath) ? fs.readFileSync(filePath) : undefined;
+  }
+
+  private getSourcemapFilename(id: string, filename: string): string | null {
+    const storedFilename = this.patches.get(id)?.get(filename);
+    const sourcemapFilename = storedFilename === undefined ? `${filename}.map` : storedFilename;
+    return sourcemapFilename != null && isFile(this.getFilePath(id, sourcemapFilename))
+      ? sourcemapFilename
+      : null;
   }
 
   private getDirectoryPath(id: string) {

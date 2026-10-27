@@ -7,6 +7,7 @@ import type {
   DashboardConfig,
   DashboardSnapshot,
   FeatureFlags,
+  HmrChunk,
   SymbolicateResult,
 } from '../types/dashboard';
 
@@ -67,6 +68,9 @@ export async function getBuilds(): Promise<Build[]> {
 }
 export async function getBuildLogs(bundlerId: string): Promise<BuildLog[]> {
   return dashboardRpc('get-build-logs', bundlerId);
+}
+export async function getHmrChunks(bundlerId: string): Promise<HmrChunk[]> {
+  return dashboardRpc('get-hmr-chunks', bundlerId);
 }
 export async function deleteBuildLogs(bundlerId: string): Promise<void> {
   await dashboardRpc('delete-build-logs', bundlerId);

@@ -3,6 +3,8 @@ import { defineDevframe, defineRpcFunction, type DevframeScopedNodeRpc } from 'd
 import { getBaseBundleName } from '../../utils/bundle';
 import { resetCache } from '../../utils/reset-cache';
 import { parseUrl } from '../../utils/url';
+import type { BundleStore } from '../bundle';
+import { getHotUpdatePath, HOT_UPDATE_ROUTE_PREFIX, parseHotUpdatePath } from '../hot-update-store';
 import { symbolicate } from '../symbolicate';
 import type { DevServerContext } from '../types';
 import { registerAgentTools, type AgentToolContext } from './agent/tools';
@@ -80,6 +82,22 @@ export class RollipopDevframeController {
     return this.context.state.getBuilds();
   }
 
+  getHmrChunks(bundlerId: string) {
+    return this.context.bundlerPool.hotUpdateStore.list(bundlerId).map((chunk) => ({
+      filename: chunk.filename,
+      bundleUrl: new URL(getHotUpdatePath(bundlerId, chunk.filename), this.context.serverBaseUrl)
+        .href,
+      sourceMapUrl:
+        chunk.sourcemapFilename == null
+          ? null
+          : new URL(
+              getHotUpdatePath(bundlerId, chunk.sourcemapFilename),
+              this.context.serverBaseUrl,
+            ).href,
+      updatedAt: chunk.updatedAt,
+    }));
+  }
+
   getBuildLogs(bundlerId: string) {
     const logs = this.context.state.getBuildLogs(bundlerId);
     if (logs != null) return logs;
@@ -117,24 +135,36 @@ export class RollipopDevframeController {
 
   async symbolicateBundlePosition(bundleUrl: string, line: number, column: number) {
     const { pathname, query } = parseUrl(bundleUrl);
-    if (pathname == null || query.platform == null || query.dev == null) {
-      throw new Error('Bundle URL must include pathname, platform, and dev query parameters');
+    let bundle: BundleStore;
+    if (pathname?.startsWith(`${HOT_UPDATE_ROUTE_PREFIX}/`)) {
+      const hotUpdate = parseHotUpdatePath(pathname);
+      if (hotUpdate == null) {
+        throw new Error('Invalid HMR chunk URL');
+      }
+      const stored = this.context.bundlerPool.hotUpdateStore.resolve(
+        hotUpdate.id,
+        hotUpdate.filename,
+      );
+      if (stored == null) {
+        throw new Error(`HMR chunk not found: ${hotUpdate.id}/${hotUpdate.filename}`);
+      }
+      bundle = stored;
+    } else {
+      if (pathname == null || query.platform == null || query.dev == null) {
+        throw new Error('Bundle URL must include pathname, platform, and dev query parameters');
+      }
+
+      const bundler = this.context.bundlerPool.get(getBaseBundleName(pathname), {
+        platform: String(query.platform),
+        dev: query.dev === 'true',
+        ...(query.minify == null ? {} : { minify: query.minify === 'true' }),
+      });
+      bundle = await bundler.getBundle();
     }
 
-    const bundler = this.context.bundlerPool.get(getBaseBundleName(pathname), {
-      platform: String(query.platform),
-      dev: query.dev === 'true',
-      ...(query.minify == null ? {} : { minify: query.minify === 'true' }),
+    return symbolicate(bundle, [{ file: bundleUrl, lineNumber: line + 1, column }], {
+      fallbackToNextMapping: true,
     });
-    const bundle = await bundler.getBundle();
-
-    return symbolicate(bundle, [
-      {
-        file: bundleUrl,
-        lineNumber: line + 1,
-        column,
-      },
-    ]);
   }
 
   async triggerFullBuild(bundlerId: string): Promise<void> {
@@ -182,6 +212,13 @@ function registerDashboardRpcFunctions(
       name: 'get-builds',
       type: 'query',
       handler: () => controller.getBuilds(),
+    }),
+  );
+  rpc.register(
+    defineRpcFunction({
+      name: 'get-hmr-chunks',
+      type: 'query',
+      handler: (bundlerId: string) => controller.getHmrChunks(bundlerId),
     }),
   );
   rpc.register(

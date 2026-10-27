@@ -19,4 +19,6 @@ export const queryKeys = {
   analyzeReport: (bundlerId: string) => ['dashboard', 'analyze-report', bundlerId] as const,
   buildLogsRoot: ['dashboard', 'build-logs'] as const,
   buildLogs: (bundlerId: string) => ['dashboard', 'build-logs', bundlerId] as const,
+  hmrChunksRoot: ['dashboard', 'hmr-chunks'] as const,
+  hmrChunks: (bundlerId: string) => ['dashboard', 'hmr-chunks', bundlerId] as const,
 };

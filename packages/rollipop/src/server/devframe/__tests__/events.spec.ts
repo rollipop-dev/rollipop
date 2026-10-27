@@ -102,6 +102,28 @@ describe('Devframe events', () => {
     expect(toDevframeEvent(event)).toBeNull();
   });
 
+  it('notifies dashboards of HMR updates without publishing patch code', () => {
+    const event: ReportableEvent = {
+      type: 'hmr_updates',
+      bundlerId,
+      changedFiles: ['App.tsx'],
+      updates: [
+        {
+          clientId: 'client-1',
+          update: {
+            type: 'Patch',
+            filename: 'patch.js',
+            code: 'applyPatch();',
+            changedIds: ['App.tsx'],
+            seq: 1,
+          },
+        },
+      ],
+    };
+
+    expect(toDevframeEvent(event)).toEqual({ type: 'hmr_updates', bundlerId });
+  });
+
   it('should pass through non-reporter server events', () => {
     expect(toDevframeEvent({ type: 'cache_reset' })).toEqual({ type: 'cache_reset' });
   });

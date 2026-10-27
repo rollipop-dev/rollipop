@@ -161,6 +161,84 @@ describe('HotUpdateStore', () => {
     expect(store.resolve(ID, 'missing.js')).toBeUndefined();
   });
 
+  it('lists only saved code chunks for the selected bundler, newest first', () => {
+    const store = new HotUpdateStore(projectRoot);
+    expect(store.list(ID)).toEqual([]);
+    store.write(ID, {
+      code: 'first();',
+      filename: 'first.js',
+      sourcemap: SOURCEMAP,
+      sourcemapFilename: 'custom-map.json',
+    });
+    store.write(ID, { code: 'second();', filename: 'second.js' });
+    store.write('android-dev', { code: 'other();', filename: 'other.js' });
+    fs.utimesSync(path.join(hotPath, ID, 'first.js'), 1000, 1000);
+    fs.utimesSync(path.join(hotPath, ID, 'second.js'), 2000, 2000);
+
+    expect(store.list(ID)).toEqual([
+      { filename: 'second.js', sourcemapFilename: null, updatedAt: 2_000_000 },
+      { filename: 'first.js', sourcemapFilename: 'custom-map.json', updatedAt: 1_000_000 },
+    ]);
+    expect(store.list('unknown')).toEqual([]);
+    expect(store.resolve(ID, 'first.js')?.sourceMap).toBe(SOURCEMAP);
+  });
+
+  it('omits removed code and reports missing maps without dropping their code chunks', () => {
+    const store = new HotUpdateStore(projectRoot);
+    store.write(ID, {
+      code: 'applyPatch();',
+      filename: PATCH_FILENAME,
+      sourcemap: SOURCEMAP,
+      sourcemapFilename: SOURCEMAP_FILENAME,
+    });
+    fs.rmSync(path.join(hotPath, ID, SOURCEMAP_FILENAME));
+
+    expect(store.list(ID)).toEqual([
+      { filename: PATCH_FILENAME, sourcemapFilename: null, updatedAt: expect.any(Number) },
+    ]);
+    expect(store.resolve(ID, PATCH_FILENAME)?.sourceMap).toBeUndefined();
+    fs.rmSync(path.join(hotPath, ID, PATCH_FILENAME));
+    expect(store.list(ID)).toEqual([]);
+  });
+
+  it('replaces overwritten chunk metadata without reusing an old sourcemap', () => {
+    const store = new HotUpdateStore(projectRoot);
+    store.write(ID, {
+      code: 'first();',
+      filename: PATCH_FILENAME,
+      sourcemap: SOURCEMAP,
+      sourcemapFilename: SOURCEMAP_FILENAME,
+    });
+    store.write(ID, {
+      code: 'second();',
+      filename: PATCH_FILENAME,
+      sourcemap: 'new map',
+      sourcemapFilename: 'new.map',
+    });
+    expect(store.list(ID)).toEqual([
+      { filename: PATCH_FILENAME, sourcemapFilename: 'new.map', updatedAt: expect.any(Number) },
+    ]);
+    expect(store.resolve(ID, PATCH_FILENAME)?.sourceMap).toBe('new map');
+
+    store.write(ID, { code: 'third();', filename: PATCH_FILENAME });
+    expect(store.list(ID)).toEqual([
+      { filename: PATCH_FILENAME, sourcemapFilename: null, updatedAt: expect.any(Number) },
+    ]);
+    expect(store.resolve(ID, PATCH_FILENAME)?.code).toBe('third();');
+    expect(store.resolve(ID, PATCH_FILENAME)?.sourceMap).toBeUndefined();
+  });
+
+  it('clears the chunk index with stored files', () => {
+    const store = new HotUpdateStore(projectRoot);
+    store.write(ID, { code: 'old();', filename: PATCH_FILENAME });
+    store.clear();
+    expect(store.list(ID)).toEqual([]);
+    expect(store.resolve(ID, PATCH_FILENAME)).toBeUndefined();
+
+    store.write(ID, { code: 'new();', filename: 'new.js' });
+    expect(store.list(ID).map(({ filename }) => filename)).toEqual(['new.js']);
+  });
+
   it('requires a sourcemap and filename pair', () => {
     const store = new HotUpdateStore(projectRoot);
 
@@ -180,5 +258,6 @@ describe('HotUpdateStore', () => {
       'expected a single path segment',
     );
     expect(() => store.readAsset(ID, '..')).toThrow('expected a single path segment');
+    expect(() => store.list('../ios-dev')).toThrow('expected a single path segment');
   });
 });
