@@ -1,4 +1,26 @@
 
+## [1.0.0-beta.2] - 2026-10-27
+
+### 🚀 Features
+
+- dashboard: add HMR chunk inspection and symbolication by @leegeunhyeok
+- support expo sdk 55-58 (#220) by @leegeunhyeok
+- support react-native@0.88 (#217) by @leegeunhyeok
+
+### 📚 Documentation
+
+- streamline documentation and align configuration references by @leegeunhyeok
+- update docs by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump packages by @leegeunhyeok
+- deps: bump devframe to 1.2.6 by @leegeunhyeok
+- deps: update dependency fastify to v5.12.6 [security] (#221) by @renovate[bot]
+- deps: configure renovate for published package dependencies by @leegeunhyeok
+- deps: bump up rolldown by @leegeunhyeok
+
+
 ## [1.0.0-beta.1] - 2026-10-22
 
 ### 🚀 Features
