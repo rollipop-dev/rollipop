@@ -1,6 +1,6 @@
 {
   "name": "@rollipop/expo",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Use Rollipop with Expo native apps through an Expo config plugin.",
   "homepage": "https://github.com/rollipop-dev/rollipop/tree/main/packages/expo#readme",
   "bugs": {
