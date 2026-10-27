@@ -1,10 +1,14 @@
 import { CheckCircle2, CircleX, Info, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 
+const BOTTOM_OFFSET = 56;
+
 export function Toaster(props: ToasterProps) {
   return (
     <Sonner
       className="toaster group"
+      offset={{ bottom: BOTTOM_OFFSET }}
+      mobileOffset={{ bottom: BOTTOM_OFFSET }}
       icons={{
         success: <CheckCircle2 className="size-4 text-emerald-500" />,
         error: <CircleX className="size-4 text-red-500" />,

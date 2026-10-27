@@ -111,7 +111,7 @@
     "vitest": "catalog:vp"
   },
   "peerDependencies": {
-    "@devframes/agentic": "1.0.0"
+    "@devframes/agentic": "^1"
   },
   "peerDependenciesMeta": {
     "@devframes/agentic": {
