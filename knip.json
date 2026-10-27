@@ -64,7 +64,8 @@
         "src/updates-preload.ts",
         "test/*.test.cjs"
       ],
-      "project": ["src/**/*.ts", "test/*.cjs"]
+      "project": ["src/**/*.ts", "test/*.cjs"],
+      "ignoreDependencies": ["vite"]
     },
     "examples/module-federation": {
       "entry": [
