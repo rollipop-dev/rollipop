@@ -78,6 +78,8 @@ rollipop bundle [options]
 
 Compatibility placeholders with no effect: `--transformer`, `--bundle-encoding`, `--max-workers`, `--unstable-transform-profile`, `--asset-catalog-dest`, `--read-global-cache`, and `--resolver-option`. `--sourcemap-sources-root` and `--sourcemap-use-absolute-path` are also ignored.
 
+`--config-cmd <string>` and `--load-config <string>` are accepted and ignored for React Native's Xcode bundle phase. Their values describe React Native CLI project configuration; Rollipop does not execute the command or parse the JSON. Use `--config` to select a Rollipop configuration file. Bare React Native projects must also [configure the Xcode bundle entry point](/docs/get-started/quick-start#3-configure-ios-bundle-builds).
+
 ### Examples
 
 ```bash
