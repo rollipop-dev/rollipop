@@ -94,7 +94,7 @@ function transform(code: string, id: string, options: babel.InputOptions) {
     sourceMaps: true,
     ...options,
   });
-  invariant(result?.code, `Failed to transform with babel: ${id}`);
+  invariant(result?.code != null, `Failed to transform with babel: ${id}`);
 
   const map = result.map && {
     ...result.map,

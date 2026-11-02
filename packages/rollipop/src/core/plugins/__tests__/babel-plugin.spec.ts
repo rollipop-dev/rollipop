@@ -166,6 +166,90 @@ describe('babel', () => {
     });
   });
 
+  it.each([true, false])(
+    'preserves empty output and its map for standalone=%s',
+    async (standalone) => {
+      const sourceMap = {
+        version: 3,
+        names: [],
+        sources: ['/src/input.js'],
+        sourcesContent: ['input'],
+        mappings: '',
+      };
+      mocks.transformSync.mockReturnValue({ code: '', map: sourceMap });
+      const plugins = babel({
+        context: createContext(),
+        transformConfig: { rules: [{ options: {}, standalone }] },
+      });
+
+      let result;
+      for (const plugin of plugins) {
+        result = await callTransform(plugin, 'input');
+      }
+
+      expect(result).toEqual({ code: '', map: sourceMap });
+      expect(mocks.transformSync).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([true, false])(
+    'allows Babel to erase a type-only module for standalone=%s',
+    async (standalone) => {
+      const actualBabel = await vi.importActual<typeof import('@babel/core')>('@babel/core');
+      mocks.transformSync.mockImplementation(actualBabel.transformSync);
+      const source = 'type Spec = { value: string };';
+      const plugins = babel({
+        context: createContext(),
+        transformConfig: {
+          rules: [
+            {
+              standalone,
+              options: {
+                parserOpts: { plugins: ['typescript'] },
+                plugins: [
+                  () => ({
+                    visitor: {
+                      TSTypeAliasDeclaration(path) {
+                        path.remove();
+                      },
+                    },
+                  }),
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      let result;
+      for (const plugin of plugins) {
+        result = await callTransform(plugin, source, '/src/types.ts');
+      }
+
+      expect(result).toEqual({
+        code: '',
+        map: expect.objectContaining({ mappings: '', sourcesContent: [source] }),
+      });
+    },
+  );
+
+  it.each([true, false])('rejects missing Babel output for standalone=%s', async (standalone) => {
+    const plugins = babel({
+      context: createContext(),
+      transformConfig: { rules: [{ options: {}, standalone }] },
+    });
+
+    for (const result of [null, { code: null }, { code: undefined }]) {
+      mocks.transformSync.mockReturnValue(result);
+      if (!standalone) {
+        await callTransform(plugins[0]!, 'input');
+      }
+      await expect(callTransform(plugins.at(-1)!, 'input')).rejects.toThrow(
+        'Failed to transform with babel: /src/input.js',
+      );
+    }
+  });
+
   it('allows standalone options to override defaults', async () => {
     const plugins = babel({
       context: createContext(),
