@@ -9,6 +9,19 @@ import metadata from '../package.json' with { type: 'json' };
 const { version } = metadata;
 const RN_CONFIG_FILE = 'react-native.config.js';
 const COMMANDS_REQUIRE = "require('rollipop/commands')";
+const XCODE_CLI_PATH = 'export CLI_PATH="$PROJECT_DIR/../node_modules/rollipop/bin/index.js"';
+const XCODE_ENV_SETUP = [
+  '# Resolve Rollipop without running Node before .xcode.env.local is loaded.',
+  'if [ -z "${CLI_PATH:-}" ]; then',
+  '  ROLLIPOP_CLI_ROOT="$(cd "$PROJECT_DIR/.." && pwd)"',
+  '  while [ ! -f "$ROLLIPOP_CLI_ROOT/node_modules/rollipop/bin/index.js" ] && [ "$ROLLIPOP_CLI_ROOT" != / ]; do',
+  '    ROLLIPOP_CLI_ROOT="${ROLLIPOP_CLI_ROOT%/*}"',
+  '    ROLLIPOP_CLI_ROOT="${ROLLIPOP_CLI_ROOT:-/}"',
+  '  done',
+  '  export CLI_PATH="$ROLLIPOP_CLI_ROOT/node_modules/rollipop/bin/index.js"',
+  '  unset ROLLIPOP_CLI_ROOT',
+  'fi',
+].join('\n');
 
 export type SetupResult = 'created' | 'updated' | 'already-configured' | 'manual-required';
 
@@ -75,6 +88,40 @@ export function setupReactNativeConfig(cwd: string): SetupResult {
       return 'updated';
     }
   }
+}
+
+export function setupXcodeEnv(cwd: string): SetupResult | 'skipped' {
+  const iosDir = path.join(cwd, 'ios');
+  if (!fs.existsSync(iosDir)) return 'skipped';
+
+  const filename = path.join(iosDir, '.xcode.env');
+  const exists = fs.existsSync(filename);
+  const content = exists ? fs.readFileSync(filename, 'utf8') : '';
+  const localFilename = `${filename}.local`;
+  const local = fs.existsSync(localFilename) ? fs.readFileSync(localFilename, 'utf8') : '';
+  const hasCliPath = (source: string) =>
+    source
+      .split(/\r?\n/)
+      .some((line) => !line.trimStart().startsWith('#') && /\bCLI_PATH\b/.test(line));
+  const hasProjectOverride = fs.readdirSync(iosDir).some((entry) => {
+    const projectFile = path.join(iosDir, entry, 'project.pbxproj');
+    return (
+      entry.endsWith('.xcodeproj') &&
+      fs.existsSync(projectFile) &&
+      /\bCLI_PATH\b/.test(fs.readFileSync(projectFile, 'utf8'))
+    );
+  });
+  if (hasCliPath(local) || hasProjectOverride) return 'manual-required';
+
+  const configured =
+    content.includes(XCODE_ENV_SETUP) || content.split(/\r?\n/).includes(XCODE_CLI_PATH);
+  const remaining = content.replace(XCODE_ENV_SETUP, '').replace(XCODE_CLI_PATH, '');
+  if (hasCliPath(remaining)) return 'manual-required';
+  if (configured) return 'already-configured';
+
+  const separator = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
+  fs.writeFileSync(filename, `${content}${separator}${XCODE_ENV_SETUP}\n`);
+  return exists ? 'updated' : 'created';
 }
 
 type AnalyzeResult =

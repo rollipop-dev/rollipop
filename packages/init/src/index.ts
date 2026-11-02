@@ -1,6 +1,12 @@
 import pc from 'picocolors';
 
-import { detectProject, setupExpoConfig, setupPackage, setupReactNativeConfig } from './init';
+import {
+  detectProject,
+  setupExpoConfig,
+  setupPackage,
+  setupReactNativeConfig,
+  setupXcodeEnv,
+} from './init';
 
 const logger = {
   success(message: string) {
@@ -78,6 +84,36 @@ try {
     error,
   );
   failed ||= true;
+}
+
+if (projectType === 'bare') {
+  try {
+    const status = setupXcodeEnv(cwd);
+    switch (status) {
+      case 'created':
+      case 'updated':
+        logger.success(
+          `${status === 'created' ? 'Created' : 'Updated'} ${pc.bold('ios/.xcode.env')}`,
+        );
+        break;
+      case 'already-configured':
+        logger.info(`${pc.bold('ios/.xcode.env')} already configured`);
+        break;
+      case 'skipped':
+        logger.info('No ios directory; skipped Xcode bundle setup');
+        break;
+      case 'manual-required':
+        hasWarning = true;
+        logger.warn('Existing CLI_PATH configuration requires manual Xcode bundle setup');
+        console.log(
+          `  Point ${pc.bold('CLI_PATH')} to ${pc.green('rollipop/bin/index.js')} in your Xcode environment or bundle phase, keeping your Node setup.`,
+        );
+        break;
+    }
+  } catch (error) {
+    logger.error('Xcode bundle setup failed', error);
+    failed ||= true;
+  }
 }
 
 if (hasWarning || failed) console.log();

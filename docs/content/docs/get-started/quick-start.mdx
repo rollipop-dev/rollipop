@@ -46,7 +46,7 @@ Run `@rollipop/init` from your React Native project root:
 
 The initializer detects the project type from the `expo` dependency in `package.json` and logs `bare project detected` or `expo project detected`:
 
-- **Bare React Native:** Adds the matching `rollipop` version to `devDependencies` and creates or updates `react-native.config.js` to register Rollipop's CLI commands.
+- **Bare React Native:** Adds the matching `rollipop` version to `devDependencies`, creates or updates `react-native.config.js` to register Rollipop's CLI commands, and configures `ios/.xcode.env` for Xcode bundle builds. It supports local or hoisted `node_modules` and preserves existing Node settings. Custom `CLI_PATH` configurations are left unchanged with manual setup instructions; projects without an `ios` directory skip this step.
 - **Expo:** Adds matching `rollipop` and `@rollipop/expo` versions to `devDependencies` and registers the config plugin in `app.json` or `app.config.json`. Dynamic `app.config.ts/js` files are preserved, with instructions to add the plugin manually. See the [Expo guide](/docs/experimental/expo) for requirements and native build setup.
 
 Then install the updated dependencies:
@@ -57,7 +57,7 @@ Then install the updated dependencies:
   <Tab value="yarn">```yarn install```</Tab>
 </Tabs>
 
-If the initializer reports a configuration it cannot update, follow its instructions to complete the [React Native CLI configuration](#2-configure-react-native-cli) or [Expo configuration](/docs/experimental/expo#manual-setup) manually.
+If the initializer reports a configuration it cannot update, follow its instructions to complete the [React Native CLI configuration](#2-configure-react-native-cli), [iOS bundle build setup](#3-configure-ios-bundle-builds), or [Expo configuration](/docs/experimental/expo#manual-setup) manually.
 To customize Rollipop, create a configuration file following the [Configuration guide](/docs/get-started/configuration).
 
 ### Manual Installation
@@ -82,6 +82,20 @@ module.exports = {
   /* Existing configurations */
 };
 ```
+
+#### 3. Configure iOS bundle builds
+
+React Native's Xcode bundle phase invokes its bundle script directly, so registering `rollipop/commands` alone does not select Rollipop for iOS release builds.
+
+Add the following after the existing `NODE_BINARY` assignment in `ios/.xcode.env`:
+
+```sh title="ios/.xcode.env"
+export CLI_PATH="$PROJECT_DIR/../node_modules/rollipop/bin/index.js"
+```
+
+This path assumes `node_modules` is alongside `ios`. For hoisted monorepos, adjust `CLI_PATH` relative to `PROJECT_DIR` so it points to the installed `rollipop/bin/index.js`. Keep your existing `NODE_BINARY` setup, including overrides in `ios/.xcode.env.local`, and the existing Xcode bundle phase and Hermes compilation steps. Check `ios/.xcode.env.local` for a `CLI_PATH` override if Xcode still selects another bundler.
+
+Expo projects use the [Expo integration](/docs/experimental/expo#manual-setup) and should keep its native build configuration.
 
 ## Next Steps
 

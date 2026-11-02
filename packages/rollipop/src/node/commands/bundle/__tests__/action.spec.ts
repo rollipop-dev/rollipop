@@ -75,4 +75,36 @@ describe('bundle command action', () => {
       }),
     );
   });
+
+  it('ignores the React Native project config options and preserves the Rollipop config path', async () => {
+    const config = { entry: 'index.js' };
+    mocks.loadConfig.mockResolvedValue(config);
+    mocks.runBuild.mockResolvedValue({});
+
+    await action.call(
+      { platforms: ['android', 'ios'] },
+      {
+        platform: 'ios',
+        dev: false,
+        bundleOutput: 'dist/main.jsbundle',
+        resetCache: false,
+        sourcemapUseAbsolutePath: false,
+        entryFile: 'index.js',
+        config: '/app/rollipop.release.config.ts',
+        configCmd: 'this command must not execute',
+        loadConfig: 'this value must not be parsed as JSON',
+      },
+    );
+
+    expect(mocks.loadConfig).toHaveBeenCalledExactlyOnceWith({
+      cwd: process.cwd(),
+      mode: 'production',
+      configFile: '/app/rollipop.release.config.ts',
+      context: { command: 'bundle' },
+    });
+    expect(mocks.runBuild).toHaveBeenCalledWith(
+      config,
+      expect.objectContaining({ platform: 'ios', dev: false, outfile: 'dist/main.jsbundle' }),
+    );
+  });
 });

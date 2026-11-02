@@ -176,6 +176,32 @@ describe.each([false, true])('initializer CLI (color: %s)', (color) => {
       "commands: require('rollipop/commands')",
     );
     expect(fs.existsSync(path.join(tmpDir, 'app.json'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'ios'))).toBe(false);
+    expect(output).toContain('No ios directory; skipped Xcode bundle setup');
+  });
+
+  it('configures bare Xcode builds and remains idempotent', () => {
+    writeJson('package.json', { dependencies: { 'react-native': '0.88.0' } });
+    fs.mkdirSync(path.join(tmpDir, 'ios'));
+    expect(runInit()).toContain('Created ios/.xcode.env');
+    const filename = path.join(tmpDir, 'ios/.xcode.env');
+    const content = fs.readFileSync(filename, 'utf8');
+    expect(content).toContain('export CLI_PATH=');
+    expect(runInit()).toContain('ios/.xcode.env already configured');
+    expect(fs.readFileSync(filename, 'utf8')).toBe(content);
+  });
+
+  it('preserves custom Xcode configuration and explains the manual step', () => {
+    writeJson('package.json', { dependencies: { 'react-native': '0.88.0' } });
+    fs.mkdirSync(path.join(tmpDir, 'ios'));
+    const filename = path.join(tmpDir, 'ios/.xcode.env');
+    const content = 'export CLI_PATH="$PROJECT_DIR/custom-bundler.js"\n';
+    fs.writeFileSync(filename, content);
+    const output = runInit();
+    expect(output).toContain('Existing CLI_PATH configuration requires manual Xcode bundle setup');
+    expect(output).toContain('Manual configuration is required to finish setup.');
+    expect(output).not.toContain('Setup completed!');
+    expect(fs.readFileSync(filename, 'utf8')).toBe(content);
   });
 
   it('logs Expo detection and remains idempotent on a second run', () => {
@@ -190,6 +216,20 @@ describe.each([false, true])('initializer CLI (color: %s)', (color) => {
       '@rollipop/expo': version,
     });
     expect(readJson('app.json').expo.plugins).toEqual(['expo-router', '@rollipop/expo']);
+    expect(fs.existsSync(path.join(tmpDir, 'react-native.config.js'))).toBe(false);
+  });
+
+  it('keeps prebuilt Expo Xcode configuration on the plugin setup path', () => {
+    writeJson('package.json', { dependencies: { expo: '~58.0.17' } });
+    fs.mkdirSync(path.join(tmpDir, 'ios'));
+    const filename = path.join(tmpDir, 'ios/.xcode.env');
+    const content = 'export NODE_BINARY=/custom/node\n';
+    fs.writeFileSync(filename, content);
+    const output = runInit();
+    expect(output).toContain('Setup completed!');
+    expect(output).not.toContain('Xcode');
+    expect(fs.readFileSync(filename, 'utf8')).toBe(content);
+    expect(readJson('app.json').expo.plugins).toEqual(['@rollipop/expo']);
     expect(fs.existsSync(path.join(tmpDir, 'react-native.config.js'))).toBe(false);
   });
 

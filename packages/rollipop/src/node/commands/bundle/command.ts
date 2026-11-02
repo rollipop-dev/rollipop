@@ -9,6 +9,8 @@ export interface BundleCommandArgs {
   resetCache: boolean;
   minify?: boolean;
   config?: string;
+  configCmd?: string;
+  loadConfig?: string;
   platform: string;
   dev: boolean;
   bundleOutput: string;
@@ -31,6 +33,14 @@ export const command: CommandDefinition<BundleCommandArgs> = {
       name: '--config <string>',
       description: 'Path to the CLI configuration file',
       parse: resolvePath,
+    },
+    {
+      name: '--config-cmd <string>',
+      description: 'Accepted for React Native Xcode compatibility; ignored.',
+    },
+    {
+      name: '--load-config <string>',
+      description: 'Accepted for React Native Xcode compatibility; ignored.',
     },
     {
       name: '--entry-file <path>',
