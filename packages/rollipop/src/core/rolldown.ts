@@ -7,13 +7,7 @@ import { invariant, isNotNil, mergeWith, toMerged } from 'es-toolkit';
 
 import { asLiteral, iife, nodeEnvironment } from '../common/code';
 import { isDebugEnabled } from '../common/env';
-import type {
-  ResolvedConfig,
-  TransformConfig,
-  WorkletsConfig,
-  JsxOptions,
-  SwcConfig,
-} from '../config';
+import type { ResolvedConfig, TransformConfig, JsxOptions, SwcConfig } from '../config';
 import { applyRolldownOptionsConfig } from '../config/compose-override';
 import { ROLLIPOP_VIRTUAL_ENTRY_ID } from '../constants';
 import { CompatStatusReporter, ProgressBarStatusReporter } from '../events/builtin-reporters';
@@ -24,10 +18,11 @@ import type { ResolvedBuildOptions } from '../utils/build-options';
 import { resolveHmrConfig } from '../utils/config';
 import { defineEnvFromObject } from '../utils/env';
 import { createVirtualModuleId, escapeVirtualModuleId } from '../utils/id';
-import { resolveFrom, resolvePackageJson } from '../utils/node-resolve';
+import { resolveFrom } from '../utils/node-resolve';
 import { getBaseUrl } from '../utils/server';
 import { getBuildTotalModules, setBuildTotalModules } from '../utils/storage';
 import { transformWithRollipop } from '../utils/transform';
+import { resolveWorkletsConfig } from '../utils/worklets';
 import { loadEnv } from './env';
 import {
   type AnalyzePluginOptions,
@@ -368,24 +363,8 @@ function resolveReactNativeBuiltinPluginConfig(
     runtimeTarget: config.runtimeTarget,
     flow: config.transform.flow,
     swc: resolveNativeSwcConfig(config.transform),
-    worklets: resolveWorkletsConfig(config),
+    worklets: resolveWorkletsConfig(config.experimental.worklets, config),
   };
-}
-
-function resolveWorkletsConfig(config: ResolvedConfig): WorkletsConfig | undefined {
-  const { worklets } = config.experimental ?? {};
-
-  if (worklets == null) {
-    return undefined;
-  }
-
-  return toMerged(
-    {
-      isRelease: config.mode === 'production',
-      pluginVersion: resolvePackageJson(config.root, 'react-native-worklets')?.version,
-    },
-    worklets,
-  );
 }
 
 function resolveRolldownTransformConfig(config: TransformConfig): RolldownTransformOptions {

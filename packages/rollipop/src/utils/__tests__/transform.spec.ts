@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { RollipopReactNativeTransformer } from '@rollipop/rolldown/experimental';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
@@ -60,6 +64,35 @@ describe('transformWithRollipop', () => {
     expect(instance.transformSync).toHaveBeenNthCalledWith(1, '/a.js', 'a();');
     expect(instance.transformSync).toHaveBeenNthCalledWith(2, '/b.js', 'b();');
   });
+
+  it.each([
+    ['react-native-reanimated', '3.19.1', 'reanimatedVersion'],
+    ['react-native-worklets', '0.8.0', 'pluginVersion'],
+  ] as const)(
+    'passes the installed %s version to the native transformer',
+    (name, version, field) => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rollipop-transform-'));
+      const packageRoot = path.join(root, 'node_modules', name);
+
+      try {
+        fs.mkdirSync(packageRoot, { recursive: true });
+        fs.writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ name, version }));
+        const config = createTestConfig(root);
+        config.mode = 'production';
+        config.experimental.worklets = { globals: ['customGlobal'] };
+
+        transformWithRollipop('/worklet.js', 'function worklet() { "worklet"; }', config);
+
+        expect(vi.mocked(RollipopReactNativeTransformer).mock.calls[0]![0]?.worklets).toEqual({
+          isRelease: true,
+          globals: ['customGlobal'],
+          [field]: version,
+        });
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it('does not reuse a transformer across config objects', () => {
     const configA = createTestConfig('/project-a');

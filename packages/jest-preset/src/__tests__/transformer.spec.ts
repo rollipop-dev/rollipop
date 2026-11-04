@@ -1,3 +1,4 @@
+import type { resolveWorkletsConfig } from 'rollipop';
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import { createTransformer } from '../transformer';
@@ -5,6 +6,7 @@ import { createTransformer } from '../transformer';
 const mocks = vi.hoisted(() => ({
   configs: [] as { swc: { plugins?: unknown[] }; [key: string]: unknown }[],
   loadEnv: vi.fn<() => Record<string, string>>(),
+  resolveWorkletsConfig: vi.fn<typeof resolveWorkletsConfig>(),
   transformSync: vi.fn((filename: string, source: string) => ({
     code: `sync:${filename}:${source}`,
     map: 'sync-map',
@@ -18,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('rollipop', () => ({
   Constants: { DEFAULT_ENV_FILE: '.env', DEFAULT_ENV_PREFIX: 'PUBLIC_' },
   loadEnv: mocks.loadEnv,
+  resolveWorkletsConfig: mocks.resolveWorkletsConfig,
   rolldownExperimental: {
     RollipopReactNativeTransformer: class {
       constructor(config: (typeof mocks.configs)[number]) {
@@ -35,10 +38,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.configs.length = 0;
   mocks.loadEnv.mockReturnValue({ PUBLIC_API: 'initial' });
+  mocks.resolveWorkletsConfig.mockReturnValue(undefined);
 });
 
 describe('createTransformer', () => {
   it('lazily reuses native Jest pipelines for sync CJS and async ESM transforms', async () => {
+    mocks.resolveWorkletsConfig.mockReturnValue({ pluginVersion: '0.13.0', isRelease: true });
     const transformer = createTransformer({
       mode: 'production',
       runtimeTarget: 'hermes-v1',
@@ -62,7 +67,7 @@ describe('createTransformer', () => {
       envName: 'production',
       runtimeTarget: 'hermes-v1',
       flow: { requireDirective: true },
-      worklets: { isRelease: true },
+      worklets: { pluginVersion: '0.13.0', isRelease: true },
       swc: {
         jest: true,
         module: { type: 'commonjs' },
@@ -84,6 +89,34 @@ describe('createTransformer', () => {
     });
     expect(mocks.transformSync).toHaveBeenLastCalledWith('/another.ts', 'again');
     expect(mocks.transform).toHaveBeenLastCalledWith('/another.ts', 'again');
+  });
+
+  it.each([undefined, '/project'])('resolves Reanimated 3 once using root %s', (root) => {
+    const worklets = { reanimatedVersion: '3.19.0', isRelease: false };
+    mocks.resolveWorkletsConfig.mockReturnValue(worklets);
+    const transformer = createTransformer({ root, mode: 'development', worklets: {} });
+    transformer.process('source', '/input.ts', jestOptions);
+    transformer.process('source', '/input.ts', { ...jestOptions, supportsStaticESM: true });
+
+    expect(mocks.resolveWorkletsConfig).toHaveBeenCalledExactlyOnceWith(
+      {},
+      { root: root ?? process.cwd(), mode: 'development' },
+    );
+    expect(mocks.configs).toHaveLength(2);
+    for (const config of mocks.configs) {
+      expect(config.worklets).toEqual(worklets);
+    }
+  });
+
+  it('invalidates the cache when the detected runtime version changes', () => {
+    mocks.resolveWorkletsConfig.mockReturnValue({ reanimatedVersion: '3.18.0' });
+    const first = createTransformer({ worklets: {} });
+    const key = first.getCacheKey('source', '/input.ts', jestOptions);
+    mocks.resolveWorkletsConfig.mockReturnValue({ reanimatedVersion: '3.19.0' });
+    const second = createTransformer({ worklets: {} });
+
+    expect(second.getCacheKey('source', '/input.ts', jestOptions)).not.toBe(key);
+    expect(first.getCacheKey('source', '/input.ts', jestOptions)).toBe(key);
   });
 
   it.each([undefined, false])('does not instrument without explicit opt-in: %s', (enabled) => {

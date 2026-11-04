@@ -1,4 +1,4 @@
-import type { rolldownExperimental } from 'rollipop';
+import type { rolldownExperimental, WorkletsConfig } from 'rollipop';
 
 import { createContext, getCacheKey, getPipeline, type TransformOptions } from './utils';
 
@@ -7,7 +7,7 @@ export interface TransformerOptions {
   root?: string;
   runtimeTarget?: rolldownExperimental.RollipopReactNativeRuntimeTarget;
   flow?: rolldownExperimental.RollipopReactNativeFlowConfig;
-  worklets?: rolldownExperimental.RollipopReactNativeWorkletsConfig;
+  worklets?: WorkletsConfig;
   envDir?: string;
   envFile?: string;
   envPrefix?: string;

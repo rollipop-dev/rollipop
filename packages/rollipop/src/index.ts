@@ -50,6 +50,7 @@ export * from './core/env';
 
 // Config
 export * from './config';
+export { resolveWorkletsConfig } from './utils/worklets';
 
 // Constants
 export * as Constants from './constants';

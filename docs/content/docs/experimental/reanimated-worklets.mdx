@@ -2,7 +2,7 @@
 title: Reanimated & Worklets
 ---
 
-Rollipop transforms [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) v4+ worklets. Requires `react-native-worklets` in your project.
+Rollipop transforms [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/) 3.x worklets and Reanimated 4+ worklets. Reanimated 4+ requires `react-native-worklets` in your project.
 
 <Callout type="warn">
   Worklet transformation is experimental and may change without a major version bump.
@@ -26,15 +26,22 @@ export default defineConfig({
 
 Omit `experimental.worklets` to disable the transform.
 
-| Property                     | Type       | Description                                                                           |
-| ---------------------------- | ---------- | ------------------------------------------------------------------------------------- |
-| `globals`                    | `string[]` | Identifiers treated as globals — never captured into worklet closures.                |
-| `strictGlobal`               | `boolean`  | When `true`, only the names listed in `globals` are considered safe.                  |
-| `omitNativeOnlyData`         | `boolean`  | Omit native-only data for web builds.                                                 |
-| `disableSourceMaps`          | `boolean`  | Disable source map generation for worklets.                                           |
-| `relativeSourceLocation`     | `boolean`  | Use paths relative to `cwd` for source locations.                                     |
-| `disableWorkletClasses`      | `boolean`  | Disable Worklet Classes support.                                                      |
-| `disableInlineStylesWarning` | `boolean`  | Suppress the inline-shared-values warning.                                            |
-| `bundleMode`                 | `boolean`  | Enable Bundle Mode.                                                                   |
-| `isRelease`                  | `boolean`  | Omit debugging information. Defaults to `mode === 'production'`.                      |
-| `pluginVersion`              | `string`   | Worklets version override. Defaults to the installed `react-native-worklets` version. |
+With `{}`, Rollipop detects the installed `react-native-reanimated` 3.x version and selects the Reanimated 3 transform. Otherwise, it uses the installed `react-native-worklets` version. If both packages are installed alongside Reanimated 3, Reanimated 3 takes precedence.
+
+Set `reanimatedVersion` or `pluginVersion` to override detection and explicitly select a runtime. These fields are mutually exclusive. A version must be detected or explicitly provided before the transform can run.
+
+| Property                      | Type       | Description                                                                           |
+| ----------------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| `globals`                     | `string[]` | Identifiers treated as globals — never captured into worklet closures.                |
+| `strictGlobal`                | `boolean`  | Worklets only. When `true`, only the names listed in `globals` are considered safe.   |
+| `omitNativeOnlyData`          | `boolean`  | Omit native-only data for web builds.                                                 |
+| `disableSourceMaps`           | `boolean`  | Disable source map generation for worklets.                                           |
+| `relativeSourceLocation`      | `boolean`  | Use paths relative to `cwd` for source locations.                                     |
+| `disableWorkletClasses`       | `boolean`  | Worklets only. Disable Worklet Classes support.                                       |
+| `disableInlineStylesWarning`  | `boolean`  | Suppress the inline-shared-values warning.                                            |
+| `bundleMode`                  | `boolean`  | Worklets only. Enable Bundle Mode.                                                    |
+| `processNestedWorklets`       | `boolean`  | Reanimated 3 only. Transform nested worklets before their parent.                     |
+| `substituteWebPlatformChecks` | `boolean`  | Fold web platform checks in host code.                                                |
+| `isRelease`                   | `boolean`  | Omit debugging information. Defaults to `mode === 'production'`.                      |
+| `pluginVersion`               | `string`   | Worklets version override. Defaults to the installed `react-native-worklets` version. |
+| `reanimatedVersion`           | `string`   | Reanimated 3 version override. Defaults to the installed 3.x version.                 |

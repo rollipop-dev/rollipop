@@ -31,19 +31,21 @@ module.exports = {
 };
 ```
 
-| Option                                       | Type                                | Default / behavior                                                    |
-| -------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------- |
-| `mode`                                       | `'development' \| 'production'`     | `NODE_ENV` when it is one of these values; otherwise `'development'`. |
-| `root`                                       | `string`                            | Fallback environment directory; `process.cwd()` when omitted.         |
-| `runtimeTarget`                              | `'hermes' \| 'hermes-v1'`           | `'hermes-v1'`.                                                        |
-| `flow`                                       | `{ requireDirective?: boolean }`    | Flow parsing options.                                                 |
-| `worklets`                                   | `RollipopReactNativeWorkletsConfig` | Disabled when omitted; `{}` enables it.                               |
-| `envDir`                                     | `string`                            | `root`, then `process.cwd()`.                                         |
-| `envFile`                                    | `string`                            | `'.env'`                                                              |
-| `envPrefix`                                  | `string`                            | `'ROLLIPOP_'`                                                         |
-| `experimental.customCoverageInstrumentation` | coverage options                    | Disabled by default.                                                  |
+| Option                                       | Type                             | Default / behavior                                                                    |
+| -------------------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------- |
+| `mode`                                       | `'development' \| 'production'`  | `NODE_ENV` when it is one of these values; otherwise `'development'`.                 |
+| `root`                                       | `string`                         | Package lookup root and fallback environment directory; `process.cwd()` when omitted. |
+| `runtimeTarget`                              | `'hermes' \| 'hermes-v1'`        | `'hermes-v1'`.                                                                        |
+| `flow`                                       | `{ requireDirective?: boolean }` | Flow parsing options.                                                                 |
+| `worklets`                                   | `WorkletsConfig`                 | Disabled when omitted; `{}` detects the installed Reanimated 3 or Worklets version.   |
+| `envDir`                                     | `string`                         | `root`, then `process.cwd()`.                                                         |
+| `envFile`                                    | `string`                         | `'.env'`                                                                              |
+| `envPrefix`                                  | `string`                         | `'ROLLIPOP_'`                                                                         |
+| `experimental.customCoverageInstrumentation` | coverage options                 | Disabled by default.                                                                  |
 
 The transformer replaces `import.meta.env.*` and sets `import.meta.hot` to `undefined`. Both CommonJS and ESM tests are supported.
+
+Worklet options use the same [runtime detection and version overrides](/docs/experimental/reanimated-worklets) as Rollipop builds.
 
 ## Glob Imports
 

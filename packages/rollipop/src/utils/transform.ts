@@ -1,6 +1,7 @@
 import { RollipopReactNativeTransformer } from '@rollipop/rolldown/experimental';
 
 import type { ResolvedConfig } from '../config';
+import { resolveWorkletsConfig } from './worklets';
 
 const transformers = new WeakMap<ResolvedConfig, RollipopReactNativeTransformer>();
 
@@ -12,7 +13,7 @@ export function transformWithRollipop(id: string, code: string, config: Resolved
       envName: config.mode,
       runtimeTarget: config.runtimeTarget,
       flow: config.transform.flow,
-      worklets: config.experimental.worklets,
+      worklets: resolveWorkletsConfig(config.experimental.worklets, config),
       swc: {
         externalHelpers: true,
         ...config.transform.swc?.native,

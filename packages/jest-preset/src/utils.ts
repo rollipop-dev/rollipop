@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 
-import { Constants, loadEnv, rolldownExperimental } from 'rollipop';
+import { Constants, loadEnv, resolveWorkletsConfig, rolldownExperimental } from 'rollipop';
 
 import { defineEnvFromObject } from './env';
 import { GLOB_IMPORT_HELPERS } from './runtime';
@@ -16,6 +16,7 @@ export interface TransformOptions {
 interface Context {
   options: TransformerOptions;
   mode: 'development' | 'production';
+  worklets: rolldownExperimental.RollipopReactNativeWorkletsConfig | undefined;
   globals: Record<string, string | undefined>;
   canInstrument: boolean;
   instrumentOptions: Record<string, unknown>;
@@ -47,6 +48,10 @@ function packageVersion(packageJsonPath: string): string {
 
 export function createContext(options: TransformerOptions): Context {
   const mode = resolveMode(options.mode);
+  const worklets = resolveWorkletsConfig(options.worklets, {
+    root: options.root ?? process.cwd(),
+    mode,
+  });
   const env = loadEnv({
     envDir: options.envDir ?? options.root ?? process.cwd(),
     envFile: options.envFile ?? Constants.DEFAULT_ENV_FILE,
@@ -65,6 +70,7 @@ export function createContext(options: TransformerOptions): Context {
         mode,
         env,
         options,
+        worklets,
       }),
     )
     .digest('hex');
@@ -72,6 +78,7 @@ export function createContext(options: TransformerOptions): Context {
   return {
     options,
     mode,
+    worklets,
     globals: {
       'import.meta.hot': 'undefined',
       'import.meta.env': JSON.stringify({}),
@@ -119,7 +126,7 @@ export function getPipeline(context: Context, jestOptions: TransformOptions = {}
       runtimeTarget: context.options.runtimeTarget,
       swc: { ...swc, jest: true },
       flow: context.options.flow,
-      worklets: context.options.worklets,
+      worklets: context.worklets,
     };
     pipeline = new rolldownExperimental.RollipopReactNativeTransformer(config);
     context.pipelines.set(key, pipeline);

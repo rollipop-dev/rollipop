@@ -5,10 +5,12 @@ import type {
   RollipopReactNativeReactConfig as ReactConfig,
   RollipopReactNativeFlowConfig as FlowConfig,
   RollipopReactNativeSwcConfig as SwcConfig,
-  RollipopReactNativeWorkletsConfig as WorkletsConfig,
+  RollipopReactNativeWorkletsConfig as NativeWorkletsConfig,
 } from '@rollipop/rolldown/experimental';
 import type { TopLevelFilterExpression } from '@rollipop/rolldown/filter';
 import type * as swc from '@swc/core';
+
+type WorkletsConfig = Partial<NativeWorkletsConfig>;
 
 export type {
   FlowConfig,
@@ -280,7 +282,7 @@ export interface TransformRule<T = unknown> {
 
 export interface ExperimentalConfig extends RolldownExperimentalOptions {
   /**
-   * `react-native-worklets` transformation configuration.
+   * Worklets or Reanimated 3 transformation configuration. Installed versions are detected by default.
    */
   worklets?: WorkletsConfig;
 }
