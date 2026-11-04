@@ -50,6 +50,13 @@ export async function setupDevframe(
     mcp: mcpEnabled ? { path: ROLLIPOP_DEVFRAME_MCP_PATH } : false,
     origin: context.serverBaseUrl,
     configure: async (devtoolsContext) => {
+      const settings = await devtoolsContext.rpc.sharedState.get<{
+        autoCollapseEdgeToolbar?: boolean;
+      }>('devframe:user-settings');
+      settings.mutate((state) => {
+        state.autoCollapseEdgeToolbar ??= false;
+      });
+
       await controller.definition.setup(devtoolsContext);
       await invokeDevToolsSetup(devtoolsContext, server, context.config.plugins ?? []);
     },
