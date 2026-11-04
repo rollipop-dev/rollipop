@@ -25,6 +25,19 @@ declare global {
 // DO NOT EDIT THIS CLASS NAME (`DevRuntime`)
 declare const DevRuntime: typeof DefaultDevRuntime;
 
+type BundleModule = { exports: any };
+interface BundleRequire {
+  (id: string): any;
+  m: Record<
+    string,
+    (global: unknown, module: BundleModule, exports: any, require: BundleRequire) => void
+  >;
+  c: Record<string, BundleModule>;
+}
+
+// Defined in the enclosing Rollipop bundle, separately for each bundle runtime.
+declare const __rollipop_require__: BundleRequire;
+
 var BaseDevRuntime = DevRuntime;
 
 interface AcceptCallback {
@@ -192,6 +205,69 @@ class ReactNativeDevRuntime extends BaseDevRuntime {
       createModuleHotContext: (moduleId) => this.createHotContext(moduleId),
       onModuleCacheRemoval: (moduleId) => this.handleModuleCacheRemoval(moduleId),
     };
+  }
+
+  hasFactory(moduleId: string) {
+    return (
+      super.hasFactory(moduleId) ||
+      (typeof __rollipop_require__ !== 'undefined' && __rollipop_require__.m[moduleId] != null)
+    );
+  }
+
+  isExecuted(moduleId: string) {
+    return (
+      super.isExecuted(moduleId) ||
+      (typeof __rollipop_require__ !== 'undefined' && __rollipop_require__.c[moduleId] != null)
+    );
+  }
+
+  loadExports(moduleId: string) {
+    if (!super.isExecuted(moduleId) && typeof __rollipop_require__ !== 'undefined') {
+      const module = __rollipop_require__.c[moduleId];
+      if (module != null) {
+        return module.exports;
+      }
+    }
+    return super.loadExports(moduleId);
+  }
+
+  initModule(moduleId: string) {
+    if (this.isExecuted(moduleId)) {
+      return this.loadExports(moduleId);
+    }
+    if (super.hasFactory(moduleId) || !this.hasFactory(moduleId)) {
+      return super.initModule(moduleId);
+    }
+    return __rollipop_require__(moduleId);
+  }
+
+  registerFactory(moduleId: string, factory: (id: string) => void, stamp?: number) {
+    super.registerFactory(moduleId, factory, stamp);
+    if (typeof __rollipop_require__ !== 'undefined') {
+      __rollipop_require__.m[moduleId] = (_global, module) => {
+        // require() has already inserted an empty cache entry.
+        // The base executor bypasses that entry and selects the latest factory accepted by its stamp.
+        module.exports = super.initModule(moduleId);
+      };
+    }
+  }
+
+  registerModule(moduleId: string, module?: BundleModule) {
+    module ??=
+      typeof __rollipop_require__ !== 'undefined' ? __rollipop_require__.c[moduleId] : undefined;
+    module ??= { exports: {} };
+    super.registerModule(moduleId, module);
+    if (typeof __rollipop_require__ !== 'undefined') {
+      // Share the holder itself so CommonJS module.exports reassignments stay live.
+      __rollipop_require__.c[moduleId] = module;
+    }
+  }
+
+  removeModuleCache(moduleId: string) {
+    if (typeof __rollipop_require__ !== 'undefined') {
+      delete __rollipop_require__.c[moduleId];
+    }
+    super.removeModuleCache(moduleId);
   }
 
   private createHotContext(moduleId: string) {

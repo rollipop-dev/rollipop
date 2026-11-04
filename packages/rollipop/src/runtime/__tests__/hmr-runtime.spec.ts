@@ -2,12 +2,13 @@ import fs from 'node:fs';
 import { stripVTControlCharacters } from 'node:util';
 import vm from 'node:vm';
 
+import { DevRuntime } from '@rollipop/rolldown/experimental/runtime';
 import { transformSync } from '@swc/core';
 import * as prettyFormat from 'pretty-format';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 
 import type { HMRContext } from '../../types/hmr';
-import type { HMRGraphRuntime, ModuleGraphDelta } from '../../types/runtime';
+import type { HMRGraphRuntime } from '../../types/runtime';
 
 const clientCode = transformSync(
   fs.readFileSync(new URL('../hmr-client.ts', import.meta.url), 'utf8'),
@@ -17,73 +18,6 @@ const clientCode = transformSync(
     module: { type: 'commonjs' },
   },
 ).code;
-
-class FakeDevRuntime {
-  clientId: string;
-  hooks: {
-    createModuleHotContext(moduleId: string): unknown;
-    onModuleCacheRemoval(moduleId: string): void;
-  } | null = null;
-  private readonly factories = new Map<string, (id: string) => void>();
-  private readonly importers = new Map<string, Set<string>>();
-  private readonly modules = new Map<string, { exports: any }>();
-
-  constructor(clientId: string) {
-    this.clientId = clientId;
-  }
-
-  registerGraph(delta: ModuleGraphDelta) {
-    for (let index = 0; index < delta.localCount; index++) {
-      const importer = delta.ids[index];
-      for (const targetIndex of delta.edges[index]) {
-        const target = delta.ids[targetIndex];
-        const importers = this.importers.get(target) ?? new Set();
-        importers.add(importer);
-        this.importers.set(target, importers);
-      }
-    }
-  }
-
-  registerFactory(id: string, _kind: 'esm' | 'cjs', factory: (id: string) => void) {
-    this.factories.set(id, factory);
-  }
-
-  registerModule(id: string, exportsHolder: { exports: any }) {
-    this.modules.set(id, exportsHolder);
-  }
-
-  getImporters(id: string) {
-    return [...(this.importers.get(id) ?? [])];
-  }
-
-  isExecuted(id: string) {
-    return this.modules.has(id);
-  }
-
-  hasFactory(id: string) {
-    return this.factories.has(id);
-  }
-
-  removeModuleCache(id: string) {
-    this.modules.delete(id);
-    this.hooks?.onModuleCacheRemoval(id);
-  }
-
-  initModule(id: string) {
-    if (!this.modules.has(id)) {
-      this.factories.get(id)?.(id);
-    }
-    return this.loadExports(id);
-  }
-
-  loadExports(id: string) {
-    return this.modules.get(id)?.exports ?? {};
-  }
-
-  createModuleHotContext(moduleId: string) {
-    return this.hooks?.createModuleHotContext(moduleId);
-  }
-}
 
 class FakeWebSocket {
   static readonly CONNECTING = 0;
@@ -124,7 +58,7 @@ describe('HMR runtime', () => {
     reload.mockReset();
     FakeWebSocket.instances = [];
     Object.assign(globalThis, {
-      DevRuntime: FakeDevRuntime,
+      DevRuntime,
       WebSocket: FakeWebSocket,
       __rollipop_runtime__: undefined,
       __turboModuleProxy: undefined,
@@ -133,6 +67,7 @@ describe('HMR runtime', () => {
   });
 
   afterEach(() => {
+    delete (globalThis as any).__rollipop_require__;
     delete (globalThis as any).globalEvalWithSourceUrl;
     delete (globalThis as any).__rollipop_runtime__;
   });
@@ -141,6 +76,145 @@ describe('HMR runtime', () => {
     const { runtime } = await setupRuntime();
 
     expect((runtime.createModuleHotContext('entry.js') as any).runtime).toBe(runtime);
+  });
+
+  describe('initial bundle factories and cache', () => {
+    it.each(['esm', 'cjs'])(
+      'reuses an initial %s factory after eviction through either executor',
+      async (kind) => {
+        const { runtime } = await setupRuntime();
+        const require = createBundleRequire();
+        let executions = 0;
+        require.m['parent.js'] = (_global, module, exports) => {
+          const value = ++executions;
+          if (kind === 'esm') {
+            Object.defineProperty(exports, 'value', { get: () => value });
+            runtime.registerModule('parent.js', { exports });
+          } else {
+            runtime.registerModule('parent.js', module);
+            module.exports = () => value;
+          }
+        };
+        const readValue = (exports: any) => (kind === 'esm' ? exports.value : exports());
+
+        expect(runtime.hasFactory('parent.js')).toBe(true);
+        expect(runtime.isExecuted('parent.js')).toBe(false);
+        const first = require('parent.js');
+        expect(runtime.initModule('parent.js')).toBe(first);
+        expect(runtime.loadExports('parent.js')).toBe(first);
+        expect(readValue(first)).toBe(1);
+
+        runtime.removeModuleCache('parent.js');
+        expect(require.c['parent.js']).toBeUndefined();
+        expect(runtime.isExecuted('parent.js')).toBe(false);
+        const second = runtime.initModule('parent.js');
+        expect(require('parent.js')).toBe(second);
+        expect(readValue(second)).toBe(2);
+
+        runtime.removeModuleCache('parent.js');
+        const third = require('parent.js');
+        expect(runtime.loadExports('parent.js')).toBe(third);
+        expect(readValue(third)).toBe(3);
+      },
+    );
+
+    it.each(['esm', 'cjs'])(
+      'uses the latest %s patch from ordinary require after repeated eviction',
+      async (kind) => {
+        const { runtime } = await setupRuntime();
+        const require = createBundleRequire();
+        const original = vi.fn((_global, module: BundleModule) => {
+          runtime.registerModule('dep.js', module);
+          module.exports = { value: 'initial' };
+        });
+        require.m['dep.js'] = original;
+        expect(require('dep.js')).toEqual({ value: 'initial' });
+
+        for (let version = 1; version <= 2; version++) {
+          const factory = vi.fn((id: string) => {
+            const holder = { exports: {} as any };
+            runtime.registerModule(id, holder);
+            if (kind === 'esm') {
+              Object.defineProperty(holder.exports, 'value', { get: () => version });
+            } else {
+              holder.exports = () => version;
+            }
+          });
+          runtime.registerFactory('dep.js', factory, version);
+          runtime.removeModuleCache('dep.js');
+          const updated = runtime.initModule('dep.js');
+          expect(require('dep.js')).toBe(updated);
+          expect(kind === 'esm' ? (updated as any).value : (updated as any)()).toBe(version);
+
+          const stale = vi.fn();
+          runtime.registerFactory('dep.js', stale, version - 1);
+          runtime.removeModuleCache('dep.js');
+          const reexecuted = require('dep.js');
+          expect(runtime.initModule('dep.js')).toBe(reexecuted);
+          expect(runtime.loadExports('dep.js')).toBe(reexecuted);
+          expect(kind === 'esm' ? reexecuted.value : reexecuted()).toBe(version);
+          expect(factory).toHaveBeenCalledTimes(2);
+          expect(stale).not.toHaveBeenCalled();
+        }
+        expect(original).toHaveBeenCalledOnce();
+      },
+    );
+
+    it.each([null, undefined, 0, false])(
+      'shares CommonJS module.exports reassignment to %s',
+      async (value) => {
+        const { runtime } = await setupRuntime();
+        const require = createBundleRequire();
+        const module = { exports: {} as any };
+        runtime.registerModule('dep.cjs', module);
+        module.exports = value;
+        expect(require('dep.cjs')).toBe(value);
+        expect(runtime.loadExports('dep.cjs')).toBe(value);
+        expect(runtime.initModule('dep.cjs')).toBe(value);
+      },
+    );
+
+    it('recognizes modules cached only by the bundle and removes both caches before disposal', async () => {
+      const { runtime } = await setupRuntime();
+      const require = createBundleRequire();
+      const exports = { value: 'cached' };
+      require.c['helper.js'] = { exports };
+      expect(runtime.isExecuted('helper.js')).toBe(true);
+      expect(runtime.loadExports('helper.js')).toBe(exports);
+      expect(runtime.initModule('helper.js')).toBe(exports);
+      const dispose = vi.fn(() => {
+        expect(require.c['helper.js']).toBeUndefined();
+        expect(runtime.isExecuted('helper.js')).toBe(false);
+      });
+      runtime.createModuleHotContext('helper.js').dispose(dispose);
+      runtime.removeModuleCache('helper.js');
+      expect(dispose).toHaveBeenCalledOnce();
+    });
+
+    it('shares the bundle holder when a side-effect module registers without exports', async () => {
+      const { runtime } = await setupRuntime();
+      const require = createBundleRequire();
+      require.m['side-effect.js'] = () => runtime.registerModule('side-effect.js');
+      const exports = require('side-effect.js');
+      expect(require('side-effect.js')).toBe(exports);
+      expect(runtime.initModule('side-effect.js')).toBe(exports);
+      expect(runtime.loadExports('side-effect.js')).toBe(exports);
+    });
+
+    it('reloads when an invalidated non-component module has no accepting ancestor', async () => {
+      const { runtime } = await setupRuntime();
+      const require = createBundleRequire();
+      runtime.registerGraph({ ids: ['route.js', 'entry.js'], localCount: 2, edges: [[], [0]] });
+      const entry = vi.fn((_global, module: BundleModule) => {
+        runtime.registerModule('entry.js', module);
+        runtime.registerModule('route.js', { exports: { Router: {} } });
+      });
+      require.m['entry.js'] = entry;
+      require('entry.js');
+      runtime.createModuleHotContext('route.js').invalidate();
+      await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+      expect(entry).toHaveBeenCalledOnce();
+    });
   });
 
   describe('client logs', () => {
@@ -527,7 +601,7 @@ describe('HMR runtime', () => {
     const evaluate = vi.fn((source: string) => (0, eval)(source));
     globalThis.globalEvalWithSourceUrl = evaluate;
     const { runtime, socket } = await setupRuntime();
-    runtime.registerFactory('dep.js', 'esm', (id) => {
+    runtime.registerFactory('dep.js', (id) => {
       runtime.registerModule(id, { exports: { value: 'before' } });
     });
 
@@ -565,7 +639,7 @@ describe('HMR runtime', () => {
     });
     runtime.registerModule('dep.js', { exports: {} });
     runtime.registerModule('entry.js', { exports: { value: 'before' } });
-    runtime.registerFactory('entry.js', 'esm', (id) => {
+    runtime.registerFactory('entry.js', (id) => {
       runtime.registerModule(id, { exports: { value: 'after' } });
       runtime.createModuleHotContext(id).accept();
     });
@@ -711,9 +785,34 @@ function createPatch(value: string, createHotContext = true) {
       edges: [[], [0]],
       dynamicEdges: [[], []]
     });
-    __rolldown_runtime__.registerFactory("dep.js", "esm", function (id) {
+    __rolldown_runtime__.registerFactory("dep.js", function (id) {
       __rolldown_runtime__.registerModule(id, { exports: { value: "${value}" } });
       ${createHotContext ? '__rolldown_runtime__.createModuleHotContext(id);' : ''}
     });
   })(globalThis.__rollipop_runtime__.graphs.get("host").runtime);`;
+}
+
+type BundleModule = { exports: any };
+type BundleRequire = {
+  (id: string): any;
+  m: Record<
+    string,
+    (global: unknown, module: BundleModule, exports: any, require: BundleRequire) => void
+  >;
+  c: Record<string, BundleModule>;
+};
+
+function createBundleRequire() {
+  const require: BundleRequire = Object.assign(
+    (id: string) => {
+      if (require.c[id] !== undefined) return require.c[id].exports;
+      const module = { exports: {} };
+      require.c[id] = module;
+      require.m[id].call(module.exports, globalThis, module, module.exports, require);
+      return module.exports;
+    },
+    { m: {} as BundleRequire['m'], c: {} as BundleRequire['c'] },
+  );
+  (globalThis as any).__rollipop_require__ = require;
+  return require;
 }

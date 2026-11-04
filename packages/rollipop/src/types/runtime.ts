@@ -41,8 +41,8 @@ export interface DevRuntimeInterface {
   clientId: string;
   hooks: DevRuntimeHooks | null;
   registerGraph(delta: ModuleGraphDelta): void;
-  registerFactory(id: string, kind: 'esm' | 'cjs', fn: (id: string) => void): void;
-  registerModule(id: string, exportsHolder: { exports: any }): void;
+  registerFactory(id: string, fn: (id: string) => void, stamp?: number): void;
+  registerModule(id: string, exportsHolder?: { exports: any }): void;
   getImporters(id: string): string[];
   isExecuted(id: string): boolean;
   hasFactory(id: string): boolean;
@@ -57,8 +57,8 @@ declare class DevRuntime implements DevRuntimeInterface {
   clientId: string;
   hooks: DevRuntimeHooks | null;
   registerGraph(delta: ModuleGraphDelta): void;
-  registerFactory(id: string, kind: 'esm' | 'cjs', fn: (id: string) => void): void;
-  registerModule(id: string, exportsHolder: { exports: any }): void;
+  registerFactory(id: string, fn: (id: string) => void, stamp?: number): void;
+  registerModule(id: string, exportsHolder?: { exports: any }): void;
   getImporters(id: string): string[];
   isExecuted(id: string): boolean;
   hasFactory(id: string): boolean;

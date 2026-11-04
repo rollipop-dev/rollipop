@@ -315,7 +315,7 @@ class HMRClient implements HMRClientNativeInterface {
       case 'hmr:update-start':
         connection.pendingUpdatesCount++;
         connection.compileErrorMessage = null;
-        DevLoadingView.showMessage(`Refreshing ${connection.graph.id}...`, 'refresh');
+        DevLoadingView.showMessage('Refreshing...', 'refresh');
         break;
       case 'hmr:update':
         this.dismissRedbox();
