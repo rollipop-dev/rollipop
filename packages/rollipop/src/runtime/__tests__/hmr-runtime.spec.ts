@@ -83,9 +83,9 @@ describe('HMR runtime', () => {
       'reuses an initial %s factory after eviction through either executor',
       async (kind) => {
         const { runtime } = await setupRuntime();
-        const require = createBundleRequire();
+        const bundleRequire = createBundleRequire();
         let executions = 0;
-        require.m['parent.js'] = (_global, module, exports) => {
+        bundleRequire.m['parent.js'] = (_global, module, exports) => {
           const value = ++executions;
           if (kind === 'esm') {
             Object.defineProperty(exports, 'value', { get: () => value });
@@ -99,20 +99,20 @@ describe('HMR runtime', () => {
 
         expect(runtime.hasFactory('parent.js')).toBe(true);
         expect(runtime.isExecuted('parent.js')).toBe(false);
-        const first = require('parent.js');
+        const first = bundleRequire('parent.js');
         expect(runtime.initModule('parent.js')).toBe(first);
         expect(runtime.loadExports('parent.js')).toBe(first);
         expect(readValue(first)).toBe(1);
 
         runtime.removeModuleCache('parent.js');
-        expect(require.c['parent.js']).toBeUndefined();
+        expect(bundleRequire.c['parent.js']).toBeUndefined();
         expect(runtime.isExecuted('parent.js')).toBe(false);
         const second = runtime.initModule('parent.js');
-        expect(require('parent.js')).toBe(second);
+        expect(bundleRequire('parent.js')).toBe(second);
         expect(readValue(second)).toBe(2);
 
         runtime.removeModuleCache('parent.js');
-        const third = require('parent.js');
+        const third = bundleRequire('parent.js');
         expect(runtime.loadExports('parent.js')).toBe(third);
         expect(readValue(third)).toBe(3);
       },
@@ -122,13 +122,13 @@ describe('HMR runtime', () => {
       'uses the latest %s patch from ordinary require after repeated eviction',
       async (kind) => {
         const { runtime } = await setupRuntime();
-        const require = createBundleRequire();
+        const bundleRequire = createBundleRequire();
         const original = vi.fn((_global, module: BundleModule) => {
           runtime.registerModule('dep.js', module);
           module.exports = { value: 'initial' };
         });
-        require.m['dep.js'] = original;
-        expect(require('dep.js')).toEqual({ value: 'initial' });
+        bundleRequire.m['dep.js'] = original;
+        expect(bundleRequire('dep.js')).toEqual({ value: 'initial' });
 
         for (let version = 1; version <= 2; version++) {
           const factory = vi.fn((id: string) => {
@@ -143,13 +143,13 @@ describe('HMR runtime', () => {
           runtime.registerFactory('dep.js', factory, version);
           runtime.removeModuleCache('dep.js');
           const updated = runtime.initModule('dep.js');
-          expect(require('dep.js')).toBe(updated);
+          expect(bundleRequire('dep.js')).toBe(updated);
           expect(kind === 'esm' ? (updated as any).value : (updated as any)()).toBe(version);
 
           const stale = vi.fn();
           runtime.registerFactory('dep.js', stale, version - 1);
           runtime.removeModuleCache('dep.js');
-          const reexecuted = require('dep.js');
+          const reexecuted = bundleRequire('dep.js');
           expect(runtime.initModule('dep.js')).toBe(reexecuted);
           expect(runtime.loadExports('dep.js')).toBe(reexecuted);
           expect(kind === 'esm' ? reexecuted.value : reexecuted()).toBe(version);
@@ -164,11 +164,11 @@ describe('HMR runtime', () => {
       'shares CommonJS module.exports reassignment to %s',
       async (value) => {
         const { runtime } = await setupRuntime();
-        const require = createBundleRequire();
+        const bundleRequire = createBundleRequire();
         const module = { exports: {} as any };
         runtime.registerModule('dep.cjs', module);
         module.exports = value;
-        expect(require('dep.cjs')).toBe(value);
+        expect(bundleRequire('dep.cjs')).toBe(value);
         expect(runtime.loadExports('dep.cjs')).toBe(value);
         expect(runtime.initModule('dep.cjs')).toBe(value);
       },
@@ -176,14 +176,14 @@ describe('HMR runtime', () => {
 
     it('recognizes modules cached only by the bundle and removes both caches before disposal', async () => {
       const { runtime } = await setupRuntime();
-      const require = createBundleRequire();
+      const bundleRequire = createBundleRequire();
       const exports = { value: 'cached' };
-      require.c['helper.js'] = { exports };
+      bundleRequire.c['helper.js'] = { exports };
       expect(runtime.isExecuted('helper.js')).toBe(true);
       expect(runtime.loadExports('helper.js')).toBe(exports);
       expect(runtime.initModule('helper.js')).toBe(exports);
       const dispose = vi.fn(() => {
-        expect(require.c['helper.js']).toBeUndefined();
+        expect(bundleRequire.c['helper.js']).toBeUndefined();
         expect(runtime.isExecuted('helper.js')).toBe(false);
       });
       runtime.createModuleHotContext('helper.js').dispose(dispose);
@@ -193,24 +193,24 @@ describe('HMR runtime', () => {
 
     it('shares the bundle holder when a side-effect module registers without exports', async () => {
       const { runtime } = await setupRuntime();
-      const require = createBundleRequire();
-      require.m['side-effect.js'] = () => runtime.registerModule('side-effect.js');
-      const exports = require('side-effect.js');
-      expect(require('side-effect.js')).toBe(exports);
+      const bundleRequire = createBundleRequire();
+      bundleRequire.m['side-effect.js'] = () => runtime.registerModule('side-effect.js');
+      const exports = bundleRequire('side-effect.js');
+      expect(bundleRequire('side-effect.js')).toBe(exports);
       expect(runtime.initModule('side-effect.js')).toBe(exports);
       expect(runtime.loadExports('side-effect.js')).toBe(exports);
     });
 
     it('reloads when an invalidated non-component module has no accepting ancestor', async () => {
       const { runtime } = await setupRuntime();
-      const require = createBundleRequire();
+      const bundleRequire = createBundleRequire();
       runtime.registerGraph({ ids: ['route.js', 'entry.js'], localCount: 2, edges: [[], [0]] });
       const entry = vi.fn((_global, module: BundleModule) => {
         runtime.registerModule('entry.js', module);
         runtime.registerModule('route.js', { exports: { Router: {} } });
       });
-      require.m['entry.js'] = entry;
-      require('entry.js');
+      bundleRequire.m['entry.js'] = entry;
+      bundleRequire('entry.js');
       runtime.createModuleHotContext('route.js').invalidate();
       await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
       expect(entry).toHaveBeenCalledOnce();

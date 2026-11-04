@@ -8,7 +8,7 @@
   ],
   "type": "module",
   "scripts": {
-    "roll": "vp check && yarn test:all",
+    "roll": "vp check && yarn test:all && yarn knip",
     "fmt": "vp fmt --check",
     "fmt:fix": "vp fmt",
     "typecheck:all": "yarn workspaces foreach --all --topological-dev run typecheck",
