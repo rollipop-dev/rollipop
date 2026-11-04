@@ -1,4 +1,26 @@
 
+## [1.0.0-beta.3] - 2026-11-04
+
+### 🚀 Features
+
+- auto-detect Reanimated 3 worklets by @leegeunhyeok
+
+### 🐛 Bug Fixes
+
+- disable dock auto-collapse by default by @leegeunhyeok
+- reuse initial bundle factories for HMR propagation by @leegeunhyeok
+- configure React Native Xcode bundling (#230) by @leegeunhyeok
+- allow empty Babel transform output (#229) by @leegeunhyeok
+
+### 📚 Documentation
+
+- re-order pages by @leegeunhyeok
+
+### ⚙️ Miscellaneous Tasks
+
+- fix knip checks and add to roll by @leegeunhyeok
+
+
 ## [1.0.0-beta.2] - 2026-10-27
 
 ### 🚀 Features
