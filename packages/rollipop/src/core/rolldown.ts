@@ -256,6 +256,12 @@ export async function resolveRolldownOptions(
           .filter(isNotNil)
           .join('\n');
       },
+      // Work around Rolldown's source map concat bug.
+      // A nonempty postFooter makes Rolldown rejoin the complete chunk map before serialization,
+      // bypassing the module-level concat state left by an unmapped segment.
+      // https://github.com/oxc-project/oxc-sourcemap/pull/498
+      // https://github.com/rollipop-dev/rolldown/blob/v1.2.0/crates/rolldown/src/stages/generate_stage/post_banner_footer.rs
+      postFooter: rolldownOutput.postFooter ?? '\n',
       minify: buildOptions.minify ?? rolldownOutput.minify,
       sourcemap: buildOptions.sourcemap ?? rolldownOutput.sourcemap,
       sourcemapPathTransform:

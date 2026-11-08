@@ -6,11 +6,8 @@ const { it } = require('node:test');
 const { SourceMapConsumer } = require('source-map');
 const { default: makeConfig } = require('../dist/config.cjs');
 
-// oxc_sourcemap loses the last mapped source coordinates when concatenating a map ending in an unmapped token.
-// Worklets exposes this upstream bug: CompilerProbe's original body line 4 becomes 1004 in the final bundle map.
-// Keep the correct source-location assertions; enable this regression once the published engine includes a fix.
-// https://github.com/oxc-project/oxc-sourcemap/pull/471 (closed without merging)
-void it.skip('preserves component body source locations with Worklets and React Compiler', async () => {
+// Look up generated tokens in the serialized map to exercise the module concat and VLQ encoding path.
+void it('preserves component body source locations with Worklets and React Compiler', async () => {
   const projectRoot = path.resolve(__dirname, '../../../examples/expo-58');
   const appRequire = createRequire(path.join(projectRoot, 'package.json'));
   const { expo: exp } = appRequire('./app.json');
@@ -23,17 +20,26 @@ void it.skip('preserves component body source locations with Worklets and React 
     sourcemap: true,
     cache: false,
   });
-  const bodyLines = new Set();
+  const componentStart = output.code.indexOf('function CompilerProbe(');
+  assert.notEqual(componentStart, -1, 'Expected the bundled CompilerProbe component');
+  assert.ok(output.map);
   await SourceMapConsumer.with(output.map.toString(), null, (consumer) => {
-    consumer.eachMapping((mapping) => {
-      if (mapping.source?.endsWith('components/CompilerProbe.tsx'))
-        bodyLines.add(mapping.originalLine);
-    });
+    for (const [token, line, column] of [
+      ['value * 2', 4, 18],
+      ['"react-compiler-result"', 5, 22],
+    ]) {
+      const offset = output.code.indexOf(token, componentStart);
+      assert.notEqual(offset, -1, `Expected generated token ${token}`);
+      const prefix = output.code.slice(0, offset);
+      const original = consumer.originalPositionFor({
+        line: prefix.split('\n').length,
+        column: offset - prefix.lastIndexOf('\n') - 1,
+      });
+      assert.deepEqual(
+        { source: original.source, line: original.line, column: original.column },
+        { source: 'components/CompilerProbe.tsx', line, column },
+        `Incorrect source location for ${token}`,
+      );
+    }
   });
-  assert.ok(
-    bodyLines.has(4),
-    `Expected original body line 4; received ${[...bodyLines].join(',')}`,
-  );
-  assert.ok(bodyLines.has(5), 'The JSX must map to original line 5');
-  assert.ok([...bodyLines].every((line) => line >= 1 && line <= 6));
 });
