@@ -32,8 +32,6 @@ This integration is a prerelease. Publish this workspace together with the Rolli
 
 The release workflow uses `id-token: write` and publishes public packages with provenance. Before the first automated release, ensure this package exists on npm and configure its [Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) for GitHub owner `rollipop-dev`, repository `rollipop`, and workflow `release.yml`. This package's repository metadata points to that repository and the `packages/expo` directory.
 
-Known engine limitation: the pinned `@rollipop/rolldown@1.1.1` can shift source locations after Worklets-generated unmapped code. The same `oxc_sourcemap` bug exists upstream; [a proposed fix](https://github.com/oxc-project/oxc-sourcemap/pull/471) was closed without merging. The regression in `test/sourcemap.test.cjs` retains the correct original-location assertions and is marked `it.skip` with the upstream PR context.
-
 ## Compatibility
 
 At startup, the adapter checks that `rollipop` is installed in the project and reports matching-version installation commands if it is missing.

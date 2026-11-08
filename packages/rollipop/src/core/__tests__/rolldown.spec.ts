@@ -91,6 +91,25 @@ async function resolveTestRolldownOptions(
 }
 
 describe('resolveRolldownOptions', () => {
+  it('defaults postFooter to a newline', async () => {
+    const config = createTestConfig(process.cwd());
+    const options = await resolveTestRolldownOptions(config, 'test-default-post-footer');
+
+    expect(options.output?.postFooter).toBe('\n');
+  });
+
+  it.each([
+    { kind: 'a string', postFooter: '// custom footer' },
+    { kind: 'an empty string', postFooter: '' },
+    { kind: 'a function', postFooter: () => '// custom footer' },
+  ])('preserves $kind as postFooter', async ({ postFooter }) => {
+    const config = createTestConfig(process.cwd());
+    config.output = { postFooter };
+    const options = await resolveTestRolldownOptions(config, 'test-configured-post-footer');
+
+    expect(options.output?.postFooter).toBe(postFooter);
+  });
+
   it('preserves configured output options in dev server overrides', () => {
     const config = createTestConfig(process.cwd());
     config.output = { minify: true, sourcemap: false };
