@@ -1,0 +1,56 @@
+---
+title: Limitations
+---
+
+Existing React Native projects may need configuration changes to account for differences in native APIs and dependency resolution.
+
+## Optional Dependencies
+
+Metro allows missing modules referenced by `require()` inside a `try` block by default. For example, this code can build even when `react-native-reanimated` is not installed:
+
+```ts
+let useFallback = false;
+
+try {
+  require('react-native-reanimated');
+} catch {
+  useFallback = true;
+}
+```
+
+The missing module causes an error at runtime when `require()` executes, and the `catch` block handles it by selecting the fallback.
+
+Rollipop resolves module references at build time. A missing package can therefore cause a build error even when its `require()` call is wrapped in `try...catch`. Existing React Native projects that build with Metro may fail to build with Rollipop for this reason.
+
+If your app does not use the optional package and relies on the fallback, add the package to `external` in `rollipop.config.ts` to bypass the build error:
+
+```ts title="rollipop.config.ts"
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  external: ['react-native-reanimated'],
+});
+```
+
+`external` excludes the package from resolution and bundling. The package remains unavailable at runtime, so the fallback must handle its absence.
+
+## HMR Client Customization
+
+Rollipop does not target a fixed React Native version. Its default HMR client is currently based on React Native 0.84, so differences in native APIs can cause problems with other React Native versions.
+
+The `dev.hmr.clientImplement` option lets you provide your own HMR client implementation compatible with your React Native version. Place the implementation in `hmr-client.ts` next to `rollipop.config.ts`, then load its source code into the configuration:
+
+```ts title="rollipop.config.ts"
+import { readFileSync } from 'node:fs';
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  dev: {
+    hmr: {
+      clientImplement: readFileSync(new URL('./custom-hmr-client.ts', import.meta.url), 'utf8'),
+    },
+  },
+});
+```
+
+`clientImplement` accepts the implementation's source code as a string. Reading the file with UTF-8 encoding supplies that source rather than just its path.

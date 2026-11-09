@@ -1,3 +1,11 @@
 {
-  "pages": ["get-started", "features", "experimental", "apis", "contributing", "troubleshooting"]
+  "pages": [
+    "get-started",
+    "features",
+    "experimental",
+    "apis",
+    "contributing",
+    "limitations",
+    "troubleshooting"
+  ]
 }

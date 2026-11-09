@@ -2,19 +2,19 @@
   "title": "Features",
   "pages": [
     "dev-server",
-    "dashboard",
     "devtools",
-    "rozenite",
     "env",
     "glob-import",
     "svg",
     "jest",
+    "dashboard",
     "analyze",
     "reporter",
     "mcp",
     "custom-command",
     "react-compiler",
-    "module-federation"
+    "module-federation",
+    "rozenite"
   ],
   "defaultOpen": true
 }
