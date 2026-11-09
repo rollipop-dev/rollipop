@@ -1,4 +1,4 @@
-import type * as rolldown from '@rollipop/rolldown';
+import * as rolldown from '@rollipop/rolldown';
 import { interpreter } from '@rollipop/rolldown/filter';
 import { describe, expect, it } from 'vite-plus/test';
 
@@ -51,18 +51,37 @@ describe('dev server plugin', () => {
       cwd: '/root/project',
       ...hmr,
       hmrClientPath: 'rollipop/hmr-client',
-      hmrConfig: { runtimeImplement: '', clientImplement: '' },
+      hmrConfig: null,
     });
     const plugin = plugins?.find((plugin) => plugin.name === 'rollipop:register-hmr-graph');
     const transform = plugin?.transform as {
       filter: Filter;
-      handler: (code: string) => string;
     };
     const graphRuntime = {};
     const registeredGraphs: unknown[] = [];
 
     expect(interpreter(transform.filter, undefined, ROLLIPOP_VIRTUAL_BOOTSTRAP_ID)).toBe(true);
-    const code = transform.handler('initializeMetadata();');
+    const result = await rolldown.build({
+      input: ROLLIPOP_VIRTUAL_BOOTSTRAP_ID,
+      transform: { define: { 'import.meta.hot': '__hot__' } },
+      plugins: [
+        {
+          name: 'test-bootstrap',
+          resolveId(source) {
+            if (source === ROLLIPOP_VIRTUAL_BOOTSTRAP_ID) return source;
+          },
+          load(id) {
+            if (id === ROLLIPOP_VIRTUAL_BOOTSTRAP_ID) return 'initializeMetadata();';
+          },
+        },
+        plugins,
+      ],
+      output: { format: 'iife' },
+      write: false,
+    });
+    const chunk = result.output[0]!;
+    expect(chunk.type).toBe('chunk');
+    if (chunk.type !== 'chunk') throw new Error('Expected a bundle chunk');
     evaluateContext({
       __hot__: { runtime: graphRuntime },
       __rollipop_runtime__: {
@@ -71,7 +90,7 @@ describe('dev server plugin', () => {
         },
       },
       initializeMetadata() {},
-    }).evaluate(code.replaceAll('import.meta.hot', '__hot__'));
+    }).evaluate(chunk.code);
 
     expect(registeredGraphs).toEqual([{ ...hmr, runtime: graphRuntime }]);
   });

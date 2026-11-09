@@ -10,8 +10,11 @@ import { isNotNil } from 'es-toolkit';
 import { ResolvedConfig } from '../../config';
 import { ROLLIPOP_VIRTUAL_BOOTSTRAP_ID } from '../../constants';
 import type { ResolvedHmrConfig } from '../../utils/config';
+import { createVirtualModuleId } from '../../utils/id';
 import { resolveFrom } from '../../utils/node-resolve';
 import { replaceSourceMappingUrl } from '../../utils/source-map';
+
+const DEV_GRAPH_META_MODULE_ID = createVirtualModuleId('dev-graph-meta');
 
 export interface DevServerPluginOptions {
   cwd: string;
@@ -101,18 +104,34 @@ async function devServerPlugin(options: DevServerPluginOptions): Promise<rolldow
   if (origin != null && bundleEntry != null) {
     const registerHMRGraphPlugin: rolldown.Plugin = {
       name: 'rollipop:register-hmr-graph',
+      resolveId: {
+        filter: [include(idFilter(exactRegex(DEV_GRAPH_META_MODULE_ID)))],
+        handler() {
+          return DEV_GRAPH_META_MODULE_ID;
+        },
+      },
+      load: {
+        filter: [include(idFilter(exactRegex(DEV_GRAPH_META_MODULE_ID)))],
+        handler() {
+          return {
+            code: `export default ${JSON.stringify({ origin, bundleEntry, platform })};`,
+            moduleType: 'js',
+          };
+        },
+      },
       transform: {
         filter: [include(idFilter(exactRegex(ROLLIPOP_VIRTUAL_BOOTSTRAP_ID)))],
         handler(code) {
           return [
+            `import __graph_meta__ from ${JSON.stringify(DEV_GRAPH_META_MODULE_ID)};`,
             code,
             dedent`
             if (import.meta.hot && globalThis.__rollipop_runtime__) {
               globalThis.__rollipop_runtime__.registerGraph({
                 id: ${JSON.stringify(id)},
-                origin: ${JSON.stringify(origin)},
-                bundleEntry: ${JSON.stringify(bundleEntry)},
-                platform: ${JSON.stringify(platform)},
+                origin: __graph_meta__.origin,
+                bundleEntry: __graph_meta__.bundleEntry,
+                platform: __graph_meta__.platform,
                 runtime: import.meta.hot.runtime,
               });
             }
