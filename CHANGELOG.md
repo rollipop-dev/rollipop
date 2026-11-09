@@ -1,4 +1,16 @@
 
+## [1.0.0-beta.4] - 2026-11-09
+
+### 🐛 Bug Fixes
+
+- refresh cached HMR metadata (#240) by @leegeunhyeok
+- work around rolldown sourcemap concat bug (#237) by @leegeunhyeok
+
+### 📚 Documentation
+
+- add limitations section by @leegeunhyeok
+
+
 ## [1.0.0-beta.3] - 2026-11-04
 
 ### 🚀 Features
