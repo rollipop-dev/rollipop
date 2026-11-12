@@ -1,4 +1,11 @@
 
+## [1.0.0-beta.5] - 2026-11-12
+
+### ⚙️ Miscellaneous Tasks
+
+- deps: bump @rollipop/rolldown to 1.2.1 by @leegeunhyeok
+
+
 ## [1.0.0-beta.4] - 2026-11-09
 
 ### 🐛 Bug Fixes
