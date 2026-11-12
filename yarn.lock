@@ -11051,68 +11051,68 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@rollipop/rolldown-binding-darwin-arm64@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-darwin-arm64@npm:1.2.0"
+"@rollipop/rolldown-binding-darwin-arm64@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-darwin-arm64@npm:1.2.1"
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-darwin-x64@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-darwin-x64@npm:1.2.0"
+"@rollipop/rolldown-binding-darwin-x64@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-darwin-x64@npm:1.2.1"
   conditions: os=darwin & cpu=x64
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.2.0"
+"@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-linux-arm64-gnu@npm:1.2.1"
   conditions: os=linux & cpu=arm64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-arm64-musl@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-linux-arm64-musl@npm:1.2.0"
+"@rollipop/rolldown-binding-linux-arm64-musl@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-linux-arm64-musl@npm:1.2.1"
   conditions: os=linux & cpu=arm64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-x64-gnu@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-linux-x64-gnu@npm:1.2.0"
+"@rollipop/rolldown-binding-linux-x64-gnu@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-linux-x64-gnu@npm:1.2.1"
   conditions: os=linux & cpu=x64 & libc=glibc
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-linux-x64-musl@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-linux-x64-musl@npm:1.2.0"
+"@rollipop/rolldown-binding-linux-x64-musl@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-linux-x64-musl@npm:1.2.1"
   conditions: os=linux & cpu=x64 & libc=musl
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown-binding-win32-x64-msvc@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown-binding-win32-x64-msvc@npm:1.2.0"
+"@rollipop/rolldown-binding-win32-x64-msvc@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown-binding-win32-x64-msvc@npm:1.2.1"
   conditions: os=win32 & cpu=x64
   languageName: node
   linkType: hard
 
-"@rollipop/rolldown@npm:1.2.0":
-  version: 1.2.0
-  resolution: "@rollipop/rolldown@npm:1.2.0"
+"@rollipop/rolldown@npm:1.2.1":
+  version: 1.2.1
+  resolution: "@rollipop/rolldown@npm:1.2.1"
   dependencies:
     "@oxc-project/types": "npm:=0.155.0"
     "@rolldown/pluginutils": "npm:^1.0.0"
-    "@rollipop/rolldown-binding-darwin-arm64": "npm:1.2.0"
-    "@rollipop/rolldown-binding-darwin-x64": "npm:1.2.0"
-    "@rollipop/rolldown-binding-linux-arm64-gnu": "npm:1.2.0"
-    "@rollipop/rolldown-binding-linux-arm64-musl": "npm:1.2.0"
-    "@rollipop/rolldown-binding-linux-x64-gnu": "npm:1.2.0"
-    "@rollipop/rolldown-binding-linux-x64-musl": "npm:1.2.0"
-    "@rollipop/rolldown-binding-win32-x64-msvc": "npm:1.2.0"
+    "@rollipop/rolldown-binding-darwin-arm64": "npm:1.2.1"
+    "@rollipop/rolldown-binding-darwin-x64": "npm:1.2.1"
+    "@rollipop/rolldown-binding-linux-arm64-gnu": "npm:1.2.1"
+    "@rollipop/rolldown-binding-linux-arm64-musl": "npm:1.2.1"
+    "@rollipop/rolldown-binding-linux-x64-gnu": "npm:1.2.1"
+    "@rollipop/rolldown-binding-linux-x64-musl": "npm:1.2.1"
+    "@rollipop/rolldown-binding-win32-x64-msvc": "npm:1.2.1"
   dependenciesMeta:
     "@rollipop/rolldown-binding-darwin-arm64":
       optional: true
@@ -11130,7 +11130,7 @@ __metadata:
       optional: true
   bin:
     rolldown: ./bin/cli.mjs
-  checksum: 10c0/b563327036480d9f432e54b3d30e880703cbc6f955ea45fad578051cedaddccfb32db226ff443b7d1e4c27cecb53802dacec2793d9e6a3493f14de6d96717252
+  checksum: 10c0/60bce337566df505ce3db3ab515476eada9a13d608ee2227a7149ae09933234a78968bd4fb0a3eeffecf3bbdc5f45b858bd0fdbb47c5159f5df149cd9489527c
   languageName: node
   linkType: hard
 
