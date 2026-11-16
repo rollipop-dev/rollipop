@@ -4,6 +4,15 @@ title: Lazy Imports
 
 Lazy imports defer running a statically imported module until code first reads one of its imports. Modules that are only needed later, such as screens or rarely used helpers, no longer run before the first render. This fills the role of Metro's `inlineRequires`.
 
+<Callout type="info">
+  `output.lazyImports` is a Rollipop-specific option. The standard way to defer a module is the
+  [`import defer`](https://github.com/tc39/proposal-defer-import-eval) proposal, which Rolldown
+  currently compiles as a regular import
+  ([rolldown#4857](https://github.com/rolldown/rolldown/issues/4857)). Once Rolldown supports
+  `import defer`, we intend to make it the recommended way to defer modules in Rollipop, and this
+  option may change.
+</Callout>
+
 ## Setup
 
 Lazy imports are disabled by default. Enable them with `output.lazyImports`:
