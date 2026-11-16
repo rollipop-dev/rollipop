@@ -2,7 +2,7 @@
 title: Lazy Imports
 ---
 
-Lazy imports defer running a statically imported module until code first reads one of its imports. Modules that are only needed later, such as screens or rarely used helpers, no longer run before the first render. This fills the role of Metro's `inlineRequires`.
+Lazy imports defer running a statically imported module until code first reads one of its imports. Modules that are only needed later, such as screens or rarely used helpers, no longer run before the first render. This fills the role of Metro's [`inlineRequires`](https://reactnative.dev/docs/optimizing-javascript-loading#advanced-automatically-inline-require-calls).
 
 <Callout type="info">
   `output.lazyImports` is a Rollipop-specific option. The standard way to defer a module is the
@@ -76,7 +76,7 @@ Matching is per import. If a module is reached through a package index that re-e
 
 ## Behavior Changes
 
-As with Metro's `inlineRequires`, code that depends on module evaluation order may need changes.
+As with Metro's `inlineRequires` (see its [pitfalls](https://reactnative.dev/docs/optimizing-javascript-loading#pitfalls-of-inline-requires)), code that depends on module evaluation order may need changes.
 
 ### Modules that run code at load time
 
