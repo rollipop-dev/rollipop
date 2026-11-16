@@ -20,6 +20,8 @@ Choose one command path: React Native CLI override through `react-native.config.
 
 Do not copy Metro config wholesale. Translate only the behavior the app actually relies on, and use Rollipop configuration docs for the target option names: https://rollipop.dev/docs/get-started/configuration.md.
 
+Metro's `inlineRequires` (on in the default React Native template) maps to `output.lazyImports`, which is off by default. Read https://rollipop.dev/docs/features/lazy-imports.md before enabling it; it changes module evaluation order.
+
 ## First Validation
 
 After migration, validate both dev-server startup and a real bundle. If validation fails after the migration steps, stop migrating and switch to `troubleshooting.md`.

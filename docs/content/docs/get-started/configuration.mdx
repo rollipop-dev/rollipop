@@ -738,6 +738,23 @@ export default defineConfig({
 });
 ```
 
+## output.lazyImports
+
+- **Type:** `boolean | { exclude?: string | RegExp | (string | RegExp)[] }`
+- **Default:** `false`
+
+Defer running statically imported modules until one of their imports is first read, similar to Metro's `inlineRequires`. `exclude` keeps imports of matching modules eager. The development server ignores this option while HMR is enabled.
+
+```ts
+export default defineConfig({
+  output: {
+    lazyImports: true,
+  },
+});
+```
+
+See [Lazy Imports](/docs/features/lazy-imports) for what stays eager and the behavior changes.
+
 ## experimental.lazyBarrel
 
 - **Type:** `boolean`
