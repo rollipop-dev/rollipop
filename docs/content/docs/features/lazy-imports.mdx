@@ -1,0 +1,97 @@
+---
+title: Lazy Imports
+---
+
+Lazy imports defer running a statically imported module until code first reads one of its imports. Modules that are only needed later, such as screens or rarely used helpers, no longer run before the first render. This fills the role of Metro's `inlineRequires`.
+
+## Setup
+
+Lazy imports are disabled by default. Enable them with `output.lazyImports`:
+
+```ts title="rollipop.config.ts"
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  output: {
+    lazyImports: true,
+  },
+});
+```
+
+The option applies to bundles built with `rollipop bundle`. The development server ignores it while HMR is enabled, so module load order there stays eager. Check the startup behavior of your app with a release bundle.
+
+<Callout type="warn">
+  Lazy imports change the order in which modules run. Test your app with the option enabled before
+  shipping it. See [Behavior Changes](#behavior-changes).
+</Callout>
+
+## How It Works
+
+```ts title="src/App.tsx"
+import { formatPrice } from './utils/price';
+
+export function Price({ value }: { value: number }) {
+  return <Text>{formatPrice(value)}</Text>;
+}
+```
+
+Without lazy imports, `./utils/price` runs as soon as `App.tsx` runs. With lazy imports, it runs the first time `formatPrice` is read, here when `Price` first renders. Later reads use the module that has already loaded.
+
+These imports still run their module right away:
+
+- Side-effect imports: `import './setup'`
+- Namespace imports: `import * as utils from './utils'`
+- `export * from './utils'`
+- Imports whose bindings are never read
+- `require()` and `import()` calls
+
+When a module imports the same file both lazily and eagerly, the eager import wins.
+
+## Excluding Modules
+
+Use `exclude` to keep imports of specific modules eager. It accepts glob strings and regular expressions, matched against module ids. Globs resolve against [`root`](/docs/get-started/configuration#root).
+
+```ts title="rollipop.config.ts"
+import { defineConfig } from 'rollipop';
+
+export default defineConfig({
+  output: {
+    lazyImports: {
+      exclude: [/[\\/]src[\\/]setup[\\/]/, '**/node_modules/some-polyfill/**'],
+    },
+  },
+});
+```
+
+Matching is per import. If a module is reached through a package index that re-exports it, the index is still lazy, and the excluded module runs only when the index does. Match the whole package directory in that case.
+
+## Behavior Changes
+
+As with Metro's `inlineRequires`, code that depends on module evaluation order may need changes.
+
+### Modules that run code at load time
+
+A module that must run as soon as it is imported, such as one that registers itself or patches a global, now runs only when one of its exports is first read. If other code depends on that registration earlier, import the module for its side effects, or add it to `exclude`:
+
+```ts title="index.js"
+import './src/setup';
+```
+
+### Circular imports
+
+With eager imports, a cycle starts at the first module in import order. With lazy imports, it starts at the first module whose export is read. Code that reads a value from another module in the cycle while loading can then see it before it is initialized. Add the module that has to run first to `exclude`.
+
+### Load errors
+
+An error thrown while a lazily imported module loads surfaces where one of its exports is first read, not where it is imported. Feature detection such as `try { require('./wrapper') } catch {}` no longer catches errors from modules that `./wrapper` imports lazily. Exclude the module that may throw, or read one of its exports inside the `try` block.
+
+## Cost
+
+Reading a lazily imported value adds one property access. Each read site also adds a few bytes to the bundle.
+
+## Migrating from Metro
+
+Metro's `inlineRequires` is enabled in the default React Native template. Rollipop leaves lazy imports off until you set `output.lazyImports`.
+
+- `nonInlinedRequires` and the memoization options are not needed. A module that has already loaded costs one property access per read.
+- Metro's `blockList` lists importing files whose `require()` calls are not inlined. Rollipop's `exclude` lists imported modules instead: every import of a matching module stays eager.

@@ -5,6 +5,7 @@
     "devtools",
     "env",
     "glob-import",
+    "lazy-imports",
     "svg",
     "jest",
     "dashboard",
